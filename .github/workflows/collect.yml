@@ -44,6 +44,10 @@ jobs:
 
       - name: 계정 확인
         run: |
+          if [ "$KRX_ID" = "CHANGEME" ] || [ "$KRX_PW" = "CHANGEME" ]; then
+            echo "::error::KRX_ID / KRX_PW 가 아직 자리표시자(CHANGEME)입니다. Settings -> Secrets 에서 값만 채우세요."
+            exit 1
+          fi
           if [ -z "$KRX_ID" ] || [ -z "$KRX_PW" ]; then
             echo "::error::KRX_ID / KRX_PW 시크릿이 없습니다. Settings → Secrets and variables → Actions 에서 등록하세요."
             exit 1
