@@ -1,0 +1,47 @@
+name: 진단 - KRX 해외IP 확인
+
+# 계정 없이 "미국 런너에서 KRX 가 응답을 주는지" 만 확인한다.
+# 지오블록이면 여기서 드러난다. 수집 워크플로를 돌리기 전 1회용 점검.
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 런너 위치
+        run: curl -s --max-time 15 https://ipinfo.io/json || echo "ipinfo 실패"
+
+      - name: KRX 로그인 페이지 도달 여부
+        run: |
+          echo "--- GET MDCCOMS001.cmd ---"
+          curl -s -o /tmp/p.html -w "HTTP %{http_code}  %{size_download} bytes  %{time_total}s\n" \
+            --max-time 20 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+            https://data.krx.co.kr/contents/MDC/COMS/client/MDCCOMS001.cmd \
+            || echo "연결 실패 (타임아웃/차단 가능)"
+          echo "--- 응답 앞부분 ---"
+          head -c 400 /tmp/p.html | tr -d '\0' || true
+
+      - name: 로그인 엔드포인트 응답 형태 (가짜 계정)
+        run: |
+          echo "--- POST MDCCOMS001D1.cmd  id=diag_probe ---"
+          curl -s -w "\nHTTP %{http_code}  %{time_total}s\n" --max-time 20 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+            -H "Referer: https://data.krx.co.kr/contents/MDC/COMS/client/MDCCOMS001.cmd" \
+            -d "mbrId=diag_probe" -d "pw=invalid" \
+            https://data.krx.co.kr/contents/MDC/COMS/client/MDCCOMS001D1.cmd \
+            | head -c 600 || echo "연결 실패"
+          echo ""
+          echo "CD 코드가 담긴 JSON 이 오면 지오블록 아님. HTML 차단페이지/타임아웃이면 지오블록."
+
+      - name: 공개 데이터 엔드포인트
+        run: |
+          curl -s -w "\nHTTP %{http_code}\n" --max-time 20 \
+            -A "Mozilla/5.0" \
+            -H "Referer: https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd" \
+            -d "bld=dbms/MDC/STAT/standard/MDCSTAT01501" \
+            -d "mktId=STK" -d "trdDd=20261002" -d "share=1" -d "money=1" \
+            https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd \
+            | head -c 300 || echo "연결 실패"
