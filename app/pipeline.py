@@ -18,7 +18,7 @@ import importlib
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -35,6 +35,10 @@ DATA_DIR = os.path.join(HERE, "data")
 
 지수코드 = {"코스피": "1001", "코스닥": "2001"}
 
+# 장 시작 전(00시 배치)이나 휴장일에는 그 날짜에 자료가 없다.
+# 빈 결과로 latest.json 을 덮으면 화면이 비어버린다. 자료가 있는 날까지 거슬러 찾는다.
+MAX_LOOKBACK = 7
+
 
 def _clean(obj):
     """NaN 을 None 으로. JSON 에 NaN 이 들어가면 브라우저가 파싱하지 못한다."""
@@ -47,6 +51,13 @@ def _clean(obj):
     if hasattr(obj, "item"):
         return obj.item()
     return obj
+
+
+def _breadth(adr: dict | None) -> int:
+    """그 날짜에 자료가 실제로 있었는지. 상승+하락+보합이 0이면 자료가 없는 것이다."""
+    if not adr:
+        return 0
+    return sum(int(adr.get(k) or 0) for k in ("상승", "하락", "보합"))
 
 
 def fetch_indices(date: str) -> list[dict]:
@@ -93,11 +104,26 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     collector = importlib.import_module("특징주_자동집계")
     collector.check_credentials()
 
-    print(f"\n[1/4] 수집  {date}")
-    df, adr = collector.fetch_date(date)
-    if adr is None:
-        print("  휴장일이거나 데이터가 아직 없습니다.")
-        return {"상태": "데이터없음", "거래일": date}
+    # 요청한 날짜에 자료가 없으면 최근 거래일까지 거슬러 찾는다.
+    # 날짜를 명시해 부른 경우에는 그 날짜만 본다.
+    explicit = target_date is not None
+    base = datetime.strptime(date, "%Y%m%d")
+    tried: list[str] = []
+    df = adr = None
+
+    for back in range(1 if explicit else MAX_LOOKBACK + 1):
+        d = (base - timedelta(days=back)).strftime("%Y%m%d")
+        print(f"\n[1/4] 수집  {d}")
+        df, adr = collector.fetch_date(d)
+        if _breadth(adr) > 0:
+            date = d
+            break
+        tried.append(d)
+        print("  자료 없음 — 장 시작 전이거나 휴장일입니다.")
+    else:
+        print(f"\n[중단] {len(tried)}일을 거슬러도 자료가 없습니다: {', '.join(tried)}")
+        print("  latest.json 을 덮지 않습니다 — 화면에는 지난 거래일 자료가 그대로 남습니다.")
+        return {"상태": "데이터없음", "거래일": date, "시도": tried}
     if df is None:
         df = pd.DataFrame(columns=["종목명", "거래대금(억)", "등락률(%)", "조건"])
 
