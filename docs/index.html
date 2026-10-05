@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>특징주 데스크</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f5; --surface:#fff; --surface-2:#f3f5f8; --line:#d5dce5; --line-soft:#e6ebf1;
+  --ink:#131821; --ink-2:#4a5565; --ink-3:#78849a;
+  --navy:#1f3864; --navy-2:#2c4e8a;
+  --up:#d2342c; --down:#2560c0; --flat:#6b7480;
+  --lead:#7e1f8f; --issue:#1d6b3f;
+  --h1:#c00000; --h2:#e8551c; --h3:#e3a81a; --h4:#2e9e4f; --h5:#8fd0a0; --h6:#cfe4f5;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1016; --surface:#151a22; --surface-2:#1c222c; --line:#2a323f; --line-soft:#212832;
+  --ink:#e7ecf3; --ink-2:#a6b1c2; --ink-3:#768396;
+  --navy:#6f9ae0; --navy-2:#8fb4ee;
+  --up:#f2635a; --down:#5e9bf0; --flat:#8b95a3;
+  --lead:#c98fd8; --issue:#5cc189;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif;font-size:13.5px;line-height:1.5}
+.num{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+a{color:var(--navy)}
+
+/* 상단바 */
+.topbar{background:var(--navy);color:#fff;padding:0 18px;display:flex;align-items:center;gap:18px;
+  flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.brand{font-weight:600;font-size:15px;padding:12px 0}
+.tabs{display:flex;gap:2px;margin-left:8px}
+.tabs button{appearance:none;background:transparent;border:none;color:#c6d4ea;font:inherit;font-size:13px;
+  padding:12px 15px;cursor:pointer;border-bottom:3px solid transparent}
+.tabs button:hover{color:#fff}
+.tabs button[aria-selected="true"]{color:#fff;font-weight:600;border-bottom-color:#fff;background:rgba(255,255,255,.08)}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;color:#c6d4ea}
+.topbar .right b{color:#fff}
+.btn{appearance:none;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;
+  font:inherit;font-size:12px;padding:5px 11px;cursor:pointer}
+.btn:hover{background:rgba(255,255,255,.2)}
+.btn[disabled]{opacity:.5;cursor:default}
+
+.wrap{max-width:1500px;margin:0 auto;padding:18px 18px 60px}
+.panel{display:none}
+.panel.on{display:block}
+
+/* 시트풍 섹션 머리 */
+.sheethead{background:var(--navy);color:#fff;padding:9px 14px;font-weight:600;font-size:13.5px;
+  display:flex;align-items:center;gap:10px}
+.sheethead .sub{font-weight:400;font-size:11.5px;color:#c6d4ea;margin-left:auto}
+.card{background:var(--surface);border:1px solid var(--line);margin-bottom:18px}
+.cardbody{padding:14px}
+
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600;letter-spacing:.03em;
+  padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th.l{text-align:left}
+td{padding:7px 9px;border-bottom:1px solid var(--line-soft);text-align:right;vertical-align:top}
+td.l{text-align:left}
+tbody tr:hover{background:var(--surface-2)}
+.scroll{overflow-x:auto}
+
+.up{color:var(--up);font-weight:600}
+.down{color:var(--down);font-weight:600}
+.flat{color:var(--flat)}
+.muted{color:var(--ink-3)}
+.small{font-size:11.5px}
+
+/* 지수 카드 */
+.idx{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--line)}
+.idx .c{flex:1 1 170px;padding:12px 14px;border-right:1px solid var(--line-soft)}
+.idx .c:last-child{border-right:none}
+.idx .k{font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase}
+.idx .v{font-size:19px;font-weight:600;margin-top:2px}
+.idx .d{font-size:12px}
+.idx .c.ref{background:var(--surface-2)}
+
+/* 섹터 그룹 */
+.grp{border:1px solid var(--line);margin-bottom:14px;background:var(--surface)}
+.grphead{display:flex;align-items:center;gap:12px;padding:9px 13px;background:var(--surface-2);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.rank{font-size:17px;font-weight:700;color:var(--navy);min-width:26px}
+.gname{font-size:15px;font-weight:600}
+.grade{font-size:12px;font-weight:700;padding:2px 9px;color:#fff}
+.grade.lead{background:var(--lead)}
+.grade.issue{background:var(--issue)}
+.gsum{margin-left:auto;font-size:12.5px;color:var(--ink-2);text-align:right}
+.gsum b{font-size:15px;color:var(--ink)}
+
+.why{font-size:12px;color:var(--ink-2);line-height:1.55;white-space:normal;max-width:560px}
+.why a{text-decoration:none}
+.why a:hover{text-decoration:underline}
+.nonews{color:var(--ink-3);font-style:italic}
+
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;min-width:40px;text-align:center}
+.chip.hot{background:var(--up);color:#fff}
+.chip.cold{background:var(--down);color:#fff}
+.chip.mid{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.chip.none{color:var(--ink-3);font-weight:400}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 5px}
+.tag.ab{background:var(--up);color:#fff}
+.tag.a{background:#fde8d5;color:#9a3d06}
+.tag.b{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+
+/* 대장주 후보 */
+.leaders{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+.lead-card{border:1px solid var(--line);background:var(--surface);padding:13px 15px;border-top:3px solid var(--navy)}
+.lead-card h4{margin:0 0 2px;font-size:17px}
+.lead-card .sec{font-size:11.5px;color:var(--ink-3)}
+.lead-card .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;
+  border-bottom:1px solid var(--line-soft)}
+.lead-card .kv:last-of-type{border-bottom:none}
+.lead-card .note{margin-top:9px;font-size:11.5px;color:var(--ink-2);line-height:1.5}
+
+/* 히트맵 */
+.hm td,.hm th{padding:3px 6px;font-size:11px;text-align:center;border:1px solid var(--line-soft)}
+.hm td.l{text-align:left;font-weight:600;white-space:nowrap}
+.hm .v{color:#fff;font-weight:600}
+.lv1{background:var(--h1);color:#fff}.lv2{background:var(--h2);color:#fff}
+.lv3{background:var(--h3);color:#3a2b00}.lv4{background:var(--h4);color:#fff}
+.lv5{background:var(--h5);color:#15321f}.lv6{background:var(--h6);color:#1a3550}
+.legend{display:flex;gap:0;margin:10px 0 0;font-size:10.5px}
+.legend span{padding:3px 10px}
+
+.notice{padding:30px 16px;text-align:center;color:var(--ink-3)}
+.warn{background:#fff6e5;border:1px solid #e8c27a;color:#7a4b00;padding:10px 13px;font-size:12.5px;margin-bottom:14px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .warn{background:#2c2312;border-color:#6b5420;color:#f0c97a}}
+.rules{font-size:12px;color:var(--ink-2);line-height:1.8}
+.rules b{color:var(--ink)}
+
+/* 정적 호스팅(GitHub Pages)에는 수집기가 없다 */
+body.static #runBtn{display:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">특징주 데스크</span>
+  <nav class="tabs" id="tabs">
+    <button data-p="report"  aria-selected="true">일일보고서</button>
+    <button data-p="leaders" aria-selected="false">대장주 판별</button>
+    <button data-p="heatmap" aria-selected="false">섹터 히트맵</button>
+    <button data-p="raw"     aria-selected="false">RAW</button>
+  </nav>
+  <div class="right">
+    <span id="stamp">—</span>
+    <button class="btn" id="runBtn">지금 갱신</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="warn"></div>
+
+  <!-- ── 일일보고서 ─────────────────────── -->
+  <section class="panel on" id="p-report">
+    <div class="card">
+      <div class="sheethead">일일 특징주 보고서 <span class="sub" id="reportDate"></span></div>
+      <div class="idx" id="idx"></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">종합 결론 — 주도 키워드 TOP 5</div>
+      <div class="scroll"><table id="top5"></table></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">그날의 대장주 후보 <span class="sub">주도업종의 거래대금 1위 · 최대 3종목</span></div>
+      <div class="cardbody"><div class="leaders" id="leadCards"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">매매 전 점검</div>
+      <div class="cardbody rules">
+        <b>무조건 모든 조건을 만족시키는 종목만 매수한다. 애매하면 아예 사지 마라.</b><br>
+        D+1 상따매매 시에는 <b>2등주가 무너지지 않았는지</b> 본다 — 위 카드에 2등주를 같이 띄웠다.<br>
+        <b>RSI 70</b> 이상은 과매수 = 위험 가산. 매수 신호가 아니다.<br>
+        손절은 평단가 기준 <b>3:1</b>. 익절 폭이 손절 폭의 3배가 안 되면 들어갈 자리가 아니다.<br>
+        <span class="muted">시장 ADR 은 참고 지표다. 판단을 ADR 로 결정하지 않는다.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 대장주 판별 ─────────────────────── -->
+  <section class="panel" id="p-leaders">
+    <div class="card">
+      <div class="sheethead">
+        키워드별 종목 정렬 <span class="sub" id="leadersSub"></span>
+      </div>
+      <div class="cardbody small muted">
+        동일 섹터에 3종목 이상 → <b>★★★ 주도업종</b> · 2개 이하 → <b>○ 개별이슈</b> ·
+        거래대금이 많이 쏠린 섹터 = 시장 주도 테마
+      </div>
+    </div>
+    <div id="groups"></div>
+  </section>
+
+  <!-- ── 히트맵 ─────────────────────────── -->
+  <section class="panel" id="p-heatmap">
+    <div class="card">
+      <div class="sheethead">섹터별 거래대금 누적추이 <span class="sub">단위 억 · 날짜가 쌓일수록 과열 판정이 정확해진다</span></div>
+      <div class="cardbody">
+        <div class="legend">
+          <span class="lv1">1조+</span><span class="lv2">7,500억+</span><span class="lv3">5,000억+</span>
+          <span class="lv4">2,500억+</span><span class="lv5">1,000억+</span><span class="lv6">소멸</span>
+        </div>
+      </div>
+      <div class="scroll"><table class="hm" id="hm"></table></div>
+    </div>
+  </section>
+
+  <!-- ── RAW ───────────────────────────── -->
+  <section class="panel" id="p-raw">
+    <div class="card">
+      <div class="sheethead">특징주 집계 <span class="sub" id="rawSub"></span></div>
+      <div class="scroll"><table id="rawTable"></table></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = (s)=>document.querySelector(s);
+const fmt=(v,d=0)=>v===null||v===undefined?"—":Number(v).toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(v)=>v===null||v===undefined?'<span class="flat">—</span>'
+  :`<span class="${v>0?"up":v<0?"down":"flat"}">${v>0?"+":""}${fmt(v,2)}%</span>`;
+const esc=(s)=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let DATA=null;
+
+/* 탭 */
+$("#tabs").addEventListener("click",(e)=>{
+  const b=e.target.closest("button"); if(!b)return;
+  $("#tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("on",p.id==="p-"+b.dataset.p));
+  if(b.dataset.p==="heatmap") loadHeatmap();
+});
+
+function rsiChip(v){
+  if(v===null||v===undefined) return '<span class="chip none">—</span>';
+  const c=v>=70?"hot":v<=30?"cold":"mid";
+  return `<span class="chip ${c}">${fmt(v,1)}</span>`;
+}
+function condTag(c){
+  const k=c==="A+B"?"ab":c==="A"?"a":"b";
+  return `<span class="tag ${k}">${esc(c)}</span>`;
+}
+function whyHtml(r){
+  const items=r["뉴스"]||[];
+  if(!items.length) return '<span class="nonews">근거 없음 — 네이버 API 키 미설정</span>';
+  return items.slice(0,2).map(n=>
+    `<a href="${esc(n["링크"])}" target="_blank" rel="noopener">${esc(n["제목"])}</a>`).join("<br>");
+}
+
+/* ── 일일보고서 ── */
+function renderReport(){
+  const d=DATA;
+  $("#reportDate").textContent =
+    `${d.거래일?.slice(0,4)}-${d.거래일?.slice(4,6)}-${d.거래일?.slice(6,8)} · 수집 ${d.수집시각||"—"}`;
+
+  const adr=d.adr||{};
+  const idx=(d.지수||[]).map(i=>`
+    <div class="c"><div class="k">${esc(i.이름)}</div>
+      <div class="v num">${fmt(i.종가,2)}</div>
+      <div class="d num">${pct(i.등락률)} <span class="muted">${i.등락pt>0?"+":""}${fmt(i.등락pt,2)}pt</span></div>
+    </div>`).join("");
+  $("#idx").innerHTML = idx + `
+    <div class="c"><div class="k">특징주</div><div class="v num">${d.종목수??0}<span class="small muted"> 종목</span></div>
+      <div class="d muted small">주도업종 ${(d.그룹||[]).filter(g=>g.분류==="주도업종").length}개</div></div>
+    <div class="c ref"><div class="k">시장 ADR · 참고</div>
+      <div class="v num" style="color:${adr.구간==="과열"?"var(--up)":adr.구간==="침체"?"var(--down)":"var(--ink-2)"}">
+        ${adr.ADR??"—"} <span class="small">${esc(adr.구간||"")}</span></div>
+      <div class="d muted small">상승 ${fmt(adr.상승)} / 하락 ${fmt(adr.하락)}</div></div>`;
+
+  const lead=(d.그룹||[]).filter(g=>g.분류==="주도업종").slice(0,5);
+  $("#top5").innerHTML = lead.length ? `
+    <thead><tr><th class="l">순위</th><th class="l">대섹터</th><th>종목수</th>
+      <th>합산 거래대금</th><th>평균 상승률</th><th class="l">대장주</th><th class="l">등급</th></tr></thead>
+    <tbody>${lead.map(g=>`<tr>
+      <td class="l num">${g.순위}</td><td class="l"><b>${esc(g.대섹터)}</b></td>
+      <td class="num">${g.종목수}</td><td class="num"><b>${fmt(g.합산거래대금)}</b>억</td>
+      <td class="num">${pct(g.평균상승률)}</td><td class="l"><b>${esc(g.대장주)}</b></td>
+      <td class="l"><span class="grade lead">★★★ 주도</span></td></tr>`).join("")}</tbody>`
+    : `<tbody><tr><td class="notice">주도업종(3종목 이상)이 없습니다. 오늘은 개별이슈 장입니다.</td></tr></tbody>`;
+
+  const cands=d.대장주후보||[];
+  $("#leadCards").innerHTML = cands.length ? cands.map(c=>`
+    <div class="lead-card">
+      <h4>${esc(c.종목명)} ${condTag(c.조건||"")}</h4>
+      <div class="sec">${esc(c.대섹터)}${c.세부섹터?" · "+esc(c.세부섹터):""} ·
+        섹터 ${c.섹터종목수}종목 ${fmt(c.섹터합산)}억</div>
+      <div style="margin-top:9px">
+        <div class="kv"><span class="muted">등락률</span><span class="num">${pct(c.등락률)}</span></div>
+        <div class="kv"><span class="muted">거래대금</span><span class="num">${fmt(c.거래대금)}억</span></div>
+        <div class="kv"><span class="muted">RSI(14)</span><span>${rsiChip(c.rsi)}</span></div>
+        <div class="kv"><span class="muted">볼밴 σ2</span><span>${esc(c.볼밴위치||"—")}</span></div>
+        <div class="kv"><span class="muted">평균변동폭</span><span class="num">${c.평균변동폭?fmt(c.평균변동폭,1)+"%":"—"}</span></div>
+        <div class="kv"><span class="muted">2등주</span><span>${c["2등주"]?esc(c["2등주"])+" "+pct(c["2등주등락률"]):"—"}</span></div>
+      </div>
+      <div class="note">${c.근거?esc(c.근거):'<span class="nonews">근거 없음</span>'}</div>
+    </div>`).join("")
+    : `<div class="notice">주도업종이 없어 대장주 후보를 내지 못했습니다.</div>`;
+}
+
+/* ── 대장주 판별 ── */
+function renderGroups(){
+  const gs=DATA.그룹||[];
+  $("#leadersSub").textContent =
+    `${DATA.거래일?.slice(0,4)}/${DATA.거래일?.slice(4,6)}/${DATA.거래일?.slice(6,8)} · 거래대금 기준 내림차순 · 사전 ${esc(DATA.사전출처||"")}`;
+
+  $("#groups").innerHTML = gs.length ? gs.map(g=>`
+    <div class="grp">
+      <div class="grphead">
+        <span class="rank num">${g.순위}</span>
+        <span class="gname">${esc(g.대섹터)}</span>
+        <span class="grade ${g.분류==="주도업종"?"lead":"issue"}">
+          ${g.분류==="주도업종"?"★★★ 주도업종":"○ 개별이슈"}</span>
+        <span class="gsum">섹터 합산 <b class="num">${fmt(g.합산거래대금)}</b>억 ·
+          ${g.종목수}종목 · 평균 ${fmt(g.평균상승률,2)}%</span>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr>
+          <th class="l">조건</th><th class="l">종목</th><th>상승률</th><th>거래대금(억)</th>
+          <th class="l">상승 원인 · 근거</th><th>RSI</th><th class="l">볼밴</th><th>평균변동폭</th>
+        </tr></thead>
+        <tbody>${g.종목.map((r,i)=>`<tr>
+          <td class="l">${condTag(r.조건||"")}</td>
+          <td class="l"><b>${esc(r.종목명)}</b>${i===0?' <span class="small" style="color:var(--lead)">대장</span>':""}
+            <div class="small muted">${esc(r.세부섹터||"")} · ${esc(r.시장||"")}</div></td>
+          <td class="num">${pct(r["등락률(%)"])}</td>
+          <td class="num">${fmt(r["거래대금(억)"])}</td>
+          <td class="l why">${whyHtml(r)}</td>
+          <td>${rsiChip(r["RSI(14)"])}</td>
+          <td class="l small">${esc(r["볼밴위치"]||"—")}</td>
+          <td class="num">${r["평균변동폭(20일)"]?fmt(r["평균변동폭(20일)"],1)+"%":"—"}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>
+    </div>`).join("")
+    : `<div class="card"><div class="notice">자료가 없습니다.</div></div>`;
+}
+
+/* ── RAW ── */
+function renderRaw(){
+  const rows=(DATA.그룹||[]).flatMap(g=>g.종목);
+  $("#rawSub").textContent=`${rows.length}종목 · [A] 등락률 15%+ · [B] 거래대금 500억+ & 일중변동폭 6%+ & 등락률 5%+`;
+  $("#rawTable").innerHTML=`
+    <thead><tr><th class="l">조건</th><th class="l">종목명</th><th class="l">대섹터</th>
+      <th>종가</th><th>등락률</th><th>거래대금(억)</th><th>일중변동폭</th>
+      <th>RSI</th><th class="l">볼밴</th><th>이격도</th><th>평균변동폭</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td class="l">${condTag(r.조건||"")}</td>
+      <td class="l"><b>${esc(r.종목명)}</b></td>
+      <td class="l small">${esc(r.대섹터||"")}</td>
+      <td class="num">${fmt(r.종가)}</td>
+      <td class="num">${pct(r["등락률(%)"])}</td>
+      <td class="num">${fmt(r["거래대금(억)"])}</td>
+      <td class="num">${fmt(r["일중변동폭(%)"],2)}%</td>
+      <td>${rsiChip(r["RSI(14)"])}</td>
+      <td class="l small">${esc(r["볼밴위치"]||"—")}</td>
+      <td class="num">${r["이격도"]?fmt(r["이격도"],1):"—"}</td>
+      <td class="num">${r["평균변동폭(20일)"]?fmt(r["평균변동폭(20일)"],1)+"%":"—"}</td>
+    </tr>`).join("")}</tbody>`;
+}
+
+/* ── API / 정적 겸용 ──
+   로컬(server.py)에서는 /api/* 를 읽는다.
+   GitHub Pages 에는 서버가 없으므로 404 가 오면 data/*.json 으로 넘어간다.
+   같은 index.html 하나로 양쪽에서 돌리기 위한 장치다. */
+let STATIC=false;
+async function getJSON(api,file){
+  if(!STATIC){
+    try{
+      const r=await fetch(api);
+      if(r.ok) return await r.json();
+    }catch(e){ /* 서버 없음 → 정적 */ }
+    STATIC=true;
+    document.body.classList.add("static");
+  }
+  const r=await fetch(file+"?t="+Date.now());
+  if(!r.ok) throw new Error(file+" 를 읽지 못했습니다");
+  return await r.json();
+}
+
+/* ── 히트맵 ── */
+function hmLevel(v){
+  if(v===null||v===undefined) return ["",""];
+  if(v>=10000) return ["lv1",fmt(v)];
+  if(v>=7500)  return ["lv2",fmt(v)];
+  if(v>=5000)  return ["lv3",fmt(v)];
+  if(v>=2500)  return ["lv4",fmt(v)];
+  if(v>=1000)  return ["lv5",fmt(v)];
+  return ["lv6",fmt(v)];
+}
+async function loadHeatmap(){
+  const h=await getJSON("/api/heatmap","data/heatmap.json");
+  if(!h.날짜?.length){ $("#hm").innerHTML=`<tbody><tr><td class="notice">아직 쌓인 날짜가 없습니다. 며칠 돌리면 채워집니다.</td></tr></tbody>`; return; }
+  $("#hm").innerHTML=`
+    <thead><tr><th class="l">대섹터</th>${h.날짜.map(d=>`<th>${d.slice(4,6)}/${d.slice(6,8)}</th>`).join("")}</tr></thead>
+    <tbody>${h.섹터.map(s=>`<tr><td class="l">${esc(s.대섹터)}</td>${
+      s.값.map(v=>{const[c,t]=hmLevel(v);return `<td class="${c}">${t||"–"}</td>`;}).join("")}</tr>`).join("")}</tbody>`;
+}
+
+/* ── 로딩 ── */
+async function load(){
+  try{
+    const d=await getJSON("/api/latest","data/latest.json");
+    if(d.상태==="없음"){
+      $("#warn").innerHTML=`<div class="warn">${esc(d.안내)}</div>`;
+      return;
+    }
+    DATA=d;
+    $("#stamp").innerHTML=`<b>${d.거래일?.slice(4,6)}/${d.거래일?.slice(6,8)}</b> ${d.수집시각?.slice(11)||""}`;
+
+    const warns=[];
+    if(!d.뉴스||d.뉴스.사유) warns.push("네이버 검색 API 키가 없어 <b>상승 원인 근거가 비어 있습니다</b>.");
+    if(d.사전출처!=="구글시트") warns.push("섹터 사전이 <b>로컬 CSV</b>입니다. 구글시트를 연결하면 형님 사전 전체가 적용됩니다.");
+    if(d.미매핑?.length) warns.push(`미매핑 ${d.미매핑.length}종목 — 사전에 추가하면 섹터로 들어갑니다: <span class="muted">${esc(d.미매핑.slice(0,12).join(", "))}</span>`);
+    $("#warn").innerHTML=warns.length?`<div class="warn">${warns.join("<br>")}</div>`:"";
+
+    renderReport(); renderGroups(); renderRaw();
+  }catch(e){
+    $("#warn").innerHTML=`<div class="warn">서버에서 자료를 읽지 못했습니다: ${esc(e.message)}</div>`;
+  }
+}
+
+/* 정적 호스팅에는 수집기가 없다 → 버튼은 CSS 로 숨긴다 (body.static) */
+$("#runBtn").addEventListener("click",async()=>{
+  if(STATIC) return;
+  const b=$("#runBtn"); b.disabled=true; b.textContent="갱신 중...";
+  await fetch("/api/run");
+  const timer=setInterval(async()=>{
+    const s=await (await fetch("/api/status")).json();
+    if(!String(s.상태).startsWith("실행")){
+      clearInterval(timer); b.disabled=false; b.textContent="지금 갱신"; load();
+    }
+  },3000);
+});
+
+load();
+/* 로컬은 장중 배치를 따라가려고 1분, 정적은 10분이면 충분하다 */
+let reloadTimer=setInterval(load,60000);
+setTimeout(()=>{
+  if(STATIC){ clearInterval(reloadTimer); reloadTimer=setInterval(load,600000); }
+},5000);
+</script>
+</body>
+</html>

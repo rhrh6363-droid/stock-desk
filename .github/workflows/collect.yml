@@ -1,0 +1,71 @@
+name: 특징주 수집
+
+# ───────────────────────────────────────────────
+#  GitHub 크론은 UTC 다. KST = UTC+9.
+#    00:00~07:00 UTC  =  09:00~16:00 KST   → 장중 1시간 배치
+#    07:35      UTC  =  16:35 KST          → 종가 확정 1회
+#  크론은 런너가 붐빌 때 수 분~수십 분 밀릴 수 있다. 1시간 배치엔 문제없다.
+# ───────────────────────────────────────────────
+on:
+  schedule:
+    - cron: "0 0-7 * * 1-5"
+    - cron: "35 7 * * 1-5"
+  workflow_dispatch:          # Actions 탭에서 손으로 돌릴 때
+
+permissions:
+  contents: write             # 결과 JSON 을 되커밋하기 위해 필요하다
+
+concurrency:
+  group: collect
+  cancel-in-progress: false   # 수집 중복 실행만 막는다. 취소하지는 않는다
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15       # pykrx 가 멈춰도 런너를 붙잡아두지 않는다
+    env:
+      TZ: Asia/Seoul          # 수집시각·거래일이 KST 로 찍히게 한다
+      KRX_ID: ${{ secrets.KRX_ID }}
+      KRX_PW: ${{ secrets.KRX_PW }}
+      NAVER_ID: ${{ secrets.NAVER_ID }}
+      NAVER_SECRET: ${{ secrets.NAVER_SECRET }}
+      PYTHONUTF8: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 계정 확인
+        run: |
+          if [ -z "$KRX_ID" ] || [ -z "$KRX_PW" ]; then
+            echo "::error::KRX_ID / KRX_PW 시크릿이 없습니다. Settings → Secrets and variables → Actions 에서 등록하세요."
+            exit 1
+          fi
+          if [ -z "$NAVER_ID" ]; then
+            echo "::warning::NAVER_ID 가 없습니다 — 상승 원인 근거와 섹터 매핑 키워드가 비어 있게 됩니다."
+          fi
+
+      - name: 수집
+        run: python app/pipeline.py
+
+      - name: 정적 사이트 빌드
+        run: python app/build_static.py
+
+      - name: 결과 커밋
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/data docs
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 휴장일이거나 자료가 같습니다."
+            exit 0
+          fi
+          git commit -m "자동수집 $(date '+%Y-%m-%d %H:%M')"
+          git push

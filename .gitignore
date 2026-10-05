@@ -1,0 +1,18 @@
+# ── 절대 올리면 안 되는 것 ──
+# 공개 저장소다. 계정정보는 GitHub Secrets 에만 둔다.
+creds.json
+config.json
+*service*account*.json
+*credentials*.json
+.env
+
+# ── 로컬 산출물 ──
+__pycache__/
+*.pyc
+logs/
+out/
+*.xlsx
+raw_최근.csv
+raw_최근.json
+
+# app/data/*.json 은 일부러 올린다 — 히트맵의 과거 날짜가 여기서 나온다.

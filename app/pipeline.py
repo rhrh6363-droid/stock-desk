@@ -1,0 +1,157 @@
+"""
+===========================================================
+  일별 / 장중 파이프라인
+===========================================================
+
+  수집(특징주_자동집계) → 섹터 매핑 → 주도업종 판정 → 뉴스 근거 → JSON
+
+산출물: app/data/YYYYMMDD.json  +  app/data/latest.json
+서버(server.py)가 이 JSON 을 읽어 화면에 뿌린다.
+
+단독 실행도 된다:
+  python app/pipeline.py              # 오늘
+  python app/pipeline.py 20261002     # 특정일
+===========================================================
+"""
+
+import importlib
+import json
+import os
+import sys
+from datetime import datetime
+
+import pandas as pd
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+for p in (HERE, ROOT):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+import news                      # noqa: E402
+import sector_map                # noqa: E402
+
+DATA_DIR = os.path.join(HERE, "data")
+
+지수코드 = {"코스피": "1001", "코스닥": "2001"}
+
+
+def _clean(obj):
+    """NaN 을 None 으로. JSON 에 NaN 이 들어가면 브라우저가 파싱하지 못한다."""
+    if isinstance(obj, dict):
+        return {k: _clean(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean(v) for v in obj]
+    if isinstance(obj, float) and pd.isna(obj):
+        return None
+    if hasattr(obj, "item"):
+        return obj.item()
+    return obj
+
+
+def fetch_indices(date: str) -> list[dict]:
+    """코스피·코스닥 현황. 실패해도 전체를 멈추지 않는다."""
+    from pykrx import stock
+
+    out = []
+    for name, code in 지수코드.items():
+        try:
+            df = stock.get_index_ohlcv(date, date, code)
+            if df is None or df.empty:
+                continue
+            row = df.iloc[-1]
+            close = float(row["종가"])
+            open_ = float(row["시가"])
+            out.append({
+                "이름": name,
+                "종가": round(close, 2),
+                "등락pt": round(close - open_, 2),
+                "등락률": round((close - open_) / open_ * 100, 2) if open_ else None,
+                "거래대금": int(row["거래대금"]) if "거래대금" in row else None,
+            })
+        except Exception:
+            continue
+    return out
+
+
+def load_dictionary() -> tuple[pd.DataFrame, str]:
+    """섹터 사전. 구글시트가 연결돼 있으면 거기서, 아니면 로컬 CSV."""
+    try:
+        import sheets
+        if sheets.configured():
+            dic = sheets.read_sector_dict()
+            if dic is not None and not dic.empty:
+                return dic, "구글시트"
+    except Exception as exc:
+        print(f"  구글시트 사전 읽기 실패 → 로컬 사용 ({type(exc).__name__})")
+    return sector_map.load_dictionary(), "로컬 CSV"
+
+
+def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
+    date = target_date or datetime.today().strftime("%Y%m%d")
+
+    collector = importlib.import_module("특징주_자동집계")
+    collector.check_credentials()
+
+    print(f"\n[1/4] 수집  {date}")
+    df, adr = collector.fetch_date(date)
+    if adr is None:
+        print("  휴장일이거나 데이터가 아직 없습니다.")
+        return {"상태": "데이터없음", "거래일": date}
+    if df is None:
+        df = pd.DataFrame(columns=["종목명", "거래대금(억)", "등락률(%)", "조건"])
+
+    print("\n[2/4] 섹터 매핑")
+    dic, source = load_dictionary()
+    mapped, unmapped = sector_map.apply(df, dic)
+    print(f"  사전: {source}  ({len(dic)}행)   미매핑 {len(unmapped)}종목")
+
+    rows = _clean(mapped.to_dict("records"))
+
+    print("\n[3/4] 뉴스 근거")
+    news_stat = news.attach(rows)
+    print(f"  {news_stat}")
+
+    # 뉴스를 붙인 뒤에 집계해야 근거가 그룹 안으로 따라 들어간다
+    enriched = pd.DataFrame(rows) if rows else mapped
+    groups = sector_map.aggregate(enriched) if not enriched.empty else []
+    leaders = sector_map.leaders(groups)
+
+    print("\n[4/4] 저장")
+    payload = {
+        "거래일": date,
+        "수집시각": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "사전출처": source,
+        "adr": _clean(adr),
+        "지수": fetch_indices(date),
+        "그룹": _clean(groups),
+        "대장주후보": _clean(leaders),
+        "미매핑": unmapped,
+        "뉴스": news_stat,
+        "종목수": len(rows),
+    }
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+    for name in (f"{date}.json", "latest.json"):
+        with open(os.path.join(DATA_DIR, name), "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False)
+    print(f"  {os.path.join(DATA_DIR, 'latest.json')}")
+
+    for g in groups[:5]:
+        print(f"    {g['순위']}. {g['대섹터']:12} {g['등급']:4} "
+              f"{g['종목수']}종목 {g['합산거래대금']:>8,}억  대장 {g['대장주']}")
+
+    if push_sheet:
+        try:
+            import sheets
+            if sheets.configured():
+                sheets.push_raw(rows, payload)
+                print("  구글시트 RAW 전송 완료")
+        except Exception as exc:
+            print(f"  구글시트 전송 생략: {type(exc).__name__}: {exc}")
+
+    return payload
+
+
+if __name__ == "__main__":
+    run(sys.argv[1] if len(sys.argv) > 1 else None)
