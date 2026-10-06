@@ -28,10 +28,12 @@ for p in (HERE, ROOT):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import flows                     # noqa: E402
 import news                      # noqa: E402
 import sector_map                # noqa: E402
 
 DATA_DIR = os.path.join(HERE, "data")
+ASSIGN_FILE = os.path.join(HERE, "키워드배정.csv")
 
 지수코드 = {"코스피": "1001", "코스닥": "2001"}
 
@@ -85,6 +87,25 @@ def fetch_indices(date: str) -> list[dict]:
     return out
 
 
+def load_assignments() -> pd.DataFrame:
+    """종목배정 장표 — 키워드를 어느 섹터에 넣을지 수기로 잡아둔 표.
+
+    구글시트가 연결되면 그쪽 '종목배정' 탭이 이 파일을 대신한다.
+    """
+    cols = ["키워드", "대섹터", "세부섹터", "비고"]
+    if not os.path.exists(ASSIGN_FILE):
+        return pd.DataFrame(columns=cols)
+    try:
+        df = pd.read_csv(ASSIGN_FILE, encoding="utf-8-sig", dtype=str).fillna("")
+    except Exception as exc:
+        print(f"  키워드배정 읽기 실패: {type(exc).__name__}")
+        return pd.DataFrame(columns=cols)
+    for c in cols:
+        if c not in df.columns:
+            df[c] = ""
+    return df[df["키워드"].str.strip() != ""][cols]
+
+
 def load_dictionary() -> tuple[pd.DataFrame, str]:
     """섹터 사전. 구글시트가 연결돼 있으면 거기서, 아니면 로컬 CSV."""
     try:
@@ -96,6 +117,17 @@ def load_dictionary() -> tuple[pd.DataFrame, str]:
     except Exception as exc:
         print(f"  구글시트 사전 읽기 실패 → 로컬 사용 ({type(exc).__name__})")
     return sector_map.load_dictionary(), "로컬 CSV"
+
+
+def merge_assignments(dic: pd.DataFrame, assign: pd.DataFrame) -> pd.DataFrame:
+    """키워드배정을 사전 행으로 바꿔 붙인다. 4단계(키워드) 매칭이 바로 먹는다."""
+    if assign.empty:
+        return dic
+    rows = [{"대섹터": r["대섹터"] or "기타",
+             "세부섹터": r["세부섹터"],
+             "키워드": r["키워드"],
+             "비고": r["비고"]} for _, r in assign.iterrows()]
+    return pd.concat([dic, pd.DataFrame(rows)], ignore_index=True)
 
 
 def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
@@ -127,23 +159,29 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     if df is None:
         df = pd.DataFrame(columns=["종목명", "거래대금(억)", "등락률(%)", "조건"])
 
-    print("\n[2/4] 섹터 매핑")
+    print("\n[2/5] 섹터 매핑")
     dic, source = load_dictionary()
-    mapped, unmapped = sector_map.apply(df, dic)
-    print(f"  사전: {source}  ({len(dic)}행)   미매핑 {len(unmapped)}종목")
+    assign = load_assignments()
+    mapped, unmapped = sector_map.apply(df, merge_assignments(dic, assign))
+    print(f"  사전: {source}  ({len(dic)}행)  + 키워드배정 {len(assign)}행"
+          f"   미매핑 {len(unmapped)}종목")
 
     rows = _clean(mapped.to_dict("records"))
 
-    print("\n[3/4] 뉴스 근거")
+    print("\n[3/5] 뉴스 근거")
     news_stat = news.attach(rows)
     print(f"  {news_stat}")
+
+    print("\n[4/5] 투자자별 수급 (외국인·기관)")
+    flow_stat = flows.attach(rows, date)
+    print(f"  {flow_stat}")
 
     # 뉴스를 붙인 뒤에 집계해야 근거가 그룹 안으로 따라 들어간다
     enriched = pd.DataFrame(rows) if rows else mapped
     groups = sector_map.aggregate(enriched) if not enriched.empty else []
     leaders = sector_map.leaders(groups)
 
-    print("\n[4/4] 저장")
+    print("\n[5/5] 저장")
     payload = {
         "거래일": date,
         "수집시각": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -154,6 +192,10 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         "대장주후보": _clean(leaders),
         "미매핑": unmapped,
         "뉴스": news_stat,
+        "수급": flow_stat,
+        "수급요약": flows.summary(rows),
+        "사전": _clean(dic.fillna("").to_dict("records")),
+        "배정": _clean(assign.to_dict("records")),
         "종목수": len(rows),
     }
 

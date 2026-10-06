@@ -110,14 +110,25 @@ def build_heatmap(limit_days: int = 30) -> dict:
         for g in payload.get("그룹", []):
             table.setdefault(g["대섹터"], {})[date] = g["합산거래대금"]
 
-    sectors = [{
-        "대섹터": name,
-        "값": [row.get(d) for d in dates],
-        "합계": sum(v for v in row.values() if v),
-    } for name, row in table.items()]
+    # 월별 합산 — 눌림목 기간 추세를 보려면 일별만으로는 모자란다
+    months = sorted({d[:6] for d in dates})
+
+    sectors = []
+    for name, row in table.items():
+        월합 = {m: 0 for m in months}
+        for d, v in row.items():
+            if v:
+                월합[d[:6]] += v
+        sectors.append({
+            "대섹터": name,
+            "값": [row.get(d) for d in dates],
+            "월별": [월합[m] or None for m in months],
+            "합계": sum(v for v in row.values() if v),
+            "등장일수": sum(1 for v in row.values() if v),
+        })
     sectors.sort(key=lambda s: -s["합계"])
 
-    return {"날짜": dates, "섹터": sectors}
+    return {"날짜": dates, "월": months, "섹터": sectors}
 
 
 # ────────────────────────────────────────────────

@@ -64,6 +64,7 @@ if _HERE not in sys.path:
 # 조건 설정
 # ────────────────────────────────────────────────
 COND_A_MIN_CHANGE = 15.0              # A: 등락률 %
+COND_A_MIN_INTRADAY = 6.0             # A: 일중변동폭 % — 사용자 지시로 A에도 적용
 COND_B_MIN_VALUE = 50_000_000_000     # B: 거래대금 (원)
 COND_B_MIN_INTRADAY = 6.0             # B: 일중변동폭 %
 COND_B_MIN_CHANGE = 5.0               # B: 등락률 % — 시트 기준에 맞춤
@@ -214,7 +215,11 @@ def fetch_date(target_date: str):
           f"상승 {adr['상승']} / 하락 {adr['하락']} / 보합 {adr['보합']}")
 
     # ── A / B 조건
-    mask_a = df_base["등락률(%)"] >= COND_A_MIN_CHANGE
+    # 갭상승만 하고 장중에 안 움직인 종목은 매매 대상이 아니다 → A도 변동폭으로 거른다
+    mask_a = (
+        (df_base["등락률(%)"] >= COND_A_MIN_CHANGE)
+        & (df_base["일중변동폭(%)"] >= COND_A_MIN_INTRADAY)
+    )
     mask_b = (
         (df_base["거래대금(억)"] >= COND_B_MIN_VALUE / 1e8)
         & (df_base["일중변동폭(%)"] >= COND_B_MIN_INTRADAY)
@@ -237,7 +242,8 @@ def fetch_date(target_date: str):
     df_union["종목명"] = df_union["티커"].map(names)
 
     def tag(row):
-        a = row["등락률(%)"] >= COND_A_MIN_CHANGE
+        a = (row["등락률(%)"] >= COND_A_MIN_CHANGE
+             and row["일중변동폭(%)"] >= COND_A_MIN_INTRADAY)
         b = (row["거래대금(억)"] >= COND_B_MIN_VALUE / 1e8
              and row["일중변동폭(%)"] >= COND_B_MIN_INTRADAY
              and row["등락률(%)"] >= COND_B_MIN_CHANGE)
@@ -326,7 +332,7 @@ def save_to_excel(df: pd.DataFrame, target_date: str, adr: dict | None):
     title = ws["A1"]
     title.value = (
         f"특징주 집계 | {sheet_name}  |  "
-        f"[A] 등락률 {COND_A_MIN_CHANGE}%+   "
+        f"[A] 등락률 {COND_A_MIN_CHANGE}%+ & 일중변동폭 {COND_A_MIN_INTRADAY}%+   "
         f"[B] 거래대금 {int(COND_B_MIN_VALUE/1e8)}억+ & 일중변동폭 {COND_B_MIN_INTRADAY}%+ "
         f"& 등락률 {COND_B_MIN_CHANGE}%+   [A+B] 중복"
     )
@@ -526,7 +532,7 @@ def main():
 
     print(f"\n{'='*62}")
     print(f"  처리 대상: {len(dates)}일  ({dates[0]} ~ {dates[-1]})")
-    print(f"  [A] 등락률 {COND_A_MIN_CHANGE}%+")
+    print(f"  [A] 등락률 {COND_A_MIN_CHANGE}%+ & 일중변동폭 {COND_A_MIN_INTRADAY}%+")
     print(f"  [B] 거래대금 {int(COND_B_MIN_VALUE/1e8)}억+ & 일중변동폭 {COND_B_MIN_INTRADAY}%+ "
           f"& 등락률 {COND_B_MIN_CHANGE}%+")
     print(f"{'='*62}")
