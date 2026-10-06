@@ -30,6 +30,7 @@ for p in (HERE, ROOT):
 
 import charts                    # noqa: E402
 import flows                     # noqa: E402
+import industry                  # noqa: E402
 import macro                     # noqa: E402
 import news                      # noqa: E402
 import report                    # noqa: E402
@@ -193,6 +194,15 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     if df is None:
         df = pd.DataFrame(columns=["종목명", "거래대금(억)", "등락률(%)", "조건"])
 
+    rows_pre = _clean(df.to_dict("records"))
+
+    # KRX 공식 업종 — 미분류 종목이 "뭐 하는 회사인가" 의 1차 근거다.
+    # 뉴스 힌트는 기사가 있어야 나오지만 업종은 언제나 있다.
+    # 거칠어서(전기·전자 하나에 반도체·전력기기가 다 든다) 자동 매핑에는 쓰지 않는다.
+    ind_stat = industry.attach(rows_pre, date)
+    print(f"  업종 {ind_stat.get('업종', 0)}/{ind_stat.get('전체', 0)}종목"
+          f" ({ind_stat.get('업종수', 0)}개 업종)")
+
     # 사전을 먼저 읽는다 — 뉴스에서 키워드를 뽑을 때 사전 어휘를 기준으로 쓴다
     dic, source = load_dictionary()
     assign = load_assignments()
@@ -201,7 +211,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
 
     # 키워드가 섹터 매핑의 입력이다. 그래서 뉴스가 매핑보다 **먼저** 돌아야 한다
     print("\n[2/5] 뉴스 근거 + 키워드 추출")
-    rows = _clean(df.to_dict("records"))
+    rows = rows_pre
     news_stat = news.attach(rows, vocab=news.vocabulary(merged))
     print(f"  {news_stat}")
 
@@ -271,6 +281,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
              "거래대금(억)": r.get("거래대금(억)"),
              "등락률(%)": r.get("등락률(%)"),
              "시장": r.get("시장"),
+             "업종": r.get("업종"),
              "시총(억)": r.get("시총(억)"),
              "수급주체": r.get("수급주체"),
              "키워드": r.get("키워드"),
@@ -279,6 +290,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
              "뉴스": (r.get("뉴스") or [])[:4],
              **news.evidence(rows, r.get("종목명"))}
             for r in rows if r.get("대섹터") == "미분류"]),
+        "업종요약": _clean(industry.summary(rows)),
         "매크로": _clean(매크로),
         "장중분봉": _clean(intraday),
         "종목수": len(rows),

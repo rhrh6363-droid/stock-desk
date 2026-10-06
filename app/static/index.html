@@ -197,6 +197,7 @@ table.kv2 td.v{text-align:left;line-height:1.65}
   background:var(--navy);color:#fff}
 .hint.kw{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line);font-weight:500}
 .hint.co{background:transparent;color:var(--ink-3);border:1px dashed var(--line);font-weight:400}
+.hint.ind{background:var(--surface);color:var(--navy);border:1px solid var(--navy)}
 .art{padding:2px 0 2px 8px;border-left:2px solid var(--line);margin:2px 0}
 .art.direct{border-left-color:var(--navy)}
 .art a{font-size:11.5px}
@@ -769,13 +770,13 @@ function renderStockPick(){
   const saved = store("pick.stock");
   // 근거가 있는 것부터 위로. 판단할 수 있는 것을 먼저 치우게 한다
   const sorted = [...un].sort((a,b)=>{
-    const w = r => ((r.업종힌트||[]).length?2:0) + (r.상승원인?1:0);
+    const w = r => ((r.업종힌트||[]).length?2:0) + (r.상승원인?1:0) + (r.업종?1:0);
     return (w(b)-w(a)) || ((b["거래대금(억)"]||0)-(a["거래대금(억)"]||0));
   });
 
   box.innerHTML = `
     <div class="rules" style="margin-bottom:9px">아래 <b>${un.length}종목</b>은 섹터를 몰라 미분류로 남았습니다.
-      이름만 봐선 모를 테니 <b>판단 인자</b>를 같이 깔았습니다 — 업종힌트·동반언급·기사 제목을 보고 고르면 됩니다.
+      이름만 봐선 모를 테니 <b>판단 인자</b>를 같이 깔았습니다 — <b>KRX 공식 업종</b>(기사가 없어도 항상 나옵니다)·기사 힌트·함께 언급·기사 제목을 보고 고르면 됩니다. KRX 업종은 거칠어서(전기·전자 하나에 반도체·전력기기가 다 듭니다) 그것만으로 끝내지 말고 기사도 보세요.
       <b>대섹터</b>만 골라도 되고, 모르겠으면 <b>건너뛰어도 됩니다</b>.</div>
     <div class="scroll pick"><table>
       <thead><tr>
@@ -784,6 +785,8 @@ function renderStockPick(){
         <th class="l">대섹터 ▾</th><th class="l">세부섹터</th></tr></thead>
       <tbody>${sorted.map(r=>{
         const v = saved[r.종목명] || {};
+        // KRX 공식 업종. 기사가 없어도 언제나 있으니 맨 위에 둔다
+        const ind   = r.업종 ? `<span class="hint ind">${esc(r.업종)}</span>` : "";
         const hints = (r.업종힌트||[]).map(h=>`<span class="hint">${esc(h)}</span>`).join("");
         const kws   = (r.키워드||[]).map(k=>`<span class="hint kw">${esc(k)}</span>`).join("");
         const coh   = (r.동반언급||[]).slice(0,5).map(c=>`<span class="hint co">${esc(c)}</span>`).join("");
@@ -792,16 +795,17 @@ function renderStockPick(){
              <a href="${esc(n.링크)}" target="_blank" rel="noopener">${esc(n.제목)}</a>
              <span class="src">${esc(n.출처||"")}${n.직접언급?"":" · 종목명 없음"}</span>
            </div>`).join("");
-        const meta = [r.시장, r["시총(억)"]?fmt(r["시총(억)"])+"억":null, r.수급주체]
+        const meta = [r.시장, r["시총(억)"]?"시총 "+fmt(r["시총(억)"])+"억":null, r.수급주체]
                      .filter(Boolean).join(" · ");
-        const none = !hints && !kws && !coh && !arts;
+        const none = !ind && !hints && !kws && !coh && !arts;
         return `<tr data-nm="${esc(r.종목명)}" class="${v.대섹터?"done":""}">
           <td class="l"><b>${esc(r.종목명)}</b>
             ${meta?`<div class="small muted">${esc(meta)}</div>`:""}</td>
           <td class="num">${fmt(r["거래대금(억)"])}</td>
           <td class="num">${pct(r["등락률(%)"])}</td>
           <td class="l why">
-            ${hints?`<div class="hl"><b>업종</b> ${hints}</div>`:""}
+            ${ind?`<div class="hl"><b>KRX 업종</b> ${ind}</div>`:""}
+            ${hints?`<div class="hl"><b>기사 힌트</b> ${hints}</div>`:""}
             ${kws?`<div class="hl"><b>키워드</b> ${kws}</div>`:""}
             ${coh?`<div class="hl"><b>함께 언급</b> ${coh}</div>`:""}
             ${arts}
