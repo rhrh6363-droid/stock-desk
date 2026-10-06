@@ -1,30 +1,37 @@
-name: 진단 - 토스 해외IP 확인
+# ============================================================
+#  진단 — KRX 업종 분류를 받을 수 있는가 (손으로만 돌린다)
+# ============================================================
+#  로컬에는 KRX 로그인이 없어 검증할 수 없다. pykrx 는 import 할 때
+#  KRX_ID / KRX_PW 로 직접 로그인하므로 **런너에서만** 확인된다.
+#  검증 없이 파이프라인에 넣지 않는다 — 여기서 모양을 먼저 본다.
+#
+#  확인이 끝나면 이 워크플로와 app/probe_industry.py 를 지운다.
+# ============================================================
+name: 진단 - KRX 업종
 
 on:
   workflow_dispatch:
 
 jobs:
-  diag:
+  probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
-      TOSS_CLIENT_ID: ${{ secrets.TOSS_CLIENT_ID }}
-      TOSS_CLIENT_SECRET: ${{ secrets.TOSS_CLIENT_SECRET }}
-    steps:
-      - name: 런너 위치
-        run: curl -s --max-time 15 https://ipinfo.io/json | head -c 300
+      TZ: Asia/Seoul
+      KRX_ID: ${{ secrets.KRX_ID }}
+      KRX_PW: ${{ secrets.KRX_PW }}
+      PYTHONUTF8: "1"
 
-      - name: 토스 토큰 발급 응답 전문
-        run: |
-          echo "--- POST /oauth2/token ---"
-          curl -s -i --max-time 20 \
-            -X POST https://openapi.tossinvest.com/oauth2/token \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "grant_type=client_credentials" \
-            --data-urlencode "client_id=$TOSS_CLIENT_ID" \
-            --data-urlencode "client_secret=$TOSS_CLIENT_SECRET" \
-            | head -c 1200
-          echo ""
-          echo "--- 도메인 자체 도달 여부 (키 없이) ---"
-          curl -s -o /dev/null -w "GET / : HTTP %{http_code}  %{time_total}s\n" \
-            --max-time 20 https://openapi.tossinvest.com/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 업종 분류 진단
+        run: python app/probe_industry.py
