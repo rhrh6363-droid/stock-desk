@@ -264,10 +264,20 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         "배정": _clean(assign.to_dict("records")),
         "종목배정": _clean(stock_assign.to_dict("records")),
         "대섹터목록": sorted({str(x) for x in dic["대섹터"].dropna().unique() if str(x).strip()}),
+        # 미분류 종목은 사용자가 수기로 섹터를 찍어야 한다. 그런데 이름만 봐서는
+        # 무슨 회사인지 모른다. 그래서 판단 인자를 전부 같이 보낸다.
         "미매핑상세": _clean([
-            {"종목명": r.get("종목명"), "거래대금(억)": r.get("거래대금(억)"),
-             "등락률(%)": r.get("등락률(%)"), "키워드": r.get("키워드"),
-             "상승원인": r.get("상승원인")}
+            {"종목명": r.get("종목명"),
+             "거래대금(억)": r.get("거래대금(억)"),
+             "등락률(%)": r.get("등락률(%)"),
+             "시장": r.get("시장"),
+             "시총(억)": r.get("시총(억)"),
+             "수급주체": r.get("수급주체"),
+             "키워드": r.get("키워드"),
+             "상승원인": r.get("상승원인"),
+             "업종힌트": r.get("업종힌트") or [],
+             "뉴스": (r.get("뉴스") or [])[:4],
+             **news.evidence(rows, r.get("종목명"))}
             for r in rows if r.get("대섹터") == "미분류"]),
         "매크로": _clean(매크로),
         "장중분봉": _clean(intraday),

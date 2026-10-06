@@ -189,6 +189,21 @@ table.kv2 td.v{text-align:left;line-height:1.65}
   white-space:pre;overflow-x:auto;padding:11px 13px;background:var(--surface-2);
   border:1px solid var(--line);color:var(--ink-2)}
 
+/* 판단 인자 — 모르는 종목이 무슨 회사인지 읽고 고르게 한다 */
+.why{max-width:460px;font-size:11.5px;line-height:1.55}
+.hl{margin-bottom:3px}
+.hl b{font-size:10px;color:var(--ink-3);font-weight:700;margin-right:3px}
+.hint{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;margin:1px 2px 1px 0;
+  background:var(--navy);color:#fff}
+.hint.kw{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line);font-weight:500}
+.hint.co{background:transparent;color:var(--ink-3);border:1px dashed var(--line);font-weight:400}
+.art{padding:2px 0 2px 8px;border-left:2px solid var(--line);margin:2px 0}
+.art.direct{border-left-color:var(--navy)}
+.art a{font-size:11.5px}
+.art .src{display:block;color:var(--ink-3);font-size:10px}
+.art:not(.direct) a{color:var(--ink-3)}
+.more{display:inline-block;margin-top:4px;font-size:10.5px;color:var(--ink-3)}
+
 /* 정적 호스팅(GitHub Pages)에는 수집기가 없다 */
 body.static #runBtn{display:none}
 </style>
@@ -317,8 +332,10 @@ body.static #runBtn{display:none}
   <section class="panel" id="p-assign">
     <div class="card">
       <div class="sheethead">① 미분류 종목 → 섹터 배정
-        <span class="sub">대섹터를 고르면 그 아래 CSV 가 만들어진다 (app/종목배정.csv)</span></div>
+        <span class="sub">판단 인자를 보고 대섹터를 고르면 그 아래 CSV 가 만들어진다 (app/종목배정.csv)</span></div>
       <div class="cardbody small muted" style="padding-bottom:0">
+        이름만 봐서는 모르는 종목이 많다. 그래서 <b>업종힌트·키워드·동반언급·기사 제목</b>을
+        같이 깔아 둔다 — 읽고 고르면 된다. 섹터를 지어내지 않는다, 근거만 보여준다.<br>
         한 번 찍으면 <b>1단계(종목명 완전일치)</b>로 잡혀 뉴스·키워드와 무관하게 항상 그 섹터로 간다.
         찍은 값은 이 브라우저에 남으니 한 번에 다 안 해도 된다.
       </div>
@@ -738,7 +755,10 @@ function renderAssign(){
   renderAssigned();
 }
 
-/* ① 미분류 종목 → 대섹터 */
+/* ① 미분류 종목 → 대섹터
+   핵심은 '판단 인자' 다. 사용자는 아티스트스튜디오가 무슨 회사인지 모른다.
+   업종힌트 · 동반언급 · 기사 제목을 같이 깔아 두고 읽고 고르게 한다.
+   추측해서 섹터를 지어내지 않는다 — 근거만 보여주고 판단은 사람이 한다. */
 function renderStockPick(){
   const un = DATA?.미매핑상세 || [];
   const box = $("#needAssign");
@@ -747,22 +767,49 @@ function renderStockPick(){
     return;
   }
   const saved = store("pick.stock");
+  // 근거가 있는 것부터 위로. 판단할 수 있는 것을 먼저 치우게 한다
+  const sorted = [...un].sort((a,b)=>{
+    const w = r => ((r.업종힌트||[]).length?2:0) + (r.상승원인?1:0);
+    return (w(b)-w(a)) || ((b["거래대금(억)"]||0)-(a["거래대금(억)"]||0));
+  });
+
   box.innerHTML = `
-    <div class="rules" style="margin-bottom:8px">아래 <b>${un.length}종목</b>은 섹터를 몰라 미분류로 남았습니다.
-      <b>대섹터</b>만 골라도 다음 수집부터 그 섹터로 들어갑니다. 세부섹터는 비워도 됩니다.</div>
+    <div class="rules" style="margin-bottom:9px">아래 <b>${un.length}종목</b>은 섹터를 몰라 미분류로 남았습니다.
+      이름만 봐선 모를 테니 <b>판단 인자</b>를 같이 깔았습니다 — 업종힌트·동반언급·기사 제목을 보고 고르면 됩니다.
+      <b>대섹터</b>만 골라도 되고, 모르겠으면 <b>건너뛰어도 됩니다</b>.</div>
     <div class="scroll pick"><table>
-      <thead><tr><th class="l">종목명</th><th>거래대금(억)</th><th>상승률</th>
-        <th class="l">대섹터 ▾</th><th class="l">세부섹터</th><th class="l">판단 근거</th></tr></thead>
-      <tbody>${un.map(r=>{
+      <thead><tr>
+        <th class="l">종목</th><th>거래대금<br>(억)</th><th>상승률</th>
+        <th class="l">판단 인자 — 이게 무슨 회사인가</th>
+        <th class="l">대섹터 ▾</th><th class="l">세부섹터</th></tr></thead>
+      <tbody>${sorted.map(r=>{
         const v = saved[r.종목명] || {};
-        const why = [(r.키워드||[]).join(", "), (r.상승원인||"").slice(0,52)].filter(Boolean).join(" · ");
+        const hints = (r.업종힌트||[]).map(h=>`<span class="hint">${esc(h)}</span>`).join("");
+        const kws   = (r.키워드||[]).map(k=>`<span class="hint kw">${esc(k)}</span>`).join("");
+        const coh   = (r.동반언급||[]).slice(0,5).map(c=>`<span class="hint co">${esc(c)}</span>`).join("");
+        const arts  = (r.뉴스||[]).slice(0,3).map(n=>
+          `<div class="art${n.직접언급?" direct":""}">
+             <a href="${esc(n.링크)}" target="_blank" rel="noopener">${esc(n.제목)}</a>
+             <span class="src">${esc(n.출처||"")}${n.직접언급?"":" · 종목명 없음"}</span>
+           </div>`).join("");
+        const meta = [r.시장, r["시총(억)"]?fmt(r["시총(억)"])+"억":null, r.수급주체]
+                     .filter(Boolean).join(" · ");
+        const none = !hints && !kws && !coh && !arts;
         return `<tr data-nm="${esc(r.종목명)}" class="${v.대섹터?"done":""}">
-          <td class="l"><b>${esc(r.종목명)}</b></td>
+          <td class="l"><b>${esc(r.종목명)}</b>
+            ${meta?`<div class="small muted">${esc(meta)}</div>`:""}</td>
           <td class="num">${fmt(r["거래대금(억)"])}</td>
           <td class="num">${pct(r["등락률(%)"])}</td>
+          <td class="l why">
+            ${hints?`<div class="hl"><b>업종</b> ${hints}</div>`:""}
+            ${kws?`<div class="hl"><b>키워드</b> ${kws}</div>`:""}
+            ${coh?`<div class="hl"><b>함께 언급</b> ${coh}</div>`:""}
+            ${arts}
+            ${none?'<span class="muted small">기사를 찾지 못했습니다.</span>':""}
+            ${r.검색?`<a class="more" href="${esc(r.검색)}" target="_blank" rel="noopener">구글 뉴스에서 더 보기 ↗</a>`:""}
+          </td>
           <td class="l"><select data-f="대섹터">${majorOptions(v.대섹터)}</select></td>
           <td class="l"><input data-f="세부섹터" value="${esc(v.세부섹터||"")}" placeholder="선택"></td>
-          <td class="l small muted">${esc(why)}</td>
         </tr>`;}).join("")}</tbody>
     </table></div>
     <div class="bar">
