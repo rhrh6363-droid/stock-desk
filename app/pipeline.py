@@ -145,7 +145,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
 
     for back in range(1 if explicit else MAX_LOOKBACK + 1):
         d = (base - timedelta(days=back)).strftime("%Y%m%d")
-        print(f"\n[1/4] 수집  {d}")
+        print(f"\n[1/5] 수집  {d}")
         df, adr = collector.fetch_date(d)
         if _breadth(adr) > 0:
             date = d
