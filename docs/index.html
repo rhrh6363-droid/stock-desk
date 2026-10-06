@@ -173,6 +173,22 @@ table.kv2 td.v{text-align:left;line-height:1.65}
 .hm td.maj{text-align:left;color:var(--ink-3);font-size:10px;white-space:nowrap}
 .assign input{width:100%;background:transparent;border:0;color:var(--ink);font:inherit}
 
+/* 수기 배정 입력 — 화면에서 찍고 CSV 로 뽑는다 */
+.pick select,.pick input{font:inherit;font-size:12px;padding:3px 5px;background:var(--surface);
+  border:1px solid var(--line);color:var(--ink);max-width:100%}
+.pick select{min-width:120px} .pick input{min-width:104px;width:100%}
+.pick tbody tr.done{background:var(--surface-2)}
+.pick tbody tr.done b{color:var(--navy)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:11px 0 1px}
+.bar2{appearance:none;font:inherit;font-size:12px;font-weight:600;padding:6px 13px;cursor:pointer;
+  border:1px solid var(--navy);background:var(--navy);color:#fff;text-decoration:none;display:inline-block}
+.bar2:hover{opacity:.87}
+.bar2[disabled]{opacity:.38;cursor:default}
+.bar2.ghost{background:transparent;color:var(--navy)}
+.out{margin-top:9px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:1.7;
+  white-space:pre;overflow-x:auto;padding:11px 13px;background:var(--surface-2);
+  border:1px solid var(--line);color:var(--ink-2)}
+
 /* 정적 호스팅(GitHub Pages)에는 수집기가 없다 */
 body.static #runBtn{display:none}
 </style>
@@ -300,17 +316,25 @@ body.static #runBtn{display:none}
   <!-- ── 종목배정 ───────────────────────── -->
   <section class="panel" id="p-assign">
     <div class="card">
-      <div class="sheethead">종목배정 <span class="sub">미분류 종목에 대섹터를 수기로 지정 (시트 🔧 종목 배정)</span></div>
-      <div class="cardbody small muted">
-미분류로 남은 종목에 <b>대섹터</b>를 찍어주는 관리표다. 한 번 찍으면 1단계(종목명 완전일치)로 잡혀
-        뉴스·키워드와 무관하게 항상 그 섹터로 간다.<br>
-        편집은 <code>app/종목배정.csv</code> — <code>종목명,대섹터,세부섹터,비고</code> 형식이다.
+      <div class="sheethead">① 미분류 종목 → 섹터 배정
+        <span class="sub">대섹터를 고르면 그 아래 CSV 가 만들어진다 (app/종목배정.csv)</span></div>
+      <div class="cardbody small muted" style="padding-bottom:0">
+        한 번 찍으면 <b>1단계(종목명 완전일치)</b>로 잡혀 뉴스·키워드와 무관하게 항상 그 섹터로 간다.
+        찍은 값은 이 브라우저에 남으니 한 번에 다 안 해도 된다.
       </div>
-      <div class="scroll"><table id="assignTable"></table></div>
-    </div>
-    <div class="card">
-      <div class="sheethead">배정 필요 <span class="sub">오늘 미분류로 남은 종목 — 대섹터를 잡아주면 사라진다</span></div>
       <div class="cardbody" id="needAssign"></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">② 키워드 → 섹터 배정
+        <span class="sub">키워드 하나에 섹터를 붙이면 그 키워드가 잡힌 종목이 전부 따라온다 (app/키워드배정.csv)</span></div>
+      <div class="cardbody" id="keywordPick"></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">③ 지금 배정돼 있는 종목
+        <span class="sub">app/종목배정.csv 에 들어가 있는 내용 — &lt;제안&gt; 은 확인이 필요하다는 표시다</span></div>
+      <div class="scroll"><table id="assignTable"></table></div>
     </div>
   </section>
 
@@ -363,7 +387,7 @@ function flowChip(r){
 
 function whyHtml(r){
   const items=r["뉴스"]||[];
-  if(!items.length) return '<span class="nonews">근거 없음 — 네이버 API 키 미설정</span>';
+  if(!items.length) return '<span class="nonews">관련 기사를 찾지 못했습니다</span>';
   return items.slice(0,2).map(n=>
     `<a href="${esc(n["링크"])}" target="_blank" rel="noopener">${esc(n["제목"])}</a>`).join("<br>");
 }
@@ -676,29 +700,195 @@ function renderDict(){
 }
 
 /* ── 종목배정 ── */
-function renderAssign(){
-  // 1) 미분류 종목 — 배정 대상
-  const un=DATA?.미매핑상세||[];
-  $("#needAssign").innerHTML = un.length ? `
-    <div class="rules" style="margin-bottom:10px">아래 <b>${un.length}종목</b>은 섹터를 몰라 미분류로 남았습니다.
-      <code>app/종목배정.csv</code> 에 <b>종목명, 대섹터</b> 한 줄씩 적으면 다음 수집부터 그 섹터로 들어갑니다.</div>
-    <div class="scroll"><table>
-      <thead><tr><th class="l">미분류 종목명</th><th>거래대금(억)</th><th>상승률</th>
-        <th class="l">키워드</th><th class="l">상승이유</th></tr></thead>
-      <tbody>${un.map(r=>`<tr>
-        <td class="l"><b>${esc(r.종목명)}</b></td>
-        <td class="num">${fmt(r["거래대금(억)"])}</td>
-        <td class="num">${pct(r["등락률(%)"])}</td>
-        <td class="l small">${esc((r.키워드||[]).join(", "))||'<span class="muted">—</span>'}</td>
-        <td class="l small muted">${esc(r.상승원인||"")}</td></tr>`).join("")}</tbody>
-    </table></div>
-    <div class="cardbody small muted" style="padding-left:0">
-      <b>쓸 수 있는 대섹터</b> — ${(DATA?.대섹터목록||[]).map(x=>`<span class="chip none" style="margin:2px">${esc(x)}</span>`).join("")}
-    </div>`
-    : `<div class="notice">미분류 종목이 없습니다.</div>`;
+/* ── 수기 배정 — 화면에서 찍어 CSV 로 뽑는다 ──
+   정적 호스팅(GitHub Pages)이라 서버에 저장할 곳이 없다. 그래서 찍은 값을
+   localStorage 에 담아두고, '복사' 로 CSV 전체를 꺼내 깃허브에 붙이는 방식으로 간다.
+   새로고침해도 찍어둔 건 남는다. */
+const REPO = "https://github.com/rhrh6363-droid/stock-desk";
+const EDIT = (f) => REPO + "/edit/main/app/" + encodeURIComponent(f);
 
-  // 2) 이미 배정해둔 종목
-  const sa=DATA?.종목배정||[];
+function store(k){ try{ return JSON.parse(localStorage.getItem(k)||"{}"); }catch(e){ return {}; } }
+function keep(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+function majorOptions(sel){
+  const list = DATA?.대섹터목록 || [];
+  return '<option value="">— 고르기 —</option>' + list.map(x =>
+    `<option value="${esc(x)}"${x===sel?" selected":""}>${esc(x)}</option>`).join("");
+}
+function csvCell(v){                      // 쉼표·따옴표가 있으면 감싼다
+  v = (v==null?"":String(v)).trim();
+  return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+async function copyOut(text, btn){
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){
+    const t=document.createElement("textarea");
+    t.value=text; document.body.appendChild(t); t.select();
+    try{ document.execCommand("copy"); }catch(_){}
+    t.remove();
+  }
+  const was=btn.textContent;
+  btn.textContent="복사했습니다"; btn.disabled=true;
+  setTimeout(()=>{ btn.textContent=was; btn.disabled=false; }, 1600);
+}
+
+function renderAssign(){
+  renderStockPick();
+  renderKeywordPick();
+  renderAssigned();
+}
+
+/* ① 미분류 종목 → 대섹터 */
+function renderStockPick(){
+  const un = DATA?.미매핑상세 || [];
+  const box = $("#needAssign");
+  if(!un.length){
+    box.innerHTML = '<div class="notice">미분류 종목이 없습니다. 전부 섹터에 들어갔습니다.</div>';
+    return;
+  }
+  const saved = store("pick.stock");
+  box.innerHTML = `
+    <div class="rules" style="margin-bottom:8px">아래 <b>${un.length}종목</b>은 섹터를 몰라 미분류로 남았습니다.
+      <b>대섹터</b>만 골라도 다음 수집부터 그 섹터로 들어갑니다. 세부섹터는 비워도 됩니다.</div>
+    <div class="scroll pick"><table>
+      <thead><tr><th class="l">종목명</th><th>거래대금(억)</th><th>상승률</th>
+        <th class="l">대섹터 ▾</th><th class="l">세부섹터</th><th class="l">판단 근거</th></tr></thead>
+      <tbody>${un.map(r=>{
+        const v = saved[r.종목명] || {};
+        const why = [(r.키워드||[]).join(", "), (r.상승원인||"").slice(0,52)].filter(Boolean).join(" · ");
+        return `<tr data-nm="${esc(r.종목명)}" class="${v.대섹터?"done":""}">
+          <td class="l"><b>${esc(r.종목명)}</b></td>
+          <td class="num">${fmt(r["거래대금(억)"])}</td>
+          <td class="num">${pct(r["등락률(%)"])}</td>
+          <td class="l"><select data-f="대섹터">${majorOptions(v.대섹터)}</select></td>
+          <td class="l"><input data-f="세부섹터" value="${esc(v.세부섹터||"")}" placeholder="선택"></td>
+          <td class="l small muted">${esc(why)}</td>
+        </tr>`;}).join("")}</tbody>
+    </table></div>
+    <div class="bar">
+      <button class="bar2" id="stockCopy">종목배정.csv 복사</button>
+      <a class="bar2 ghost" href="${EDIT("종목배정.csv")}" target="_blank" rel="noopener">깃허브에서 열어 붙이기 ↗</a>
+      <button class="bar2 ghost" id="stockClear">찍은 것 지우기</button>
+      <span class="small muted" id="stockCount"></span>
+    </div>
+    <div class="out" id="stockOut"></div>`;
+
+  const sync = () => {
+    const picked = {};
+    box.querySelectorAll("tbody tr").forEach(tr=>{
+      const maj = tr.querySelector('[data-f="대섹터"]').value.trim();
+      const sub = tr.querySelector('[data-f="세부섹터"]').value.trim();
+      tr.classList.toggle("done", !!maj);
+      if(maj) picked[tr.dataset.nm] = {대섹터:maj, 세부섹터:sub};
+    });
+    keep("pick.stock", picked);
+    const names = Object.keys(picked);
+    $("#stockCount").textContent = `${names.length} / ${un.length}종목 지정`;
+    // 기존 배정은 살리고, 같은 종목은 새로 찍은 값으로 덮는다
+    const csv = ["종목명,대섹터,세부섹터,비고"].concat(
+      (DATA?.종목배정||[]).filter(r=>!picked[r.종목명]).map(r=>
+        [r.종목명,r.대섹터,r.세부섹터,r.비고].map(csvCell).join(",")),
+      names.map(n=>[n, picked[n].대섹터, picked[n].세부섹터, ""].map(csvCell).join(","))
+    ).join("\n");
+    $("#stockOut").textContent = names.length ? csv
+      : "대섹터를 하나 이상 고르면, 붙여넣을 CSV 전체가 여기 나옵니다.";
+    $("#stockCopy").disabled = !names.length;
+    return csv;
+  };
+  box.addEventListener("input", sync);
+  box.addEventListener("change", sync);
+  $("#stockCopy").onclick = e => copyOut(sync(), e.currentTarget);
+  $("#stockClear").onclick = () => { keep("pick.stock",{}); renderStockPick(); };
+  sync();
+}
+
+/* ② 오늘 나온 키워드 → 섹터
+   키워드 하나에 섹터를 붙이면 그 키워드가 잡힌 종목이 전부 따라온다.
+   종목을 하나씩 찍는 ① 보다 품이 훨씬 덜 든다. */
+function renderKeywordPick(){
+  const box = $("#keywordPick");
+  if(!box) return;
+
+  const rows = (DATA?.그룹||[]).flatMap(g=>g.종목).concat(DATA?.미매핑상세||[]);
+  const seen = new Map();                 // 키워드 → {종목수, 거래대금, 종목[]}
+  rows.forEach(r=>{
+    (r.키워드||[]).forEach(k=>{
+      const e = seen.get(k) || {종목수:0, 거래대금:0, 종목:[]};
+      e.종목수++; e.거래대금 += (r["거래대금(억)"]||0);
+      if(e.종목.length<4) e.종목.push(r.종목명);
+      seen.set(k, e);
+    });
+  });
+
+  // 사전과 키워드배정에 이미 등록돼 있는 키워드
+  const known = new Map();
+  (DATA?.사전||[]).forEach(d=>String(d.키워드||"").split(/[,\n]/).forEach(k=>{
+    k=k.trim(); if(k) known.set(k, d.대섹터); }));
+  (DATA?.배정||[]).forEach(a=>{ const k=String(a.키워드||"").trim(); if(k) known.set(k, a.대섹터); });
+
+  const list = [...seen.entries()].sort((a,b)=>b[1].거래대금-a[1].거래대금);
+  const 미등록 = list.filter(([k])=>!known.has(k)).length;
+  const saved = store("pick.keyword");
+
+  box.innerHTML = `
+    <div class="rules" style="margin-bottom:8px">오늘 뉴스에서 뽑힌 키워드 <b>${list.length}종</b>
+      — 그중 <b>${미등록}종</b>은 아직 어느 섹터에도 배정돼 있지 않습니다.
+      키워드에 섹터를 붙이면 <b>그 키워드가 잡힌 종목이 전부</b> 따라옵니다. 종목을 하나씩 찍는 것보다 품이 덜 듭니다.</div>
+    <div class="scroll pick"><table>
+      <thead><tr><th class="l">키워드</th><th>종목수</th><th>거래대금(억)</th><th class="l">현재 섹터</th>
+        <th class="l">배정할 대섹터 ▾</th><th class="l">세부섹터</th><th class="l">해당 종목</th></tr></thead>
+      <tbody>${list.map(([k,e])=>{
+        const cur = known.get(k);
+        const v = saved[k] || {};
+        return `<tr data-kw="${esc(k)}" class="${v.대섹터?"done":""}">
+          <td class="l"><b>${esc(k)}</b></td>
+          <td class="num">${e.종목수}</td>
+          <td class="num">${fmt(e.거래대금)}</td>
+          <td class="l small">${cur?esc(cur):'<span class="chip none">없음</span>'}</td>
+          <td class="l"><select data-f="대섹터">${majorOptions(v.대섹터)}</select></td>
+          <td class="l"><input data-f="세부섹터" value="${esc(v.세부섹터||"")}" placeholder="선택"></td>
+          <td class="l small muted">${esc(e.종목.join(", "))}</td>
+        </tr>`;}).join("")}</tbody>
+    </table></div>
+    <div class="bar">
+      <button class="bar2" id="kwCopy">키워드배정.csv 복사</button>
+      <a class="bar2 ghost" href="${EDIT("키워드배정.csv")}" target="_blank" rel="noopener">깃허브에서 열어 붙이기 ↗</a>
+      <button class="bar2 ghost" id="kwClear">찍은 것 지우기</button>
+      <span class="small muted" id="kwCount"></span>
+    </div>
+    <div class="out" id="kwOut"></div>`;
+
+  const sync = () => {
+    const picked = {};
+    box.querySelectorAll("tbody tr").forEach(tr=>{
+      const maj = tr.querySelector('[data-f="대섹터"]').value.trim();
+      const sub = tr.querySelector('[data-f="세부섹터"]').value.trim();
+      tr.classList.toggle("done", !!maj);
+      if(maj) picked[tr.dataset.kw] = {대섹터:maj, 세부섹터:sub};
+    });
+    keep("pick.keyword", picked);
+    const keys = Object.keys(picked);
+    $("#kwCount").textContent = `${keys.length}종 지정`;
+    const csv = ["키워드,대섹터,세부섹터,비고"].concat(
+      (DATA?.배정||[]).filter(r=>!picked[r.키워드]).map(r=>
+        [r.키워드,r.대섹터,r.세부섹터,r.비고].map(csvCell).join(",")),
+      keys.map(k=>[k, picked[k].대섹터, picked[k].세부섹터, ""].map(csvCell).join(","))
+    ).join("\n");
+    $("#kwOut").textContent = keys.length ? csv
+      : "대섹터를 하나 이상 고르면, 붙여넣을 CSV 전체가 여기 나옵니다.";
+    $("#kwCopy").disabled = !keys.length;
+    return csv;
+  };
+  box.addEventListener("input", sync);
+  box.addEventListener("change", sync);
+  $("#kwCopy").onclick = e => copyOut(sync(), e.currentTarget);
+  $("#kwClear").onclick = () => { keep("pick.keyword",{}); renderKeywordPick(); };
+  sync();
+}
+
+/* ③ 이미 배정해둔 종목 */
+function renderAssigned(){
+  const sa = DATA?.종목배정 || [];
   $("#assignTable").innerHTML = sa.length ? `
     <thead><tr><th class="l">종목명</th><th class="l">대섹터</th><th class="l">세부섹터</th><th class="l">비고</th></tr></thead>
     <tbody>${sa.map(r=>`<tr>
@@ -706,26 +896,7 @@ function renderAssign(){
       <td class="l">${esc(r.대섹터||"")}</td>
       <td class="l">${esc(r.세부섹터||"")}</td>
       <td class="l small muted">${esc(r.비고||"")}</td></tr>`).join("")}</tbody>`
-    : `<tbody><tr><td class="notice">아직 수기로 배정한 종목이 없습니다.</td></tr></tbody>`;
-}
-
-function renderAssignOld(){
-  const rows=DATA?.배정||[];
-  $("#assignTable").innerHTML = rows.length ? `
-    <thead><tr><th class="l">키워드</th><th class="l">대섹터</th><th class="l">세부섹터</th><th class="l">비고</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr>
-      <td class="l"><b>${esc(r.키워드||"")}</b></td>
-      <td class="l">${esc(r.대섹터||"")}</td>
-      <td class="l">${esc(r.세부섹터||"")}</td>
-      <td class="l small muted">${esc(r.비고||"")}</td></tr>`).join("")}</tbody>`
-    : `<tbody><tr><td class="notice">배정된 키워드가 없습니다. app/키워드배정.csv 에 추가하세요.</td></tr></tbody>`;
-
-  const un=DATA?.미매핑||[];
-  $("#needAssign").innerHTML = un.length
-    ? `<div class="rules">아래 ${un.length}종목은 섹터를 몰라 <b>미분류</b>로 남았습니다.
-        이 종목들의 상승 키워드를 위 표에 배정하면 자동으로 섹터에 들어갑니다.</div>
-       <div class="cardbody small" style="padding-left:0">${un.map(n=>`<span class="chip none" style="margin:2px">${esc(n)}</span>`).join("")}</div>`
-    : `<div class="notice">미분류 종목이 없습니다.</div>`;
+    : '<tbody><tr><td class="notice">아직 수기로 배정한 종목이 없습니다.</td></tr></tbody>';
 }
 
 /* ── RAW ── */
@@ -818,7 +989,7 @@ async function load(){
     $("#stamp").innerHTML=`<b>${d.거래일?.slice(4,6)}/${d.거래일?.slice(6,8)}</b> ${d.수집시각?.slice(11)||""}`;
 
     const warns=[];
-    if(!d.뉴스||d.뉴스.사유) warns.push("네이버 검색 API 키가 없어 <b>상승 원인 근거가 비어 있습니다</b>.");
+    if(!d.뉴스||d.뉴스.사유) warns.push("뉴스를 받지 못해 <b>상승 원인 근거가 비어 있습니다</b>.");
     if(d.사전출처!=="구글시트") warns.push("섹터 사전이 <b>로컬 CSV</b>입니다. 구글시트를 연결하면 형님 사전 전체가 적용됩니다.");
     if(d.미매핑?.length) warns.push(`미매핑 ${d.미매핑.length}종목 — 사전에 추가하면 섹터로 들어갑니다: <span class="muted">${esc(d.미매핑.slice(0,12).join(", "))}</span>`);
     $("#warn").innerHTML=warns.length?`<div class="warn">${warns.join("<br>")}</div>`:"";
