@@ -30,7 +30,9 @@ for p in (HERE, ROOT):
 
 import flows                     # noqa: E402
 import news                      # noqa: E402
+import report                    # noqa: E402
 import sector_map                # noqa: E402
+import toss                      # noqa: E402
 
 DATA_DIR = os.path.join(HERE, "data")
 ASSIGN_FILE = os.path.join(HERE, "키워드배정.csv")      # 키워드 → 섹터 (보조)
@@ -216,7 +218,26 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     groups = sector_map.aggregate(enriched) if not enriched.empty else []
     leaders = sector_map.leaders(groups)
 
-    print("\n[5/5] 저장")
+    print("\n[5/6] 매크로 · 차트 (토스)")
+    매크로 = toss.macro() if toss.available() else []
+    if 매크로:
+        for m in 매크로:
+            print(f"  {m['이름']:<16} {m['종가']:>10,.2f}  {m['등락률']:+.2f}%")
+    else:
+        print("  토스 키 없음 — 나스닥·반도체·유가 생략")
+
+    # 대장주 후보에만 차트 판정을 붙인다 (호출 수를 아낀다)
+    if toss.available():
+        for c in leaders:
+            ticker = next((r.get("티커") for r in rows
+                           if r.get("종목명") == c.get("종목명")), None)
+            if ticker:
+                try:
+                    c["차트"] = toss.chart_read(str(ticker).zfill(6))
+                except Exception as exc:
+                    print(f"  차트 생략 {c.get('종목명')}: {type(exc).__name__}")
+
+    print("\n[6/6] 저장")
     payload = {
         "거래일": date,
         "수집시각": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -238,8 +259,21 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
              "등락률(%)": r.get("등락률(%)"), "키워드": r.get("키워드"),
              "상승원인": r.get("상승원인")}
             for r in rows if r.get("대섹터") == "미분류"]),
+        "매크로": _clean(매크로),
         "종목수": len(rows),
     }
+
+    # 일일보고서 — payload 가 완성된 뒤에 만든다 (그룹·수급·키워드를 다 쓴다)
+    try:
+        payload["보고서"] = _clean(report.build(payload))
+        hot = payload["보고서"]["핫뉴스"][:3]
+        for h in hot:
+            print(f"    핫재료 {h['재료']:<14} 매체 {h['매체수']} · {h['종목수']}종목 · {h['거래대금']:,}억")
+        제안 = payload["보고서"]["제안"]
+        print(f"    {제안['코멘트'][:110]}")
+    except Exception as exc:
+        print(f"  보고서 생성 실패: {type(exc).__name__}: {exc}")
+        payload["보고서"] = None
 
     os.makedirs(DATA_DIR, exist_ok=True)
     for name in (f"{date}.json", "latest.json"):

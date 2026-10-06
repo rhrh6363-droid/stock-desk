@@ -29,6 +29,8 @@ jobs:
       KRX_PW: ${{ secrets.KRX_PW }}
       NAVER_ID: ${{ secrets.NAVER_ID }}
       NAVER_SECRET: ${{ secrets.NAVER_SECRET }}
+      TOSS_CLIENT_ID: ${{ secrets.TOSS_CLIENT_ID }}
+      TOSS_CLIENT_SECRET: ${{ secrets.TOSS_CLIENT_SECRET }}
       PYTHONUTF8: "1"
 
     steps:

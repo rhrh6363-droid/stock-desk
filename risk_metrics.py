@@ -34,8 +34,11 @@ STOP_MULTIPLE = 1.5
 
 HISTORY_DAYS = 160          # MA20·RSI14 를 안정적으로 채우기 위한 조회 기간(달력일)
 
+# 투자원칙 7 — 이틀 누적 40% 이상이면 과열. 거래대금 조단위면 예외 (판정은 집계기에서)
+OVERHEAT_2D = 40.0
+
 COLUMNS = ["RSI(14)", "볼밴위치", "볼밴%B", "이격도", "평균변동폭(20일)",
-           "제안손절(%)", "제안익절(%)"]
+           "제안손절(%)", "제안익절(%)", "2일누적(%)"]
 
 
 def _col(df: pd.DataFrame, names: list[str]) -> str | None:
@@ -117,6 +120,12 @@ def _metrics_for(ticker: str, target_date: str) -> dict:
             out["이격도"] = round(last / ma * 100, 1)
 
     # ── 평균 일중변동폭: 대상일을 뺀 직전 20거래일
+    # 2일 누적 상승률 — 전전일 종가 대비 당일 종가
+    if len(close) >= 3:
+        base = float(close.iloc[-3])
+        if base > 0:
+            out["2일누적(%)"] = round((float(close.iloc[-1]) / base - 1) * 100, 2)
+
     if high_c and low_c and len(hist) >= RANGE_WINDOW + 1:
         prior = hist.iloc[:-1].tail(RANGE_WINDOW)
         lows = prior[low_c].astype(float)

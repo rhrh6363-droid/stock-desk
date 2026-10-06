@@ -66,6 +66,8 @@ if _HERE not in sys.path:
 COND_A_MIN_CHANGE = 15.0              # A: 등락률 %
 COND_A_MIN_INTRADAY = 6.0             # A: 일중변동폭 % — 사용자 지시로 A에도 적용
 MIN_MARKETCAP = 500_000_000_000       # 투자원칙 "시총 5천억 이상만 본다" — 표기용, 거르지 않는다
+OVERHEAT_2D = 40.0                    # 투자원칙 7: 이틀 누적 40%+ 과열
+OVERHEAT_EXEMPT_VALUE = 10_000        # 거래대금(억) 1조 이상이면 과열이어도 예외
 COND_B_MIN_VALUE = 50_000_000_000     # B: 거래대금 (원)
 COND_B_MIN_INTRADAY = 6.0             # B: 일중변동폭 %
 COND_B_MIN_CHANGE = 5.0               # B: 등락률 % — 시트 기준에 맞춤
@@ -284,6 +286,17 @@ def fetch_date(target_date: str):
         df_out = add_risk_metrics(df_out, target_date)
     except Exception as exc:
         print(f"  위험지표 계산 생략: {type(exc).__name__}: {exc}")
+
+    # 과열 판정 — 투자원칙 7. 조단위 거래대금은 예외로 둔다
+    if "2일누적(%)" in df_out.columns:
+        def overheat(row):
+            cum = row.get("2일누적(%)")
+            if pd.isna(cum) or cum < OVERHEAT_2D:
+                return None
+            if (row.get("거래대금(억)") or 0) >= OVERHEAT_EXEMPT_VALUE:
+                return "과열(조단위 예외)"
+            return "과열"
+        df_out["과열"] = df_out.apply(overheat, axis=1)
 
     # 콘솔 출력
     counts = df_out["조건"].value_counts()

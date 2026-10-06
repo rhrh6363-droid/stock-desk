@@ -151,6 +151,23 @@ td.rk{font-size:15px;font-weight:700;color:var(--navy)}
 .cls.issue{background:var(--issue);color:#fff}
 .cls.none{background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)}
 .cap.bad{color:var(--ink-3)}
+/* 일일보고서 — 라벨/내용 2열 */
+table.kv2 td{vertical-align:top}
+table.kv2 td.k{width:190px;font-weight:600;background:var(--surface-2);white-space:nowrap;text-align:left}
+table.kv2 td.v{text-align:left;line-height:1.65}
+.stars{color:#e3a81a;letter-spacing:-1px}
+.chk{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:2px 0}
+.chk .mk{width:14px;text-align:center;font-weight:700}
+.chk.ok .mk{color:var(--issue)} .chk.no .mk{color:var(--up)}
+.sug{border:1px solid var(--line);border-top:3px solid var(--navy);background:var(--surface);padding:13px 15px}
+.sug h4{margin:0 0 3px;font-size:16px}
+.badge{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;background:var(--surface-2);
+  border:1px solid var(--line);color:var(--ink-2);margin-left:5px}
+.badge.prop{background:#fff3d6;border-color:#e3c069;color:#7a5600}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge.prop{background:#30260f;border-color:#6b5420;color:#f0c97a}}
+.newsrow{padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:12px;line-height:1.5}
+.newsrow:last-child{border-bottom:none}
+.newsrow .src{color:var(--ink-3);font-size:11px}
 .cap.good{font-weight:600}
 .hm .wk{background:var(--surface-2);font-weight:600;border-left:2px solid var(--line)}
 .hm td.maj{text-align:left;color:var(--ink-3);font-size:10px;white-space:nowrap}
@@ -189,8 +206,33 @@ body.static #runBtn{display:none}
     </div>
 
     <div class="card">
-      <div class="sheethead">종합 결론 — 주도 키워드 TOP 5</div>
+      <div class="sheethead">▣ 지수 현황 <span class="sub">매크로 무조건 확인 — 나스닥 + 유가 + 환율</span></div>
+      <div class="scroll"><table id="idxTable"></table></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">▣ 시황 요약</div>
+      <div class="scroll"><table class="kv2" id="summary"></table></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">▶ 주요 매크로 이슈 <span class="sub">제목·링크만 — 영향 해석은 직접</span></div>
+      <div class="cardbody" id="macroNews"></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">▣ 종합 결론 — 주도 키워드 TOP 5</div>
       <div class="scroll"><table id="top5"></table></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">종목선정 및 요약 <span class="sub">제안 · 판단은 직접</span></div>
+      <div class="cardbody" id="judge"></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">그날의 대장주 후보 <span class="sub">주도업종 거래대금 1위 · 최대 3종목</span></div>
+      <div class="cardbody"><div class="leaders" id="leadCards"></div></div>
     </div>
 
     <div class="card">
@@ -199,22 +241,15 @@ body.static #runBtn{display:none}
     </div>
 
     <div class="card">
-      <div class="sheethead">그날의 대장주 후보 <span class="sub">주도업종의 거래대금 1위 · 최대 3종목</span></div>
-      <div class="cardbody"><div class="leaders" id="leadCards"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="sheethead">매매 근거 정리 <span class="sub">어느 섹터 · 어느 종목 · 왜 사는가(또는 왜 안 사는가)</span></div>
-      <div class="cardbody" id="judge"></div>
-    </div>
-
-    <div class="card">
-      <div class="sheethead">매매 전 점검</div>
+      <div class="sheethead">매매 전 점검 <span class="sub">투자원칙</span></div>
       <div class="cardbody rules">
         <b>무조건 모든 조건을 만족시키는 종목만 매수한다. 애매하면 아예 사지 마라.</b><br>
-        D+1 상따매매 시에는 <b>2등주가 무너지지 않았는지</b> 본다 — 위 카드에 2등주를 같이 띄웠다.<br>
-        <b>RSI 70</b> 이상은 과매수 = 위험 가산. 매수 신호가 아니다.<br>
-        손절은 평단가 기준 <b>3:1</b>. 익절 폭이 손절 폭의 3배가 안 되면 들어갈 자리가 아니다.<br>
+        전고점 돌파하는 <b>거래대금 + 거래량 1등주</b>를 찾는다. 2등주는 다음날 음봉 가능성이 있다.<br>
+        섹터가 분산될 때는 <b>종목이 제일 많은 섹터</b>를 본다.<br>
+        D+1 상따매매 시에는 <b>2등주가 무너지지 않았는지</b> 본다.<br>
+        <b>RSI 70</b> 이상 과매수 · <b>이틀 40%</b> 이상 과열 — 단, 거래대금 조단위면 비중조절해 예외 可.<br>
+        <b>시총 5천억 이상</b>만 본다. <b>개인 매수</b>는 주의.<br>
+        손절은 <b>3:1</b>. 익절 폭이 손절 폭의 3배가 안 되면 들어갈 자리가 아니다.<br>
         <span class="muted">시장 ADR 은 참고 지표다. 판단을 ADR 로 결정하지 않는다.</span>
       </div>
     </div>
@@ -333,18 +368,28 @@ function whyHtml(r){
     `<a href="${esc(n["링크"])}" target="_blank" rel="noopener">${esc(n["제목"])}</a>`).join("<br>");
 }
 
-/* ── 일일보고서 ── */
-function renderReport(){
-  const d=DATA;
+/* ── 일일보고서 — 시트 장표 구조 ── */
+function stars(v){           // 섹터 합산 거래대금 → 별. 히트맵 색상 범례와 같은 구간
+  const n = v>=10000?5 : v>=7500?4 : v>=5000?3 : v>=2500?2 : 1;
+  return '<span class="stars">'+"★".repeat(n)+"</span>";
+}
+function newsLink(n){
+  return `<div class="newsrow"><a href="${esc(n.링크)}" target="_blank" rel="noopener">${esc(n.제목)}</a>
+    <div class="src">${esc(n.출처||"")}${n.날짜?" · "+esc(n.날짜):""}${n.사건어?' · <b>'+esc(n.사건어)+'</b>':""}</div></div>`;
+}
+
+function renderReport(){ renderReportSheet(); }
+
+function renderReportSheet(){
+  const d=DATA, rep=d.보고서||{}, adr=d.adr||{};
   $("#reportDate").textContent =
     `${d.거래일?.slice(0,4)}-${d.거래일?.slice(4,6)}-${d.거래일?.slice(6,8)} · 수집 ${d.수집시각||"—"}`;
 
-  const adr=d.adr||{};
+  // 상단 카드
   const idx=(d.지수||[]).map(i=>`
     <div class="c"><div class="k">${esc(i.이름)}</div>
       <div class="v num">${fmt(i.종가,2)}</div>
-      <div class="d num">${pct(i.등락률)} <span class="muted">${i.등락pt>0?"+":""}${fmt(i.등락pt,2)}pt</span></div>
-    </div>`).join("");
+      <div class="d num">${pct(i.등락률)}</div></div>`).join("");
   $("#idx").innerHTML = idx + `
     <div class="c"><div class="k">특징주</div><div class="v num">${d.종목수??0}<span class="small muted"> 종목</span></div>
       <div class="d muted small">주도업종 ${(d.그룹||[]).filter(g=>g.분류==="주도업종").length}개</div></div>
@@ -353,19 +398,152 @@ function renderReport(){
         ${adr.ADR??"—"} <span class="small">${esc(adr.구간||"")}</span></div>
       <div class="d muted small">상승 ${fmt(adr.상승)} / 하락 ${fmt(adr.하락)}</div></div>`;
 
-  const lead=(d.그룹||[]).filter(g=>g.분류==="주도업종").slice(0,5);
-  $("#top5").innerHTML = lead.length ? `
-    <thead><tr><th class="l">순위</th><th class="l">대섹터</th><th>종목수</th>
-      <th>합산 거래대금</th><th>평균 상승률</th><th class="l">대장주</th><th class="l">등급</th></tr></thead>
-    <tbody>${lead.map(g=>`<tr>
-      <td class="l num">${g.순위}</td><td class="l"><b>${esc(g.대섹터)}</b></td>
+  // ▣ 지수 현황
+  const mac=d.매크로||[];
+  const idxRows=(d.지수||[]).map(i=>`<tr>
+      <td class="l"><b>${esc(i.이름)}</b></td><td class="num">${fmt(i.종가,2)}</td>
+      <td class="num">${i.등락pt>0?"+":""}${fmt(i.등락pt,2)}</td><td class="num">${pct(i.등락률)}</td>
+      <td class="l small muted">KRX 수집</td></tr>`).join("")
+    + mac.map(m=>`<tr>
+      <td class="l"><b>${esc(m.이름)}</b> <span class="small muted">${esc(m.심볼)}</span></td>
+      <td class="num">${fmt(m.종가,2)}</td><td class="num">${fmt(m.종가-m.전일,2)}</td>
+      <td class="num">${pct(m.등락률)}</td>
+      <td class="l small muted">${esc(m.비고||"")}</td></tr>`).join("");
+  $("#idxTable").innerHTML = (idxRows ? `
+    <thead><tr><th class="l">구분</th><th>종가</th><th>등락폭</th><th>등락률</th><th class="l">비고</th></tr></thead>
+    <tbody>${idxRows}</tbody>`
+    : `<tbody><tr><td class="notice">지수 자료가 없습니다.</td></tr></tbody>`)
+    + (mac.length?"":`<tbody><tr><td colspan="5" class="small muted" style="padding:8px 9px">
+       나스닥·반도체·유가는 토스 API 키가 있어야 나옵니다.</td></tr></tbody>`);
+
+  // ▣ 시황 요약
+  const 주도=(d.그룹||[]).filter(g=>g.분류==="주도업종");
+  const sh=rep.섹터변화||{}, rk=rep.리스크||{}, hot=rep.핫뉴스||[];
+  const fs=d.수급요약||[];
+  const line=[];
+  const row=(k,v)=>`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;
+
+  const 지수말=(d.지수||[]).map(i=>`${esc(i.이름)} ${fmt(i.종가,2)} (${i.등락률>0?"+":""}${fmt(i.등락률,2)}%)`).join(" · ");
+  line.push(row("📌 전체 시장 동향",
+    `${지수말||"—"}<br>특징주 <b>${d.종목수}</b>종목 · 주도업종 <b>${주도.length}</b>개 ·
+     시장 ADR ${adr.ADR??"—"} <span class="muted">(${esc(adr.구간||"")}, 상승 ${fmt(adr.상승)} / 하락 ${fmt(adr.하락)})</span>`));
+
+  line.push(row("📌 주요 상승 동인", hot.length
+    ? hot.slice(0,5).map(h=>`<b>${esc(h.재료)}</b> — ${h.종목수}종목 ${fmt(h.거래대금)}억 · 매체 ${h.매체수}곳
+        <div class="small muted">${esc(h.종목.join(", "))}</div>`).join("<br>")
+    : '<span class="muted">추출된 재료가 없습니다.</span>'));
+
+  line.push(row("📌 섹터별 특징", 주도.length
+    ? 주도.map(g=>`<b>${esc(g.대섹터)}</b> ${g.종목수}종목 ${fmt(g.합산거래대금)}억 · 대장 ${esc(g.대장주)}
+        <span class="muted">(평균 ${fmt(g.평균상승률,2)}%)</span>`).join("<br>")
+    : '<span class="muted">주도업종이 없습니다. 개별이슈 장입니다.</span>'));
+
+  line.push(row("📌 수급 특징", fs.length
+    ? fs.map(f=>`<b>${esc(f.주체)}</b> ${f.종목수}종목 · ${fmt(f.거래대금)}억 · 평균 ${fmt(f.평균등락률,2)}%`).join("<br>")
+    : '<span class="muted">—</span>'));
+
+  const rs2=rk.요약||{};
+  line.push(row("📌 리스크 요인",
+    `RSI 70 이상 <b>${rs2.RSI70??0}</b>종목 · 이틀 40% 과열 <b>${rs2.과열??0}</b>종목 ·
+     시총 5천억 미달 <b>${rs2.시총미달??0}</b>종목 · 개인 쏠림 <b>${rs2.개인쏠림??0}</b>종목
+     ${(rk.과열||[]).length?`<div class="small muted">과열: ${rk.과열.map(x=>esc(x.종목명)+"("+fmt(x["2일누적"],1)+"%)").join(", ")}</div>`:""}`));
+
+  if(sh.기준일){
+    const up=(sh.증감||[]).filter(x=>x.증감>0).slice(0,4);
+    const dn=(sh.증감||[]).filter(x=>x.증감<0).slice(-4).reverse();
+    line.push(row("🔄 섹터 변화 방향",
+      `<span class="muted">${esc(sh.기준일)} 대비</span><br>
+       ${up.length?"증가 — "+up.map(x=>`${esc(x.대섹터)} ${x.증감률>0?"+":""}${fmt(x.증감률,1)}%`).join(" · "):""}
+       ${dn.length?"<br>감소 — "+dn.map(x=>`${esc(x.대섹터)} ${fmt(x.증감률,1)}%`).join(" · "):""}`));
+    line.push(row("📌 주도 지속 섹터", (sh.지속||[]).length
+      ? sh.지속.map(x=>`<b>${esc(x.대섹터)}</b> ${fmt(x.전일거래대금)}억 → <b>${fmt(x.거래대금)}억</b> · 대장 ${esc(x.대장주)}`).join("<br>")
+      : '<span class="muted">이틀 연속 주도인 섹터가 없습니다.</span>'));
+    line.push(row("🆕 신규 부상 섹터", (sh.신규||[]).length
+      ? sh.신규.slice(0,5).map(x=>`<b>${esc(x.대섹터)}</b> ${x.종목수}종목 ${fmt(x.거래대금)}억 · 대장 ${esc(x.대장주)}`).join("<br>")
+      : '<span class="muted">—</span>'));
+    line.push(row("⚠️ 섹터 전환 리스크", (sh.소멸||[]).length
+      ? sh.소멸.slice(0,5).map(x=>`<b>${esc(x.대섹터)}</b> 전일 ${fmt(x.전일거래대금)}억 ${esc(x.전일등급||"")} → <b>오늘 이탈</b>`).join("<br>")
+      : '<span class="muted">이탈한 섹터가 없습니다.</span>'));
+  }else{
+    line.push(row("🔄 섹터 변화 방향", '<span class="muted">비교할 직전 거래일 자료가 아직 없습니다. 하루 더 쌓이면 나옵니다.</span>'));
+  }
+
+  line.push(row("🔑 핵심 공통 키워드", hot.length
+    ? hot.slice(0,6).map(h=>`${esc(h.재료)} <span class="muted">(${h.종목수}종목 ${fmt(h.거래대금)}억)</span>`).join(" &nbsp;>&nbsp; ")
+    : '<span class="muted">—</span>'));
+
+  $("#summary").innerHTML = `<tbody>${line.join("")}</tbody>`;
+
+  // ▶ 주요 매크로 이슈
+  const mn=rep.매크로뉴스||[];
+  $("#macroNews").innerHTML = mn.length
+    ? mn.map(newsLink).join("")
+    : '<div class="notice">매크로 기사를 가져오지 못했습니다.</div>';
+
+  // ▣ 종합 결론 — 주도 키워드 TOP5
+  $("#top5").innerHTML = 주도.length ? `
+    <thead><tr><th class="l">순위</th><th class="l">대섹터</th><th class="l">등급</th><th>종목수</th>
+      <th>합산 거래대금</th><th>평균 상승률</th><th class="l">대장주</th><th class="l">촉매</th></tr></thead>
+    <tbody>${주도.slice(0,5).map((g,i)=>{
+      const h=hot.find(x=>(g.종목||[]).some(r=>(r.키워드||[]).includes(x.재료)));
+      return `<tr>
+      <td class="l num">${i+1}위</td><td class="l"><b>${esc(g.대섹터)}</b></td>
+      <td class="l">${stars(g.합산거래대금)}</td>
       <td class="num">${g.종목수}</td><td class="num"><b>${fmt(g.합산거래대금)}</b>억</td>
       <td class="num">${pct(g.평균상승률)}</td><td class="l"><b>${esc(g.대장주)}</b></td>
-      <td class="l"><span class="grade lead">★★★ 주도</span></td></tr>`).join("")}</tbody>`
+      <td class="l small muted">${h?esc(h.대표기사).slice(0,60):"—"}</td></tr>`;}).join("")}</tbody>`
     : `<tbody><tr><td class="notice">주도업종(3종목 이상)이 없습니다. 오늘은 개별이슈 장입니다.</td></tr></tbody>`;
 
+  // 종목선정 <제안>
+  const sg=rep.제안||{};
+  $("#judge").innerHTML = (sg.후보||[]).length ? `
+    <div class="rules" style="margin-bottom:12px">
+      <span class="badge prop">제안</span> ${esc(sg.코멘트||"")}</div>
+    <div class="leaders">${sg.후보.map(c=>`
+      <div class="sug">
+        <h4>${esc(c.종목명)}${c.전일지속?'<span class="badge">전일 지속</span>':""}</h4>
+        <div class="sec small muted">${esc(c.대섹터)} · 섹터 ${c.섹터종목수}종목 ${fmt(c.섹터합산)}억</div>
+        <div style="margin:8px 0">
+          <div class="kv"><span class="muted">등락률</span><span class="num">${pct(c.등락률)}</span></div>
+          <div class="kv"><span class="muted">거래대금</span><span class="num">${fmt(c.거래대금)}억</span></div>
+          <div class="kv"><span class="muted">매매법</span><span>${esc(c.매매법)}</span></div>
+          <div class="kv"><span class="muted">2등주</span><span>${c["2등주"]?esc(c["2등주"])+" "+pct(c["2등주등락률"]):"—"}</span></div>
+        </div>
+        <div style="border-top:1px solid var(--line-soft);padding-top:7px">
+          <div class="small muted" style="margin-bottom:3px">점검 ${c.통과}/${c.총항목}</div>
+          ${(c.체크||[]).map(k=>`<div class="chk ${k.통과?"ok":"no"}">
+            <span class="mk">${k.통과?"✓":"✕"}</span><span>${esc(k.항목)}</span>
+            <span class="muted" style="margin-left:auto">${esc(k.값)}</span></div>`).join("")}
+        </div>
+        <div class="note">${esc(c.근거||"")}</div>
+      </div>`).join("")}</div>`
+    : `<div class="rules"><span class="badge prop">제안</span> ${esc(sg.코멘트||"판단 재료가 부족합니다.")}</div>`;
+
+  // 대장주 후보 카드
+  const cands=d.대장주후보||[];
+  $("#leadCards").innerHTML = cands.length ? cands.map(c=>{
+    const ch=c.차트||{};
+    return `<div class="lead-card">
+      <h4>${esc(c.종목명)} ${condTag(c.조건||"")}</h4>
+      <div class="sec">${esc(c.대섹터)}${c.세부섹터?" · "+esc(c.세부섹터):""} ·
+        섹터 ${c.섹터종목수}종목 ${fmt(c.섹터합산)}억</div>
+      <div style="margin-top:9px">
+        <div class="kv"><span class="muted">등락률</span><span class="num">${pct(c.등락률)}</span></div>
+        <div class="kv"><span class="muted">거래대금</span><span class="num">${fmt(c.거래대금)}억</span></div>
+        <div class="kv"><span class="muted">RSI(14)</span><span>${rsiChip(c.rsi)}</span></div>
+        <div class="kv"><span class="muted">볼밴 σ2</span><span>${esc(c.볼밴위치||"—")}</span></div>
+        <div class="kv"><span class="muted">평균변동폭</span><span class="num">${c.평균변동폭?fmt(c.평균변동폭,1)+"%":"—"}</span></div>
+        <div class="kv"><span class="muted">2등주</span><span>${c["2등주"]?esc(c["2등주"])+" "+pct(c["2등주등락률"]):"—"}</span></div>
+        ${ch.전고점?`<div class="kv"><span class="muted">전고점(${ch.기간}일)</span>
+          <span class="num">${fmt(ch.전고점)} ${ch.전고점돌파?'<b style="color:var(--up)">돌파</b>':""}</span></div>`:""}
+        ${ch.장대양봉!==undefined?`<div class="kv"><span class="muted">끼 · 캔들</span>
+          <span>${ch.장대양봉?"장대양봉":"—"} · 윗꼬리 ${fmt(ch["윗꼬리(%)"],0)}% · 20%급등 ${ch["끼(20%급등일수)"]}회</span></div>`:""}
+      </div>
+      <div class="note">${c.근거?esc(c.근거):'<span class="nonews">근거 없음</span>'}</div>
+    </div>`;}).join("")
+    : `<div class="notice">주도업종이 없어 대장주 후보를 내지 못했습니다.</div>`;
+
   // 투자자별 매매 현황
-  const fs=d.수급요약||[];
   const fstat=d.수급||{};
   $("#flowTable").innerHTML = fs.length ? `
     <thead><tr><th class="l">수급 주체</th><th>종목수</th><th>거래대금(억)</th><th>평균 상승률</th>
@@ -379,42 +557,6 @@ function renderReport(){
         <td class="num">${pct(f.평균등락률)}</td>
         <td class="l small muted">${해석}</td></tr>`;}).join("")}</tbody>`
     : `<tbody><tr><td class="notice">투자자별 매매 자료가 없습니다. ${esc(fstat.사유||"")}</td></tr></tbody>`;
-
-  // 매매 근거 정리
-  const 주도=(d.그룹||[]).filter(g=>g.분류==="주도업종");
-  const 과매수=(d.대장주후보||[]).filter(c=>c.rsi>=70);
-  const 판단=[];
-  if(!주도.length){
-    판단.push(`<b>오늘은 주도업종이 없다.</b> 같은 섹터에 3종목 이상 몰린 테마가 없다 — 개별이슈 장이다.
-      원칙상 <b>관찰만 하고 들어가지 않는다.</b>`);
-  }else{
-    판단.push(`주도업종 <b>${주도.length}개</b>: ${주도.map(g=>`${esc(g.대섹터)}(${g.종목수}종목 ${fmt(g.합산거래대금)}억)`).join(" · ")}`);
-    판단.push(`1순위 섹터는 <b>${esc(주도[0].대섹터)}</b>, 그 안의 대장은 <b>${esc(주도[0].대장주)}</b>다.`);
-  }
-  if(과매수.length) 판단.push(`<b>RSI 70 초과 ${과매수.length}종목</b>: ${과매수.map(c=>`${esc(c.종목명)}(${fmt(c.rsi,1)})`).join(", ")}
-    — 과매수 구간이다. 추격매수 자리가 아니다.`);
-  if(d.미매핑?.length) 판단.push(`<span class="muted">미분류 ${d.미매핑.length}종목은 섹터를 몰라 판단에서 제외했다.
-    종목배정 장표에서 키워드를 잡아주면 들어온다.</span>`);
-  if(!d.뉴스||d.뉴스.사유) 판단.push(`<span class="nonews">상승 원인 근거가 비어 있다 — 재료 확인 없이는 매수 판단을 완성할 수 없다.</span>`);
-  $("#judge").innerHTML = `<div class="rules">${판단.join("<br><br>")}</div>`;
-
-  const cands=d.대장주후보||[];
-  $("#leadCards").innerHTML = cands.length ? cands.map(c=>`
-    <div class="lead-card">
-      <h4>${esc(c.종목명)} ${condTag(c.조건||"")}</h4>
-      <div class="sec">${esc(c.대섹터)}${c.세부섹터?" · "+esc(c.세부섹터):""} ·
-        섹터 ${c.섹터종목수}종목 ${fmt(c.섹터합산)}억</div>
-      <div style="margin-top:9px">
-        <div class="kv"><span class="muted">등락률</span><span class="num">${pct(c.등락률)}</span></div>
-        <div class="kv"><span class="muted">거래대금</span><span class="num">${fmt(c.거래대금)}억</span></div>
-        <div class="kv"><span class="muted">RSI(14)</span><span>${rsiChip(c.rsi)}</span></div>
-        <div class="kv"><span class="muted">볼밴 σ2</span><span>${esc(c.볼밴위치||"—")}</span></div>
-        <div class="kv"><span class="muted">평균변동폭</span><span class="num">${c.평균변동폭?fmt(c.평균변동폭,1)+"%":"—"}</span></div>
-        <div class="kv"><span class="muted">2등주</span><span>${c["2등주"]?esc(c["2등주"])+" "+pct(c["2등주등락률"]):"—"}</span></div>
-      </div>
-      <div class="note">${c.근거?esc(c.근거):'<span class="nonews">근거 없음</span>'}</div>
-    </div>`).join("")
-    : `<div class="notice">주도업종이 없어 대장주 후보를 내지 못했습니다.</div>`;
 }
 
 /* ── 키워드별 종목 정렬 — 시트 장표 그대로 ──
