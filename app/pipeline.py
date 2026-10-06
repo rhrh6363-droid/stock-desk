@@ -28,7 +28,9 @@ for p in (HERE, ROOT):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import charts                    # noqa: E402
 import flows                     # noqa: E402
+import macro                     # noqa: E402
 import news                      # noqa: E402
 import report                    # noqa: E402
 import sector_map                # noqa: E402
@@ -218,24 +220,32 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     groups = sector_map.aggregate(enriched) if not enriched.empty else []
     leaders = sector_map.leaders(groups)
 
-    print("\n[5/6] 매크로 · 차트 (토스)")
-    매크로 = toss.macro() if toss.available() else []
-    if 매크로:
-        for m in 매크로:
-            print(f"  {m['이름']:<16} {m['종가']:>10,.2f}  {m['등락률']:+.2f}%")
-    else:
-        print("  토스 키 없음 — 나스닥·반도체·유가 생략")
+    # 매크로는 야후에서 받는다. 토스는 해외 IP 를 막아 런너에서 못 쓴다
+    print("\n[5/6] 매크로 · 차트")
+    매크로 = macro.snapshot()
+    for m in 매크로:
+        print(f"  {m['이름']:<16} {m['종가']:>12,.2f}  {m['등락률']:+.2f}%")
+    if not 매크로:
+        print("  매크로 조회 실패")
 
-    # 대장주 후보에만 차트 판정을 붙인다 (호출 수를 아낀다)
+    # 차트는 KRX 일봉으로 본다 — 전고점·이평선·캔들은 일봉이면 충분하다
+    n = charts.attach(leaders, rows, date)
+    print(f"  차트 판정 {n}종목 (전고점·이평선·끼)")
+
+    # 분봉은 토스만 가능하고 한국 IP 에서만 된다. 로컬 실행일 때만 붙는다
     if toss.available():
-        for c in leaders:
-            ticker = next((r.get("티커") for r in rows
-                           if r.get("종목명") == c.get("종목명")), None)
-            if ticker:
-                try:
-                    c["차트"] = toss.chart_read(str(ticker).zfill(6))
-                except Exception as exc:
-                    print(f"  차트 생략 {c.get('종목명')}: {type(exc).__name__}")
+        try:
+            intraday = toss.intraday_leader([
+                str(next((r.get("티커") for r in rows
+                          if r.get("종목명") == c.get("종목명")), "")).zfill(6)
+                for c in leaders])
+            if intraday:
+                print(f"  장중 분봉 {len(intraday)}종목")
+        except Exception as exc:
+            intraday = []
+            print(f"  분봉 생략: {type(exc).__name__}")
+    else:
+        intraday = []
 
     print("\n[6/6] 저장")
     payload = {
@@ -260,6 +270,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
              "상승원인": r.get("상승원인")}
             for r in rows if r.get("대섹터") == "미분류"]),
         "매크로": _clean(매크로),
+        "장중분봉": _clean(intraday),
         "종목수": len(rows),
     }
 
