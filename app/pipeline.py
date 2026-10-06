@@ -159,24 +159,28 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     if df is None:
         df = pd.DataFrame(columns=["종목명", "거래대금(억)", "등락률(%)", "조건"])
 
-    print("\n[2/5] 섹터 매핑")
+    # 사전을 먼저 읽는다 — 뉴스에서 키워드를 뽑을 때 사전 어휘를 기준으로 쓴다
     dic, source = load_dictionary()
     assign = load_assignments()
-    mapped, unmapped = sector_map.apply(df, merge_assignments(dic, assign))
-    print(f"  사전: {source}  ({len(dic)}행)  + 키워드배정 {len(assign)}행"
-          f"   미매핑 {len(unmapped)}종목")
+    merged = merge_assignments(dic, assign)
 
-    rows = _clean(mapped.to_dict("records"))
-
-    print("\n[3/5] 뉴스 근거")
-    news_stat = news.attach(rows)
+    # 키워드가 섹터 매핑의 입력이다. 그래서 뉴스가 매핑보다 **먼저** 돌아야 한다
+    print("\n[2/5] 뉴스 근거 + 키워드 추출")
+    rows = _clean(df.to_dict("records"))
+    news_stat = news.attach(rows, vocab=news.vocabulary(merged))
     print(f"  {news_stat}")
+
+    print("\n[3/5] 섹터 매핑")
+    mapped, unmapped = sector_map.apply(pd.DataFrame(rows), merged)
+    rows = _clean(mapped.to_dict("records"))
+    print(f"  사전: {source}  ({len(dic)}행)  + 종목배정 {len(assign)}행"
+          f"   미매핑 {len(unmapped)}종목")
 
     print("\n[4/5] 투자자별 수급 (외국인·기관)")
     flow_stat = flows.attach(rows, date)
     print(f"  {flow_stat}")
 
-    # 뉴스를 붙인 뒤에 집계해야 근거가 그룹 안으로 따라 들어간다
+    # 매핑까지 끝난 rows 로 집계해야 근거·키워드·수급이 그룹 안으로 따라 들어간다
     enriched = pd.DataFrame(rows) if rows else mapped
     groups = sector_map.aggregate(enriched) if not enriched.empty else []
     leaders = sector_map.leaders(groups)
