@@ -27,8 +27,6 @@ jobs:
       TZ: Asia/Seoul          # 수집시각·거래일이 KST 로 찍히게 한다
       KRX_ID: ${{ secrets.KRX_ID }}
       KRX_PW: ${{ secrets.KRX_PW }}
-      NAVER_ID: ${{ secrets.NAVER_ID }}
-      NAVER_SECRET: ${{ secrets.NAVER_SECRET }}
       TOSS_CLIENT_ID: ${{ secrets.TOSS_CLIENT_ID }}
       TOSS_CLIENT_SECRET: ${{ secrets.TOSS_CLIENT_SECRET }}
       PYTHONUTF8: "1"
@@ -53,9 +51,6 @@ jobs:
           if [ -z "$KRX_ID" ] || [ -z "$KRX_PW" ]; then
             echo "::error::KRX_ID / KRX_PW 시크릿이 없습니다. Settings → Secrets and variables → Actions 에서 등록하세요."
             exit 1
-          fi
-          if [ -z "$NAVER_ID" ]; then
-            echo "::warning::NAVER_ID 가 없습니다 — 상승 원인 근거와 섹터 매핑 키워드가 비어 있게 됩니다."
           fi
 
       - name: 수집
