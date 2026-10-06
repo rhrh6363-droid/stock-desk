@@ -107,20 +107,26 @@ def build_heatmap(limit_days: int = 30) -> dict:
         if not date:
             continue
         dates.append(date)
+        # 시트 히트맵은 **세부섹터** 행이다. 대섹터로 뭉치면 눌림목 추세가 안 보인다
         for g in payload.get("그룹", []):
-            table.setdefault(g["대섹터"], {})[date] = g["합산거래대금"]
+            for r in g.get("종목", []):
+                minor = (r.get("세부섹터") or "").strip() or g["대섹터"]
+                key = (g["대섹터"], minor)
+                cur = table.setdefault(key, {})
+                cur[date] = cur.get(date, 0) + int(r.get("거래대금(억)") or 0)
 
     # 월별 합산 — 눌림목 기간 추세를 보려면 일별만으로는 모자란다
     months = sorted({d[:6] for d in dates})
 
     sectors = []
-    for name, row in table.items():
+    for (major, name), row in table.items():
         월합 = {m: 0 for m in months}
         for d, v in row.items():
             if v:
                 월합[d[:6]] += v
         sectors.append({
-            "대섹터": name,
+            "대섹터": major,
+            "세부섹터": name,
             "값": [row.get(d) for d in dates],
             "월별": [월합[m] or None for m in months],
             "합계": sum(v for v in row.values() if v),
@@ -128,7 +134,17 @@ def build_heatmap(limit_days: int = 30) -> dict:
         })
     sectors.sort(key=lambda s: -s["합계"])
 
-    return {"날짜": dates, "월": months, "섹터": sectors}
+    # 주차 묶음 — 시트의 "5월 1주차 / 2주차" 머리행에 해당
+    weeks = []
+    for d in dates:
+        try:
+            dt = datetime.strptime(d, "%Y%m%d")
+            label = f"{dt.month}월 {(dt.day - 1) // 7 + 1}주차"
+        except ValueError:
+            label = ""
+        weeks.append(label)
+
+    return {"날짜": dates, "월": months, "주차": weeks, "섹터": sectors}
 
 
 # ────────────────────────────────────────────────

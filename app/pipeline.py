@@ -33,7 +33,8 @@ import news                      # noqa: E402
 import sector_map                # noqa: E402
 
 DATA_DIR = os.path.join(HERE, "data")
-ASSIGN_FILE = os.path.join(HERE, "키워드배정.csv")
+ASSIGN_FILE = os.path.join(HERE, "키워드배정.csv")      # 키워드 → 섹터 (보조)
+STOCK_ASSIGN_FILE = os.path.join(HERE, "종목배정.csv")   # 종목명 → 대섹터 (시트 🔧 종목 배정)
 
 지수코드 = {"코스피": "1001", "코스닥": "2001"}
 
@@ -106,6 +107,27 @@ def load_assignments() -> pd.DataFrame:
     return df[df["키워드"].str.strip() != ""][cols]
 
 
+def load_stock_assignments() -> pd.DataFrame:
+    """종목배정 장표 — 미분류로 남은 종목에 대섹터를 수기로 찍어둔 표.
+
+    시트의 '🔧 종목 배정' 탭과 같다. 여기 등록된 종목은 1단계(종목명 완전일치)로
+    잡히므로 뉴스·키워드와 무관하게 무조건 그 섹터로 간다.
+    """
+    cols = ["종목명", "대섹터", "세부섹터", "비고"]
+    if not os.path.exists(STOCK_ASSIGN_FILE):
+        return pd.DataFrame(columns=cols)
+    try:
+        df = pd.read_csv(STOCK_ASSIGN_FILE, encoding="utf-8-sig", dtype=str).fillna("")
+    except Exception as exc:
+        print(f"  종목배정 읽기 실패: {type(exc).__name__}")
+        return pd.DataFrame(columns=cols)
+    for c in cols:
+        if c not in df.columns:
+            df[c] = ""
+    df = df[(df["종목명"].str.strip() != "") & (df["대섹터"].str.strip() != "")]
+    return df[cols]
+
+
 def load_dictionary() -> tuple[pd.DataFrame, str]:
     """섹터 사전. 구글시트가 연결돼 있으면 거기서, 아니면 로컬 CSV."""
     try:
@@ -119,15 +141,23 @@ def load_dictionary() -> tuple[pd.DataFrame, str]:
     return sector_map.load_dictionary(), "로컬 CSV"
 
 
-def merge_assignments(dic: pd.DataFrame, assign: pd.DataFrame) -> pd.DataFrame:
-    """키워드배정을 사전 행으로 바꿔 붙인다. 4단계(키워드) 매칭이 바로 먹는다."""
-    if assign.empty:
+def merge_assignments(dic: pd.DataFrame, assign: pd.DataFrame,
+                      stocks: pd.DataFrame | None = None) -> pd.DataFrame:
+    """수기 배정을 사전 행으로 바꿔 붙인다.
+
+    종목배정 → '종목' 열  → 1단계(종목명 완전일치). 무조건 이긴다.
+    키워드배정 → '키워드' 열 → 4단계(키워드 대조).
+    """
+    extra = []
+    if stocks is not None and not stocks.empty:
+        extra += [{"대섹터": r["대섹터"], "세부섹터": r["세부섹터"],
+                   "종목": r["종목명"], "비고": r["비고"]} for _, r in stocks.iterrows()]
+    if not assign.empty:
+        extra += [{"대섹터": r["대섹터"] or "기타", "세부섹터": r["세부섹터"],
+                   "키워드": r["키워드"], "비고": r["비고"]} for _, r in assign.iterrows()]
+    if not extra:
         return dic
-    rows = [{"대섹터": r["대섹터"] or "기타",
-             "세부섹터": r["세부섹터"],
-             "키워드": r["키워드"],
-             "비고": r["비고"]} for _, r in assign.iterrows()]
-    return pd.concat([dic, pd.DataFrame(rows)], ignore_index=True)
+    return pd.concat([dic, pd.DataFrame(extra)], ignore_index=True)
 
 
 def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
@@ -162,7 +192,8 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     # 사전을 먼저 읽는다 — 뉴스에서 키워드를 뽑을 때 사전 어휘를 기준으로 쓴다
     dic, source = load_dictionary()
     assign = load_assignments()
-    merged = merge_assignments(dic, assign)
+    stock_assign = load_stock_assignments()
+    merged = merge_assignments(dic, assign, stock_assign)
 
     # 키워드가 섹터 매핑의 입력이다. 그래서 뉴스가 매핑보다 **먼저** 돌아야 한다
     print("\n[2/5] 뉴스 근거 + 키워드 추출")
@@ -173,8 +204,8 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     print("\n[3/5] 섹터 매핑")
     mapped, unmapped = sector_map.apply(pd.DataFrame(rows), merged)
     rows = _clean(mapped.to_dict("records"))
-    print(f"  사전: {source}  ({len(dic)}행)  + 종목배정 {len(assign)}행"
-          f"   미매핑 {len(unmapped)}종목")
+    print(f"  사전: {source} ({len(dic)}행) + 종목배정 {len(stock_assign)}행"
+          f" + 키워드배정 {len(assign)}행   미매핑 {len(unmapped)}종목")
 
     print("\n[4/5] 투자자별 수급 (외국인·기관)")
     flow_stat = flows.attach(rows, date)
@@ -200,6 +231,13 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         "수급요약": flows.summary(rows),
         "사전": _clean(dic.fillna("").to_dict("records")),
         "배정": _clean(assign.to_dict("records")),
+        "종목배정": _clean(stock_assign.to_dict("records")),
+        "대섹터목록": sorted({str(x) for x in dic["대섹터"].dropna().unique() if str(x).strip()}),
+        "미매핑상세": _clean([
+            {"종목명": r.get("종목명"), "거래대금(억)": r.get("거래대금(억)"),
+             "등락률(%)": r.get("등락률(%)"), "키워드": r.get("키워드"),
+             "상승원인": r.get("상승원인")}
+            for r in rows if r.get("대섹터") == "미분류"]),
         "종목수": len(rows),
     }
 

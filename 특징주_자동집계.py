@@ -65,6 +65,7 @@ if _HERE not in sys.path:
 # ────────────────────────────────────────────────
 COND_A_MIN_CHANGE = 15.0              # A: 등락률 %
 COND_A_MIN_INTRADAY = 6.0             # A: 일중변동폭 % — 사용자 지시로 A에도 적용
+MIN_MARKETCAP = 500_000_000_000       # 투자원칙 "시총 5천억 이상만 본다" — 표기용, 거르지 않는다
 COND_B_MIN_VALUE = 50_000_000_000     # B: 거래대금 (원)
 COND_B_MIN_INTRADAY = 6.0             # B: 일중변동폭 %
 COND_B_MIN_CHANGE = 5.0               # B: 등락률 % — 시트 기준에 맞춤
@@ -264,6 +265,18 @@ def fetch_date(target_date: str):
             rename_map[col] = label
 
     df_out = df_union[out_cols].rename(columns=rename_map)
+
+    # 시가총액 — 투자원칙의 5천억 기준을 화면에서 쓰기 위해 받아둔다 (전종목 1회 호출)
+    try:
+        cap = stock.get_market_cap_by_ticker(target_date)
+        cap_col = next((c for c in cap.columns if "시가총액" in c), None)
+        if cap_col:
+            억 = (cap[cap_col] / 1e8).round(0)
+            df_out["시총(억)"] = df_out["티커"].map(억).astype("Float64")
+            df_out["시총기준"] = df_out["시총(억)"].map(
+                lambda v: None if pd.isna(v) else ("충족" if v * 1e8 >= MIN_MARKETCAP else "미달"))
+    except Exception as exc:
+        print(f"  시가총액 조회 생략: {type(exc).__name__}: {exc}")
 
     # 종목별 위험지표 — ADR 로는 종목 단위 위험을 못 재므로 여기서 붙인다
     try:
