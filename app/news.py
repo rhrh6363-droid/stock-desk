@@ -33,7 +33,12 @@ _cache: dict[str, tuple[float, list[dict]]] = {}
 
 
 def available() -> bool:
-    return bool(os.environ.get("NAVER_ID") and os.environ.get("NAVER_SECRET"))
+    cid = os.environ.get("NAVER_ID")
+    sec = os.environ.get("NAVER_SECRET")
+    # 자리표시자로는 호출하지 않는다 (이름만 미리 만들어둔 secret)
+    if cid == "CHANGEME" or sec == "CHANGEME":
+        return False
+    return bool(cid and sec)
 
 
 def _clean(text: str) -> str:
