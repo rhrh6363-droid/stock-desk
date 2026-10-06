@@ -142,6 +142,18 @@ tbody tr:hover{background:var(--surface-2)}
 .hm td.mo{background:var(--surface-2);font-weight:600;border-left:2px solid var(--line)}
 .hm th.mo{border-left:2px solid var(--line)}
 .dict td.maj{font-weight:600}
+/* 시트형 통합표 — 섹터 머리행 / 소계행 */
+tr.sub td{background:var(--surface-2);font-weight:600;border-top:1px solid var(--line)}
+tr.first td{border-top:2px solid var(--line)}
+td.rk{font-size:15px;font-weight:700;color:var(--navy)}
+.cls{font-size:11px;font-weight:700;padding:1px 6px;white-space:nowrap}
+.cls.lead{background:var(--lead);color:#fff}
+.cls.issue{background:var(--issue);color:#fff}
+.cls.none{background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)}
+.cap.bad{color:var(--ink-3)}
+.cap.good{font-weight:600}
+.hm .wk{background:var(--surface-2);font-weight:600;border-left:2px solid var(--line)}
+.hm td.maj{text-align:left;color:var(--ink-3);font-size:10px;white-space:nowrap}
 .assign input{width:100%;background:transparent;border:0;color:var(--ink);font:inherit}
 
 /* 정적 호스팅(GitHub Pages)에는 수집기가 없다 */
@@ -219,13 +231,15 @@ body.static #runBtn{display:none}
         거래대금이 많이 쏠린 섹터 = 시장 주도 테마
       </div>
     </div>
-    <div id="groups"></div>
+    <div class="card">
+      <div class="scroll"><table id="sheetGroups"></table></div>
+    </div>
   </section>
 
   <!-- ── 히트맵 ─────────────────────────── -->
   <section class="panel" id="p-heatmap">
     <div class="card">
-      <div class="sheethead">키워드 누적 히트맵 <span class="sub">단위 억 · 일별 + 월별 합산 · 눌림목 기간 추세 파악용</span></div>
+      <div class="sheethead">키워드 누적 히트맵 <span class="sub">세부섹터 × 일자 · 단위 억 · 월별 합산 · 눌림목 기간 추세 파악용</span></div>
       <div class="cardbody">
         <div class="legend">
           <span class="lv1">1조+</span><span class="lv2">7,500억+</span><span class="lv3">5,000억+</span>
@@ -251,15 +265,16 @@ body.static #runBtn{display:none}
   <!-- ── 종목배정 ───────────────────────── -->
   <section class="panel" id="p-assign">
     <div class="card">
-      <div class="sheethead">종목배정 <span class="sub">키워드를 어느 섹터에 넣을지 수기로 잡아두는 관리표</span></div>
+      <div class="sheethead">종목배정 <span class="sub">미분류 종목에 대섹터를 수기로 지정 (시트 🔧 종목 배정)</span></div>
       <div class="cardbody small muted">
-        상승 근거로 잡힌 키워드를 섹터에 배정한다. 배정된 키워드는 다음 수집부터 자동으로 그 섹터에 들어간다.<br>
-        편집은 <code>app/키워드배정.csv</code> 에서 한다. 구글시트가 연결되면 시트의 <b>종목배정</b> 탭이 이 파일을 대신한다.
+미분류로 남은 종목에 <b>대섹터</b>를 찍어주는 관리표다. 한 번 찍으면 1단계(종목명 완전일치)로 잡혀
+        뉴스·키워드와 무관하게 항상 그 섹터로 간다.<br>
+        편집은 <code>app/종목배정.csv</code> — <code>종목명,대섹터,세부섹터,비고</code> 형식이다.
       </div>
       <div class="scroll"><table id="assignTable"></table></div>
     </div>
     <div class="card">
-      <div class="sheethead">배정 필요 <span class="sub">오늘 미분류로 남은 종목 — 섹터를 잡아주면 사라진다</span></div>
+      <div class="sheethead">배정 필요 <span class="sub">오늘 미분류로 남은 종목 — 대섹터를 잡아주면 사라진다</span></div>
       <div class="cardbody" id="needAssign"></div>
     </div>
   </section>
@@ -402,8 +417,66 @@ function renderReport(){
     : `<div class="notice">주도업종이 없어 대장주 후보를 내지 못했습니다.</div>`;
 }
 
-/* ── 대장주 판별 ── */
+/* ── 키워드별 종목 정렬 — 시트 장표 그대로 ──
+   순위 | 대섹터 | 분류 | 종목명 | 상승률(%) | 거래대금(억) | 상승 원인 요약 | 섹터 합산 | 판단
+   섹터마다 끝에 소계 행이 붙는다. 뒤 3열(수급·RSI·볼밴)은 시트에 없는 추가 분석이다. */
 function renderGroups(){
+  const gs=DATA.그룹||[];
+  $("#leadersSub").textContent =
+    `${DATA.거래일?.slice(0,4)}/${DATA.거래일?.slice(4,6)}/${DATA.거래일?.slice(6,8)} · 거래대금 내림차순 · 사전 ${esc(DATA.사전출처||"")}`;
+
+  if(!gs.length){
+    $("#sheetGroups").innerHTML=`<tbody><tr><td class="notice">자료가 없습니다.</td></tr></tbody>`;
+    return;
+  }
+
+  const body=gs.map(g=>{
+    const n=g.종목수;
+    const cls = g.분류==="주도업종" ? '<span class="cls lead">★ 주도업종</span>'
+              : g.분류==="미분류"   ? '<span class="cls none">미분류</span>'
+              :                      '<span class="cls issue">○ 개별이슈</span>';
+    const 판단 = g.분류==="주도업종" ? '<span class="cls lead">★★★ 주도</span>'
+               : g.분류==="미분류"   ? '<span class="cls none">배정 필요</span>'
+               :                      '<span class="cls issue">○ 이슈</span>';
+
+    const rows=g.종목.map((r,i)=>`
+      <tr class="${i===0?"first":""}">
+        ${i===0?`<td class="rk num" rowspan="${n}">${g.순위}</td>
+                 <td class="l" rowspan="${n}"><b>${esc(g.대섹터)}</b></td>
+                 <td class="l" rowspan="${n}">${cls}</td>`:""}
+        <td class="l"><b>${esc(r.종목명)}</b>${i===0?' <span class="small" style="color:var(--lead)">대장</span>':""}
+          <div class="small muted">${esc(r.세부섹터||"")}${r.시장?" · "+esc(r.시장):""}</div></td>
+        <td class="num">${pct(r["등락률(%)"])}</td>
+        <td class="num">${fmt(r["거래대금(억)"])}</td>
+        <td class="l why">${esc(r.상승원인||"")||'<span class="nonews">근거 없음</span>'}
+          <div class="small">${whyHtml(r)}</div></td>
+        ${i===0?`<td class="num" rowspan="${n}"><b>${fmt(g.합산거래대금)}</b>억</td>
+                 <td class="l" rowspan="${n}">${판단}</td>`:""}
+        <td class="l">${flowChip(r)}</td>
+        <td>${rsiChip(r["RSI(14)"])}</td>
+        <td class="num cap ${r["시총기준"]==="미달"?"bad":"good"}">${r["시총(억)"]?fmt(r["시총(억)"]):"—"}</td>
+      </tr>`).join("");
+
+    const sub=`<tr class="sub">
+      <td class="l" colspan="3">소계 · ${esc(g.대섹터)} (${n}종목)</td>
+      <td class="l">MAX ${fmt(g.최고상승률,2)}% / MIN ${fmt(g.최저상승률,2)}%</td>
+      <td class="num">평균 ${fmt(g.평균상승률,2)}%</td>
+      <td class="num">${fmt(g.합산거래대금)}</td>
+      <td colspan="5"></td></tr>`;
+
+    return rows+sub;
+  }).join("");
+
+  $("#sheetGroups").innerHTML=`
+    <thead><tr>
+      <th>순위</th><th class="l">대섹터</th><th class="l">분류</th><th class="l">종목명</th>
+      <th>상승률(%)</th><th>거래대금(억)</th><th class="l">상승 원인 요약</th>
+      <th>섹터 합산</th><th class="l">판단</th>
+      <th class="l">수급</th><th>RSI</th><th>시총(억)</th>
+    </tr></thead><tbody>${body}</tbody>`;
+}
+
+function renderGroupsOld(){
   const gs=DATA.그룹||[];
   $("#leadersSub").textContent =
     `${DATA.거래일?.slice(0,4)}/${DATA.거래일?.slice(4,6)}/${DATA.거래일?.slice(6,8)} · 거래대금 기준 내림차순 · 사전 ${esc(DATA.사전출처||"")}`;
@@ -462,6 +535,39 @@ function renderDict(){
 
 /* ── 종목배정 ── */
 function renderAssign(){
+  // 1) 미분류 종목 — 배정 대상
+  const un=DATA?.미매핑상세||[];
+  $("#needAssign").innerHTML = un.length ? `
+    <div class="rules" style="margin-bottom:10px">아래 <b>${un.length}종목</b>은 섹터를 몰라 미분류로 남았습니다.
+      <code>app/종목배정.csv</code> 에 <b>종목명, 대섹터</b> 한 줄씩 적으면 다음 수집부터 그 섹터로 들어갑니다.</div>
+    <div class="scroll"><table>
+      <thead><tr><th class="l">미분류 종목명</th><th>거래대금(억)</th><th>상승률</th>
+        <th class="l">키워드</th><th class="l">상승이유</th></tr></thead>
+      <tbody>${un.map(r=>`<tr>
+        <td class="l"><b>${esc(r.종목명)}</b></td>
+        <td class="num">${fmt(r["거래대금(억)"])}</td>
+        <td class="num">${pct(r["등락률(%)"])}</td>
+        <td class="l small">${esc((r.키워드||[]).join(", "))||'<span class="muted">—</span>'}</td>
+        <td class="l small muted">${esc(r.상승원인||"")}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <div class="cardbody small muted" style="padding-left:0">
+      <b>쓸 수 있는 대섹터</b> — ${(DATA?.대섹터목록||[]).map(x=>`<span class="chip none" style="margin:2px">${esc(x)}</span>`).join("")}
+    </div>`
+    : `<div class="notice">미분류 종목이 없습니다.</div>`;
+
+  // 2) 이미 배정해둔 종목
+  const sa=DATA?.종목배정||[];
+  $("#assignTable").innerHTML = sa.length ? `
+    <thead><tr><th class="l">종목명</th><th class="l">대섹터</th><th class="l">세부섹터</th><th class="l">비고</th></tr></thead>
+    <tbody>${sa.map(r=>`<tr>
+      <td class="l"><b>${esc(r.종목명||"")}</b></td>
+      <td class="l">${esc(r.대섹터||"")}</td>
+      <td class="l">${esc(r.세부섹터||"")}</td>
+      <td class="l small muted">${esc(r.비고||"")}</td></tr>`).join("")}</tbody>`
+    : `<tbody><tr><td class="notice">아직 수기로 배정한 종목이 없습니다.</td></tr></tbody>`;
+}
+
+function renderAssignOld(){
   const rows=DATA?.배정||[];
   $("#assignTable").innerHTML = rows.length ? `
     <thead><tr><th class="l">키워드</th><th class="l">대섹터</th><th class="l">세부섹터</th><th class="l">비고</th></tr></thead>
@@ -486,7 +592,7 @@ function renderRaw(){
   $("#rawSub").textContent=`${rows.length}종목 · [A] 등락률 15%+ & 일중변동폭 6%+ · [B] 거래대금 500억+ & 일중변동폭 6%+ & 등락률 5%+ · [A+B] 중복`;
   $("#rawTable").innerHTML=`
     <thead><tr><th class="l">조건</th><th class="l">종목명</th><th class="l">대섹터</th>
-      <th>종가</th><th>등락률</th><th>거래대금(억)</th><th>일중변동폭</th><th class="l">수급</th>
+      <th>종가</th><th>등락률</th><th>거래대금(억)</th><th>시총(억)</th><th>일중변동폭</th><th class="l">수급</th>
       <th>RSI</th><th class="l">볼밴</th><th>이격도</th><th>평균변동폭</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
       <td class="l">${condTag(r.조건||"")}</td>
@@ -495,6 +601,7 @@ function renderRaw(){
       <td class="num">${fmt(r.종가)}</td>
       <td class="num">${pct(r["등락률(%)"])}</td>
       <td class="num">${fmt(r["거래대금(억)"])}</td>
+      <td class="num cap ${r["시총기준"]==="미달"?"bad":"good"}">${r["시총(억)"]?fmt(r["시총(억)"]):"—"}</td>
       <td class="num">${fmt(r["일중변동폭(%)"],2)}%</td>
       <td class="l">${flowChip(r)}</td>
       <td>${rsiChip(r["RSI(14)"])}</td>
@@ -536,13 +643,22 @@ function hmLevel(v){
 async function loadHeatmap(){
   const h=await getJSON("/api/heatmap","data/heatmap.json");
   if(!h.날짜?.length){ $("#hm").innerHTML=`<tbody><tr><td class="notice">아직 쌓인 날짜가 없습니다. 며칠 돌리면 채워집니다.</td></tr></tbody>`; return; }
-  const mo=h.월||[];
+  const mo=h.월||[], wk=h.주차||[];
+  // 주차 머리행 — 같은 주차끼리 묶는다 (시트의 "5월 1주차" 행)
+  let wkCells="", i=0;
+  while(i<wk.length){ let j=i; while(j+1<wk.length && wk[j+1]===wk[i]) j++;
+    wkCells+=`<th class="wk" colspan="${j-i+1}">${esc(wk[i]||"")}</th>`; i=j+1; }
+
   $("#hm").innerHTML=`
-    <thead><tr><th class="l">대섹터</th>
-      ${h.날짜.map(d=>`<th>${d.slice(4,6)}/${d.slice(6,8)}</th>`).join("")}
-      ${mo.map(m=>`<th class="mo">${m.slice(4,6)}월 합산</th>`).join("")}
-      <th class="mo">등장일수</th></tr></thead>
-    <tbody>${h.섹터.map(s=>`<tr><td class="l">${esc(s.대섹터)}</td>${
+    <thead>
+      <tr><th class="l" rowspan="2">세부섹터</th>${wkCells}
+        ${mo.map(()=>'<th class="mo" rowspan="2"></th>').join("")}
+        <th class="mo" rowspan="2">등장<br>일수</th></tr>
+      <tr>${h.날짜.map(d=>`<th>${d.slice(4,6)}/${d.slice(6,8)}</th>`).join("")}
+        </tr>
+    </thead>
+    <tbody>${h.섹터.map(s=>`<tr>
+      <td class="l">${esc(s.세부섹터||s.대섹터)}<div class="maj">${esc(s.대섹터||"")}</div></td>${
       s.값.map(v=>{const[c,t]=hmLevel(v);return `<td class="${c}">${t||"–"}</td>`;}).join("")}${
       (s.월별||[]).map(v=>`<td class="mo num">${v?fmt(v):"–"}</td>`).join("")}
       <td class="mo num">${s.등장일수??"–"}</td></tr>`).join("")}</tbody>`;
