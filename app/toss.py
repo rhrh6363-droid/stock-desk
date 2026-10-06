@@ -47,6 +47,7 @@ MACRO = [
 ]
 
 _token: tuple[str, float] | None = None     # (access_token, 만료시각)
+_blocked = False                            # 해외 IP 차단(403) 을 만나면 더 두드리지 않는다
 
 
 def available() -> bool:
@@ -74,6 +75,10 @@ def token() -> str | None:
     if _token and time.time() < _token[1] - 300:
         return _token[0]
 
+    global _blocked
+    if _blocked:
+        return None
+
     body = urllib.parse.urlencode({
         "grant_type": "client_credentials",
         "client_id": os.environ["TOSS_CLIENT_ID"],
@@ -85,6 +90,13 @@ def token() -> str | None:
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             res = json.loads(_decode(r.read()))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            _blocked = True
+            print("  토스 403 — 해외 IP 차단. 분봉은 한국에서 돌릴 때만 붙습니다.")
+        else:
+            print(f"  토스 토큰 발급 실패: HTTP {exc.code}")
+        return None
     except Exception as exc:
         print(f"  토스 토큰 발급 실패: {type(exc).__name__}: {exc}")
         return None
