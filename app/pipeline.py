@@ -33,6 +33,7 @@ import flows                     # noqa: E402
 import industry                  # noqa: E402
 import macro                     # noqa: E402
 import news                      # noqa: E402
+import reasons                   # noqa: E402
 import report                    # noqa: E402
 import sector_map                # noqa: E402
 import toss                      # noqa: E402
@@ -221,6 +222,17 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     print(f"  사전: {source} ({len(dic)}행) + 종목배정 {len(stock_assign)}행"
           f" + 키워드배정 {len(assign)}행   미매핑 {len(unmapped)}종목")
 
+    # 키워드를 "가장 중복 많은" 순으로 세우고 상승이유를 짓는다.
+    # 매핑 뒤라야 한다 - 뉴스 키워드가 없는 종목은 세부섹터로 채우기 때문이다
+    print("\n[3.5/5] 키워드 공통도 + 상승이유")
+    rs = reasons.consolidate(rows)
+    print(f"  상승이유 {rs['이유있음']}/{rs['전체']}종목"
+          f" (문구불명 {rs['문구불명']}, 기사없음 {rs['기사없음']})")
+    print(f"  키워드 뉴스 {rs['키워드_뉴스']} + 사전 {rs['키워드_사전']}"
+          f" = {rs['대표키워드붙음']}/{rs['전체']}종목")
+    print("  공통 키워드: " + ", ".join(
+        f"{e['키워드']}({e['종목수']})" for e in rs["공통키워드"][:6]))
+
     print("\n[4/5] 투자자별 수급 (외국인·기관)")
     flow_stat = flows.attach(rows, date)
     print(f"  {flow_stat}")
@@ -285,12 +297,20 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
              "시총(억)": r.get("시총(억)"),
              "수급주체": r.get("수급주체"),
              "키워드": r.get("키워드"),
+             "상승이유": r.get("상승이유"),
              "상승원인": r.get("상승원인"),
+             "대표키워드": r.get("대표키워드"),
+             "키워드출처": r.get("키워드출처"),
+             "근거링크": r.get("근거링크"),
+             "근거출처": r.get("근거출처"),
              "업종힌트": r.get("업종힌트") or [],
              "뉴스": (r.get("뉴스") or [])[:4],
              **news.evidence(rows, r.get("종목명"))}
             for r in rows if r.get("대섹터") == "미분류"]),
         "업종요약": _clean(industry.summary(rows)),
+        # 어떤 이슈가 어느 종목을 움직였나 - "AI데이터센터 -> 광통신" 을 보이게
+        "키워드집계": _clean(reasons.keyword_rollup(rows)),
+        "공통키워드": _clean(rs.get("공통키워드")),
         "매크로": _clean(매크로),
         "장중분봉": _clean(intraday),
         "종목수": len(rows),

@@ -205,6 +205,16 @@ table.kv2 td.v{text-align:left;line-height:1.65}
 .art:not(.direct) a{color:var(--ink-3)}
 .more{display:inline-block;margin-top:4px;font-size:10.5px;color:var(--ink-3)}
 
+/* 키워드 칩 — 대표키워드(그날 가장 중복 많은 것)를 진하게 */
+.kwc{display:inline-block;font-size:11px;padding:1px 6px;margin:1px 3px 1px 0;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+.kwc.lead{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.kwc i{font-style:normal;opacity:.7;margin-left:3px;font-size:9.5px}
+.kwsrc{display:inline-block;font-size:9.5px;color:var(--ink-3);border:1px dashed var(--line);
+  padding:0 4px;margin-left:2px}
+.why2{max-width:340px;font-size:11.5px;line-height:1.5}
+.srcl{font-size:10px;color:var(--ink-3);white-space:nowrap}
+
 /* 정적 호스팅(GitHub Pages)에는 수집기가 없다 */
 body.static #runBtn{display:none}
 </style>
@@ -632,7 +642,7 @@ function renderGroups(){
           <div class="small muted">${esc(r.세부섹터||"")}${r.시장?" · "+esc(r.시장):""}</div></td>
         <td class="num">${pct(r["등락률(%)"])}</td>
         <td class="num">${fmt(r["거래대금(억)"])}</td>
-        <td class="l why">${esc(r.상승원인||"")||'<span class="nonews">근거 없음</span>'}
+        <td class="l why">${reasonCell(r)}
           <div class="small">${whyHtml(r)}</div></td>
         ${i===0?`<td class="num" rowspan="${n}"><b>${fmt(g.합산거래대금)}</b>억</td>
                  <td class="l" rowspan="${n}">${판단}</td>`:""}
@@ -950,28 +960,57 @@ function renderAssigned(){
     : '<tbody><tr><td class="notice">아직 수기로 배정한 종목이 없습니다.</td></tr></tbody>';
 }
 
+/* ── 키워드 · 상승이유 · 근거 — 시트 RAW 데이터의 핵심 세 열 ──
+   키워드   어느 테마인가 (명사).  대표키워드는 그날 가장 중복이 많은 것
+   상승이유  무슨 관련주고 왜 올랐나 (문장)
+   근거     그 판단의 출처 기사 */
+function kwCell(r){
+  const kws = r.키워드 || [];
+  if(!kws.length) return '<span class="chip none">—</span>';
+  const 대표 = r.대표키워드;
+  const 공통 = r.키워드공통도 || {};
+  const 사전 = r.키워드출처 === "사전";
+  return kws.slice(0,4).map(k=>{
+    const n = 공통[k] || 0;
+    const lead = k===대표 ? " lead" : "";
+    const t = 사전 ? "섹터 사전에서 가져온 테마" : `오늘 ${n}종목에 공통`;
+    return `<span class="kwc${lead}" title="${esc(t)}">${esc(k)}${n>1?`<i>${n}</i>`:""}</span>`;
+  }).join("") + (사전?'<span class="kwsrc">사전</span>':"");
+}
+
+function reasonCell(r){
+  const 이유 = r.상승이유 || r.상승원인 || "";
+  if(!이유) return '<span class="nonews">—</span>';
+  const 없음 = 이유.indexOf("근거 기사 없음")===0 || 이유.indexOf("재료 문구 불명확")>=0;
+  const link = r.근거링크
+    ? `<a class="srcl" href="${esc(r.근거링크)}" target="_blank" rel="noopener">근거 ↗</a>` : "";
+  return `<span class="${없음?"nonews":""}">${esc(이유)}</span> ${link}`;
+}
+
 /* ── RAW ── */
 function renderRaw(){
   const rows=(DATA.그룹||[]).flatMap(g=>g.종목);
   $("#rawSub").textContent=`${rows.length}종목 · [A] 등락률 15%+ & 일중변동폭 6%+ · [B] 거래대금 500억+ & 일중변동폭 6%+ & 등락률 5%+ · [A+B] 중복`;
   $("#rawTable").innerHTML=`
     <thead><tr><th class="l">조건</th><th class="l">종목명</th><th class="l">대섹터</th>
-      <th>종가</th><th>등락률</th><th>거래대금(억)</th><th>시총(억)</th><th>일중변동폭</th><th class="l">수급</th>
-      <th>RSI</th><th class="l">볼밴</th><th>이격도</th><th>평균변동폭</th></tr></thead>
+      <th>등락률</th><th>거래대금(억)</th><th>시총(억)</th><th>일중변동폭</th>
+      <th class="l">상승이유 — 무슨 관련주고 왜 올랐나</th><th class="l">키워드</th>
+      <th class="l">수급</th><th>RSI</th><th class="l">볼밴</th><th>이격도</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
       <td class="l">${condTag(r.조건||"")}</td>
-      <td class="l"><b>${esc(r.종목명)}</b></td>
-      <td class="l small">${esc(r.대섹터||"")}</td>
-      <td class="num">${fmt(r.종가)}</td>
+      <td class="l"><b>${esc(r.종목명)}</b>
+        ${r.업종?`<div class="small muted">${esc(r.업종)}</div>`:""}</td>
+      <td class="l small">${esc(r.대섹터||"")}${r.세부섹터?`<div class="muted">${esc(r.세부섹터)}</div>`:""}</td>
       <td class="num">${pct(r["등락률(%)"])}</td>
       <td class="num">${fmt(r["거래대금(억)"])}</td>
       <td class="num cap ${r["시총기준"]==="미달"?"bad":"good"}">${r["시총(억)"]?fmt(r["시총(억)"]):"—"}</td>
       <td class="num">${fmt(r["일중변동폭(%)"],2)}%</td>
+      <td class="l why2">${reasonCell(r)}</td>
+      <td class="l">${kwCell(r)}</td>
       <td class="l">${flowChip(r)}</td>
       <td>${rsiChip(r["RSI(14)"])}</td>
       <td class="l small">${esc(r["볼밴위치"]||"—")}</td>
       <td class="num">${r["이격도"]?fmt(r["이격도"],1):"—"}</td>
-      <td class="num">${r["평균변동폭(20일)"]?fmt(r["평균변동폭(20일)"],1)+"%":"—"}</td>
     </tr>`).join("")}</tbody>`;
 }
 
