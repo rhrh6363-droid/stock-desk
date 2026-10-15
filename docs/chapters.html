@@ -280,7 +280,7 @@ function sliceF(F,n){
   return {t:cut(F.t),o:cut(F.o),h:cut(F.h),l:cut(F.l),c:cut(F.c),v:cut(F.v),ma};
 }
 const MACOL={5:"#d4a000",10:"#c2185b",13:"#5c940d",18:"#00897b",20:"#e8590c",60:"#1e88e5",120:"#795548",240:"#8e44ad"};
-const LYR={band:"밴드",ma:"이평선",sr:"지지·저항",box:"박스",gap:"갭",trend:"추세선",vp:"매물대",key:"기준봉",mark:"표시점",q:"4등분"};
+const LYR={idx:"지수 20선 아래",trade:"매수·매도",band:"밴드",ma:"이평선",sr:"지지·저항",box:"박스",gap:"갭",trend:"추세선",vp:"매물대",key:"기준봉",mark:"표시점",q:"4등분"};
 
 /* 큰 캔들차트 — 가격 + 거래량 + 겹쳐 그릴 것들
    sp = {log, mas, lines[{y,label,col,ly,dash}], zones[{y1,y2,i1,i2,label,col,ly}],
@@ -1555,6 +1555,71 @@ function sum67(s,which){
     ${which==="6"?`<li>단타 4종의 지수 3분봉 20선은 장중 수집(1시간 간격) 때만 판정합니다${(()=>{const m=(MK.코스피||{})["3분봉"]||{};return m["기준 시각"]?` — 마지막 분봉 ${esc(m["기준 시각"])}${m.당일?"":" (오늘 장 아님 → 판정불가)"}`:"";})()}. 호가창은 데이터가 없어 직접 확인, 9:30 이전 매수 금지는 판정 조건이 아니라 지킬 규칙입니다.</li>`:""}</ul>`;
   return {tone,head,html,near};
 }
+/* ───────────── 6장: 장마감 복기 — 오늘 교재 규칙대로 단타했다면 (day_replay.py) ───────────── */
+const RPCOL=["var(--navy)","var(--ok)","#8e44ad","#e8590c"], RPN=["①","②","③","④"];
+function rpRead(m){
+  if(m.결과!=="매매"){
+    const b=(m["막힌 신호"]||[])[0];
+    return `교재 규칙상 <b>안 사는 날</b>이었습니다${b?` — ${esc(b)}`:" — 규칙에 맞는 자리가 한 번도 안 나왔습니다"}. 단타에서 '안 산 것'은 손실을 피한 결과입니다.`;
+  }
+  const f=m.체결||[], last=f[f.length-1]||{}, half=f.some(x=>/1차 목표/.test(x.사유)), net=m["순수익(%)"];
+  if(half) return `1차 목표에서 절반을 챙겼고, 나머지는 '${esc(last.사유)}'로 정리 → <b>${sgn(net,2)}</b>. 교재가 말하는 "일부라도 챙겨야 여유가 생긴다"(6-4 #94)의 모습입니다.`;
+  if(/손절/.test(last.사유)) return `정한 손절가에서 바로 잘랐습니다 → <b>${sgn(net,2)}</b>. 손실이 손절가 안에서 끝난 것 자체가 규칙이 지켜진 결과입니다(6-3 #29 "첫 번째로 정한 손절 지점에서 손절").`;
+  return `목표에 닿기 전에 '${esc(last.사유)}'로 나왔습니다 → <b>${sgn(net,2)}</b>. 보유선을 깨면 미련 없이 나온다(6-4 #95 보유선, #33 지수 스위치).`;
+}
+function replayBlock(s){
+  const R=s["단타 복기"], B=BUN["tb_"+s.코드], F=B?.프레임?.["3분봉(복기)"];
+  if(!R||!R.매매법) return card("장마감 복기 — 오늘 교재대로 단타했다면","",`<p class="muted">${esc(R?.판정||"복기 자료가 없습니다.")}</p>`);
+  const ms=R.매매법, traded=ms.filter(m=>m.결과==="매매");
+  const status=R.확정?`${esc(R.날짜)} 장 전체 1분봉으로 확정`:`<b>장중 — ${esc(R["마지막 분봉"])}까지의 분봉</b>으로 본 중간 복기(마감 후 바뀔 수 있음)`;
+  const n=F?.t?.length||0;
+  let sp=null;
+  if(n>1){
+    const lo=Math.min(...F.l), hi=Math.max(...F.h);
+    sp={H:440,mas:[20],unit:"(3분)선",
+      lines:[{y:R["전일 고가"],label:"전일 고가",col:"var(--bad)",ly:"sr"},{y:R.시가,label:"오늘 시가",col:"var(--ink-2)",ly:"sr"}],
+      zones:(R["지수 20선 아래 구간"]||[]).map(([a,b],k)=>({y1:lo,y2:hi,i1:a,i2:b,col:"var(--ink-3)",op:.13,ly:"idx",label:k===0?"지수 20선 아래":""})),
+      marks:[]};
+    ms.forEach((m,k)=>{ if(m.결과!=="매매") return;
+      sp.marks.push({i:m.i3,y:m.매수가,label:RPN[k]+"매수",col:RPCOL[k],below:true,ly:"trade"});
+      (m.체결||[]).forEach(f=>sp.marks.push({i:f.i3,y:f.가격,label:RPN[k]+(/손절/.test(f.사유)?"손절":/목표/.test(f.사유)?"익절":"매도"),col:RPCOL[k],ly:"trade"}));
+      sp.lines.push({y:m.손절가,label:RPN[k]+"손절가",col:RPCOL[k],ly:"trade",from:m.i3,dash:"2 3"});});
+    /* 같은 봉·같은 가격 표시는 하나로 합친다 (①②③매수) */
+    const mg=new Map(); sp.marks.forEach(x=>{const key=x.i+"|"+x.y+"|"+x.label.slice(1); const o=mg.get(key);
+      if(o){o.label=o.label.replace(/^([①-④]+)/,"$1"+x.label[0]); if(o.col!==x.col) o.col="var(--ink)";} else mg.set(key,{...x});});
+    sp.marks=[...mg.values()];
+    const lg=new Map(); sp.lines.forEach(x=>{const key=x.y+"|"+x.ly+"|"+x.label.slice(1); const o=lg.get(key);
+      if(o&&x.ly==="trade"){o.label=o.label.replace(/^([①-④]+)/,"$1"+x.label[0]); o.col="var(--ink-2)";} else lg.set(key+(x.ly==="trade"?"":Math.random()),{...x});});
+    sp.lines=[...lg.values()];
+  }
+  const guide=traded.length
+    ?`① 회색 띠 = 지수 3분봉이 20선 아래였던 시간(이때는 사지 않고, 들고 있으면 판다). ② 동그라미 번호 = 매매법별 매수·매도 지점. ③ 매수 뒤 주황 20선(3분)을 지키는 동안만 들고 갑니다.`
+    :`① 회색 띠 = 지수 3분봉이 20선 아래였던 시간 — 이 시간엔 단타 금지. ② 빨간 점선(전일 고가)·회색 점선(오늘 시가)이 단타의 기준선입니다. ③ 오늘은 4개 매매법 모두 규칙에 맞는 자리가 없었습니다.`;
+  const chart=sp?chartBlock(F,sp,LG("var(--bad)","전일 고가",1)+LG("var(--ink-2)","오늘 시가",1)+`<span class="lg"><i style="background:var(--ink-3);opacity:.35;height:10px"></i>지수 3분봉 20선 아래</span>`,guide):"";
+  const rows=ms.map((m,k)=>{const f=m.체결||[];
+    return `<tr><td><b style="color:${RPCOL[k]}">${RPN[k]}</b> <b>${esc(m.매매법)}</b> <span class="src">${esc(m.교재)}</span><div class="small muted">${esc(m.규칙)}</div></td>
+      <td>${m.결과==="매매"?`<b>${esc(m["매수 시각"])}</b>봉 마감 ${won(m.매수가)}<div class="small muted">${esc(m.근거)}</div>`:T("n","신호 없음")}</td>
+      <td class="small">${m.결과==="매매"?`손절 ${won(m.손절가)} (${sgn(gap(m.손절가,m.매수가),1)})<br>1차 ${won(m["1차 목표"])} (${sgn(gap(m["1차 목표"],m.매수가),1)})`:`손절: ${esc(m["손절 규칙"])}<br>목표: ${esc(m["1차 목표 규칙"])}`}</td>
+      <td class="small">${f.map(x=>`${esc(x.시각)} ${won(x.가격)} · ${x.비중===1?"전량":x.비중===0.5?"절반":fmt(x.비중*100,0)+"%"}<br><span class="muted">${esc(x.사유)}</span>`).join("<br>")||"—"}</td>
+      <td class="num ${m["순수익(%)"]>0?"up":m["순수익(%)"]<0?"down":""}"><b>${m.결과==="매매"?sgn(m["순수익(%)"],2):"0%"}</b></td>
+      <td class="imp">${rpRead(m)}</td></tr>`;}).join("");
+  const tbl=`<div class="scroll"><table class="t5"><colgroup><col style="width:19%"><col style="width:19%"><col style="width:14%"><col style="width:16%"><col style="width:8%"><col style="width:24%"></colgroup>
+    <thead><tr><th>매매법 · 규칙</th><th>매수</th><th>손절·1차 목표</th><th>청산</th><th>순수익</th><th class="imph">해석</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const oc=R["시초가 생존 체크"], ch=R["시가 즉시 매수였다면"];
+  const extra=`<div class="scroll" style="margin-top:10px"><table><thead><tr><th>비교</th><th>결과</th><th>교재와 연결</th></tr></thead><tbody>
+    ${ch?`<tr><td class="k">교재가 <b>하지 말라는</b> 매매 — 09:00 시가에 바로 샀다면</td><td class="num ${ch.결과>0?"up":"down"}"><b>${sgn(ch.결과,2)}</b><div class="small muted">${esc(ch.청산)}</div></td>
+      <td class="small">"시초가에 바로 사지 않는다. 최소 2~3분, 보통 10~20분"(6-2 #26). 같은 손절 -3%·익절 +2% 규칙을 적용한 값입니다. 이익이 났더라도 '기준 없는 시초가는 홀짝 게임'(6-2 #3)이라 매일 반복하면 확률 싸움에서 집니다.</td></tr>`:""}
+    ${oc?`<tr><td class="k">9:10 시세의 생존/붕괴 (6-2 #7~11)</td><td><b>${T(oc.결과==="생존"?"g":"b",oc.결과)}</b><div class="small muted">9:10 ${won(oc["9:10 가격"])} → 종가 ${won(oc.종가)} (${sgn(oc["9:10 대비 종가(%)"],2)})</div></td>
+      <td class="small">생존 종목의 공통점 3개 중 <b>${oc["공통점 수"]}개</b>: ${[["저점 지킴","9:30 조정에서 저점을 지킴"],["9:30 전 고점 돌파","9:30 전 고점 돌파"],["저점 올림","저점을 올려감"]].map(([k,t])=>`${oc[k]?"✔":"✘"} ${t}`).join(" · ")}. 교재 통계로 9:10 상위 종목은 <b>4개 중 1개 정도만 생존</b>합니다.</td></tr>`:""}
+    </tbody></table></div>`;
+  const facts=`<div class="small" style="margin:4px 0 8px">시가 ${won(R.시가)} · 고가 ${won(R.고가)} (${esc(R["고가 시각"])}) · 저가 ${won(R.저가)} (${esc(R["저가 시각"])}) · 종가 ${won(R.종가)} (전일 대비 ${sgn(gap(R.종가,R["전일 종가"]),2)}) · 지수(${esc(R.지수==="KOSDAQ"?"코스닥":"코스피")}) 3분봉이 20선 위였던 시간 <b>${fmt(R["지수 20선 위 비율(%)"],0)}%</b></div>`;
+  const tot=traded.length?`규칙대로 했다면 ${traded.length}번 매매, 합계 <b>${sgn(traded.reduce((a,m)=>a+(m["순수익(%)"]||0),0),2)}</b>(매매법별 같은 금액 기준).`:`규칙대로 했다면 <b>매매 0번</b> — 오늘은 쉬는 게 정답인 날이었습니다.`;
+  const note=`<p class="small muted" style="margin-top:8px">계산 방법: 3분봉이 마감될 때 그 종가로 사고, 1분봉으로 손절·익절을 따라갑니다. 1차 목표에서 절반을 팔면 나머지 손절선은 본전으로 올립니다(6-4 #97). 종목 3분봉 20선 아래 마감, 지수 3분봉 20선 아래 마감, 15:19 중 먼저 오는 때에 나머지를 팝니다. 수수료·세금 왕복 ${fmt(R["비용(%)"],1)}%를 뺐습니다.
+    <b>한계</b>: 호가창은 반영하지 못하고, 실제 체결은 표의 가격보다 불리할 수 있습니다. 같은 1분봉 안에서 손절가와 목표가가 둘 다 닿으면 손절로 칩니다. 매매법마다 그날 첫 신호 1번만 봅니다. 종목은 시장 전체에서 고른 것이 아니라 이 사이트의 관심 종목입니다(6-3의 '섹터 먼저 고르기'는 빠져 있습니다).</p>`;
+  return card(`장마감 복기 — 오늘 ${esc(s.이름)}을(를) 교재 규칙대로 단타했다면`,status,
+    `<div class="notice">${tot} 실시간으로 타점을 잡아 주는 기능이 아니라, <b>장이 끝난 뒤 같은 규칙을 대입해 보는 연습장</b>입니다. 매일 쌓아 보면 어떤 매매법이 이 종목·이 장세에 맞는지 감이 생깁니다(10-2 매매일지와 복기).</div>`
+    +facts+chart+tbl+extra+note);
+}
 function methodsPage(ch,s){
   const B=BUN["tb_"+s.코드];
   const ms=(s.매매법||[]).filter(ch.methods);
@@ -1563,6 +1628,7 @@ function methodsPage(ch,s){
   ms.sort((a,b)=>(opened.has(b.매매법)-opened.has(a.매매법))||(score(b)-score(a)));
   const S=sum67(s,ch.n===6?"6":"7");
   return topCard(ch.n,S,doorSVG(ms))
+   + (ch.n===6?replayBlock(s):"")
    + trigBlock(s,B)
    + ch.intro()
    + card(`${esc(s.이름)} — 매매법 ${ms.length}개 판정`,"오늘 장세가 연 매매법이 먼저, 그다음 충족률 순. 손절·목표·예상 결과는 8장",ms.map(methodCard).join("")||`<p class="muted">해당 매매법이 없습니다.</p>`);
