@@ -132,6 +132,7 @@ svg.big{display:block;width:100%;min-width:720px;height:auto;touch-action:pan-y;
 .lytog label{cursor:pointer;color:var(--ink-2);white-space:nowrap}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--ink-2);margin-top:6px}
 .legend .lg{white-space:nowrap}
+.legend .lg.muted{white-space:normal}
 .legend .lg i{display:inline-block;width:16px;height:3px;vertical-align:middle;margin-right:5px}
 .chartwrap.hide-ma .ly-ma{display:none}
 .chartwrap.hide-sr .ly-sr{display:none}
@@ -155,7 +156,49 @@ th.imph{color:var(--navy)}
 .stat{display:block;margin-top:6px;font-size:12px;color:var(--ink-2);border-left:3px solid var(--mid);padding-left:7px}
 .h3{font-size:14px;margin:16px 0 4px}
 
+/* 개념 풀이 */
+details.concepts{background:var(--surface);border:1px solid var(--navy);margin-bottom:18px}
+details.concepts>summary{cursor:pointer;padding:11px 14px;list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;background:color-mix(in srgb,var(--navy) 7%,var(--surface))}
+details.concepts>summary::-webkit-details-marker{display:none}
+details.concepts>summary::before{content:"▸";color:var(--navy);font-weight:700}
+details.concepts[open]>summary::before{content:"▾"}
+.ctitle{font-weight:700;font-size:15px;color:var(--navy)}
+.cbody{padding:12px 14px}
+.cq{font-size:14px;margin-bottom:10px;padding:8px 12px;border-left:4px solid var(--navy);background:var(--surface-2)}
+.cq b{color:var(--navy);margin-right:6px}
+ol.howread{margin:0 0 10px;padding-left:20px;font-size:13px;color:var(--ink-2)}
+ol.howread li{margin-bottom:3px}
+.cjump{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.cjump a{font-size:12px;text-decoration:none;border:1px solid var(--line);padding:2px 8px;color:var(--navy)}
+.cjump a:hover{border-color:var(--navy)}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.ctile{border:1px solid var(--line);padding:10px 12px;font-size:13px;scroll-margin-top:110px}
+.ctile h3{font-size:14px;margin:6px 0 4px}
+.ctile .one{margin:0 0 6px}
+.ctile .cfig{background:var(--surface-2);border:1px solid var(--line-soft)}
+svg.fig{display:block;width:100%;height:auto;font-family:"IBM Plex Sans KR","Malgun Gothic",sans-serif}
+table.rd{margin:4px 0 6px}
+table.rd th{background:none;white-space:normal;width:42%;font-size:12px;color:var(--ink);border-bottom:1px solid var(--line-soft);padding:4px 6px 4px 0;vertical-align:top}
+table.rd td{font-size:12px;padding:4px 0;color:var(--ink-2)}
+.ctile .ex{font-size:12.5px;margin:4px 0;color:var(--ink-2)}
+.ctile .ex>b:first-child,.ctile .nw>b:first-child{display:inline-block;font-size:11px;padding:0 5px;margin-right:4px;border:1px solid var(--line);color:var(--navy)}
+.ctile .nw{font-size:12.5px;margin:6px 0 0;padding:6px 8px;background:color-mix(in srgb,var(--mid) 10%,transparent)}
+.term{border-bottom:1px dotted var(--navy);cursor:help;color:inherit}
+.term:hover,.term:focus{background:color-mix(in srgb,var(--navy) 10%,transparent);outline:none}
+#gpop{position:fixed;z-index:50;background:var(--surface);border:1px solid var(--navy);box-shadow:0 6px 24px rgba(0,0,0,.22);overflow:auto}
+#gpop.float{width:420px;max-height:70vh}
+#gpop.sheet{left:0;right:0;bottom:0;max-height:75vh;border-width:2px 0 0}
+#gpop .ctile{border:none}
+#gpop .gx{position:sticky;top:0;float:right;appearance:none;border:none;background:var(--surface);font-size:20px;line-height:1;padding:4px 10px;cursor:pointer;color:var(--ink-2)}
+.cguide{font-size:13px;padding:7px 10px;margin:0 0 8px;background:color-mix(in srgb,var(--ok) 9%,transparent);border-left:3px solid var(--ok)}
+.cguide b{color:var(--ok);margin-right:4px}
+details.howto{margin-top:6px;font-size:12.5px}
+details.howto summary{cursor:pointer;color:var(--navy);font-weight:600}
+details.howto ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2)}
+details.howto li{margin-bottom:3px}
+
 @media (max-width:640px){
+  .cgrid{grid-template-columns:1fr}
   .chnav{top:0;position:static}
   td.rule,td.read{min-width:160px}
   h1{font-size:19px}
@@ -173,6 +216,7 @@ th.imph{color:var(--navy)}
 
 <main class="wrap" id="main"><div class="notice">불러오는 중…</div></main>
 
+<script src="concepts.js"></script>
 <script>
 const $=(s)=>document.querySelector(s);
 const esc=(s)=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -403,14 +447,15 @@ document.addEventListener("change",e=>{
   const cb=e.target.closest("input[data-ly]"); if(!cb) return;
   cb.closest(".chartwrap").classList.toggle("hide-"+cb.dataset.ly,!cb.checked);
 });
-function chartBlock(F,sp,legend){
+function chartBlock(F,sp,legend,guide){
   const used=[...new Set([...(sp.mas?.length?["ma"]:[]),...(sp.series||[]).map(x=>x.ly||"band"),...(sp.lines||[]).map(x=>x.ly),...(sp.zones||[]).map(x=>x.ly),
     ...(sp.trends||[]).map(x=>x.ly||"trend"),...(sp.marks||[]).map(x=>x.ly||"mark"),...(sp.vp?["vp"]:[])])].filter(Boolean);
   const mas=(sp.mas||[]).map(p=>`<span class="lg"><i style="background:${MACOL[p]}"></i>${p}${sp.unit||"선"}</span>`).join("");
-  return `<div class="chartwrap">
+  const hasV=(F?.v||[]).some(x=>x>0), how=typeof chartHow==="function"?chartHow(used,hasV,guide||sp.guide):["",""];
+  return `<div class="chartwrap">${how[0]}
     <div class="lytog"><span class="muted small">켜고 끄기</span>${used.map(k=>`<label><input type="checkbox" data-ly="${k}" checked> ${LYR[k]||k}</label>`).join("")}</div>
     ${bigChart(F,sp)}
-    <div class="legend">${mas}${legend||""}<span class="lg muted">캔들: 빨강 = 오른 봉, 파랑 = 내린 봉 · 마우스를 올리면 그 봉의 값</span></div></div>`;
+    <div class="legend">${mas}${legend||""}<span class="lg muted">캔들: 빨강 = 오른 봉, 파랑 = 내린 봉 · 마우스를 올리면 그 봉의 값</span></div>${how[1]}</div>`;
 }
 const LG=(col,txt,dash)=>`<span class="lg"><i style="background:${col};${dash?"height:0;border-top:2px dashed "+col:""}"></i>${txt}</span>`;
 const why=(txt,src)=>`${txt}${src?` <span class="src">${esc(src)}</span>`:""}`;
@@ -630,7 +675,7 @@ function ch1(s,TBd){
       M["월봉 박스"]==="하단"?"g":M["월봉 박스"]==="상단"?"w":"n",`최근 3년 고저 사이 ${esc(M["월봉 박스"]||"—")}입니다 (0 = 3년 최저, 100 = 3년 최고).`,
       why(M["월봉 박스"]==="하단"?"3년 박스 하단 — 중장기 '좋은 회사가 쌀 때'에 가까운 자리.":M["월봉 박스"]==="중심"?"3년 박스의 <b>가운데</b> — 중장기로 봐도 싸지도 비싸지도 않은 자리입니다. 박스 매매 기준으로는 '절반 익절' 자리이지 새로 살 자리가 아닙니다.":"3년 박스 상단 — 중장기 신규 매수 자리는 아닙니다.","1-11 · 7-6 [3]")));
     parts.push(card("월봉 — 지도: 역사 속 지금 위치","1-14 §1 · 로그 눈금 · 최근 10년",
-      chartBlock(F,sp,LG("var(--navy)","3년(36개월) 박스")+LG("var(--ok)","24개월 저점",1))+table5(r)));
+      chartBlock(F,sp,LG("var(--navy)","3년(36개월) 박스")+LG("var(--ok)","24개월 저점",1),"① 지금 봉이 10년 중 어디쯤인가(바닥권·중간·꼭대기). ② 18·20월선 위인가. ③ 24개월 저점(초록 점선)에서 얼마나 올라왔나 — +300%를 넘으면 '산이 높으면 골이 깊다'(1-14).")+table5(r)));
   }
 
   /* ── 2. 주봉 ── */
@@ -678,7 +723,7 @@ function ch1(s,TBd){
     ["상승추세선","하락추세선"].forEach(k=>{const t=wtl[k]; if(!t) return;
       r.push(trendRow(t,k,"주봉",c));});
     parts.push(card("주봉 — 전략: 이번 시세가 살아 있나","1-14 §2~4 · 최근 3년",
-      chartBlock(F,sp,LG("#0b8a8a","주봉 기준봉 저점·중심·고점(2-7)",1)+LG("var(--mid)","직전 주봉 양봉 저가",1)+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선")+LG("var(--navy-2)","오른쪽 막대 = 3년 매물대(1-5)"))+table5(r)));
+      chartBlock(F,sp,LG("#0b8a8a","주봉 기준봉 저점·중심·고점(2-7)",1)+LG("var(--mid)","직전 주봉 양봉 저가",1)+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선")+LG("var(--navy-2)","오른쪽 막대 = 3년 매물대(1-5)"),"① 주가가 10주선(분홍) 근처인가, 멀리 떨어졌나. ② 청록 점선(주봉 기준봉 중심)을 지키는가. ③ 오른쪽 가장 긴 매물대 막대가 현재가 위(저항)인가 아래(지지)인가.")+table5(r)));
   }
 
   /* ── 3. 일봉 ── */
@@ -783,7 +828,7 @@ function ch1(s,TBd){
     ["상승추세선","하락추세선"].forEach(k=>{const t=dtl[k]; if(t) r.push(trendRow(t,k,"일봉",c));});
     if(!dtl.상승추세선&&!dtl.하락추세선) r.push(row5("추세선","1-10","—","저점끼리 이으면 상승추세선, 고점끼리 이으면 하락추세선","n","지금 작동하는 추세선을 찾지 못했습니다.",""));
     parts.push(card("일봉 — 전술: 오늘 어디에 서 있나","1-1~1-13 · 최근 6개월(약 120거래일)",
-      chartBlock(F,sp,LG("var(--navy)","40일 박스")+LG("#8e44ad","메우지 않은 갭")+LG("var(--bad)","전고점",1)+LG("var(--ok)","전저점",1)+LG("#0b8a8a","기준봉(2-7·7-4)",1)+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선")+LG("var(--navy-2)","오른쪽 막대 = 이 6개월 매물대(1-5 '보이는 기간만큼')"))+table5(r)));
+      chartBlock(F,sp,LG("var(--navy)","40일 박스")+LG("#8e44ad","메우지 않은 갭")+LG("var(--bad)","전고점",1)+LG("var(--ok)","전저점",1)+LG("#0b8a8a","기준봉(2-7·7-4)",1)+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선")+LG("var(--navy-2)","오른쪽 막대 = 이 6개월 매물대(1-5 '보이는 기간만큼')"),"① 주가가 20일선(주황) 위인가 아래인가. ② 바로 아래 초록 점선(전저점)과 바로 위 빨간 점선(전고점)까지 몇 %인가. ③ 아래 거래량이 최근 갑자기 길어졌나 — 오를 때인지 내릴 때인지.")+table5(r)));
   }
 
   /* ── 4. 60분봉 ── */
@@ -810,7 +855,7 @@ function ch1(s,TBd){
     } else r.push(row5("기준 60분봉","1-14 §5","없음","최근 10거래일 장대양봉+거래량 봉","n",esc(H.판정||""),why("시세를 끌고 갈 기준봉이 없다 = 60분봉상 '살아 있는 시세'가 아닙니다.","1-14 §5")));
     ["상승추세선","하락추세선"].forEach(k=>{const t=htl[k]; if(t) r.push(trendRow(t,k,"60분봉",c));});
     parts.push(card("60분봉 — 보완: 최근 시세의 기준봉","1-14 §5 · 최근 약 30거래일 · 점선 = 날짜 경계",
-      chartBlock(F,sp,LG("#0b8a8a","기준 60분봉 중심(점선)·하단(실선)")+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선")+LG("var(--navy-2)","오른쪽 막대 = 이 기간 매물대(일봉에 안 보이는 짧은 매물대)"))+table5(r)));
+      chartBlock(F,sp,LG("#0b8a8a","기준 60분봉 중심(점선)·하단(실선)")+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선")+LG("var(--navy-2)","오른쪽 막대 = 이 기간 매물대(일봉에 안 보이는 짧은 매물대)"),"① 청록 점선(기준 60분봉 중심) 위에 있나 — 위면 최근 시세가 살아 있다. ② 실선(하단)까지 깼으면 큰 시세도 끝. ③ 조정 때 아래 거래량이 줄었나(건강) 늘었나(위험).")+table5(r)));
   }
 
   /* ── 5. 5분봉 ── */
@@ -834,7 +879,7 @@ function ch1(s,TBd){
         ls?why("마감 무렵 사는 쪽이 받쳤습니다 — 다음 날로 이어질 힘의 단서입니다.","7-1 ③"):why("마감까지 받쳐 주는 매수가 없었습니다. 종가 매매(7-1) 조건 ③ 불충족이고, <b>다음 날 장 초반에 약세가 이어질 수 있다</b>는 경계 신호입니다.","7-1 ③")));
     } else r.push(row5("5분봉","1-14","—","","n",esc(F5.판정||""),""));
     parts.push(card("5분봉 — 실행: 오늘 하루 안에서","1-14 §6 · 최근 2거래일 · 점선 = 날짜 경계",
-      chartBlock(F,sp,LG("var(--mid)","당일 고저 4등분선 1/4·1/2·3/4",1)+LG("var(--bad)","당일 고가")+LG("var(--ok)","당일 저가"))+table5(r)));
+      chartBlock(F,sp,LG("var(--mid)","당일 고저 4등분선 1/4·1/2·3/4",1)+LG("var(--bad)","당일 고가")+LG("var(--ok)","당일 저가"),"① 마지막 봉이 노란 4등분선 중 어느 칸에서 끝났나(위 칸 = 강하게, 아래 칸 = 약하게 마감). ② 고가·저가가 몇 시에 나왔나 — 아침 고가·오후 저가면 하루 종일 밀린 날. ③ 장 막판에 저점이 높아지는지.")+table5(r)));
   }
 
   parts.push(card("1장 도구 점검","● 계산 · ◐ 근사 · ○ 미구현 · ✕ 데이터 없음",toolTable([
@@ -920,7 +965,7 @@ function lineChart(t,series,o={}){
     g+=`<text x="${f1(X(i))}" y="${H-7}" font-size="10" fill="var(--ink-3)" text-anchor="${k===0?"start":k===4?"end":"middle"}">${esc(t[i])}</text>`;}
   g+=`<line class="xh" x1="0" x2="0" y1="${T}" y2="${B}" stroke="var(--ink-2)" stroke-width=".7" stroke-dasharray="3 2" visibility="hidden"/><rect class="hit" x="${L}" y="${T}" width="${PW}" height="${B-T}" fill="transparent"/>`;
   CHSTORE[id]={t,tip:i=>series.filter(se=>se.label).map(se=>`${esc(se.label)} <b>${ff(se.v[i])}</b>`).join(" · ")};
-  return `<div class="cbox"><svg class="big" id="${id}" data-l="${L}" data-pw="${PW}" data-w="${W}" viewBox="0 0 ${W} ${H}" role="img">${g}</svg><div class="tip" hidden></div></div>`;
+  return `${o.guide?`<div class="cguide"><b>볼 것</b> ${o.guide}</div>`:""}<div class="cbox"><svg class="big" id="${id}" data-l="${L}" data-pw="${PW}" data-w="${W}" viewBox="0 0 ${W} ${H}" role="img">${g}</svg><div class="tip" hidden></div></div>`;
 }
 const legendRow=(items)=>`<div class="legend">${items.join("")}</div>`;
 const topCard=(n,S,extra)=>card(`${n}장 종합 — 이 장이 말하는 것`,S.sub||"",`<div class="box ${S.tone}"><p class="big">${S.head}</p>${S.html}</div>${extra||""}`);
@@ -1041,7 +1086,7 @@ function ch2(s,B){
       nb["종가 상방 돌파"]?"g":"w",nb["종가 상방 돌파"]?"종가가 몸통 위를 넘었습니다.":"아직 몸통 위를 넘지 못했습니다.",
       why(nb["종가 상방 돌파"]?"7-4의 매수 타점(가이드 상방 돌파)이 나왔습니다. 손절은 기준봉 저점입니다.":`몸통 위끝 <b>${won(nb["몸통 상방"])}</b>(${sgn(gap(nb["몸통 상방"],c))})을 종가로 넘기 전까지는 '매수 보류'가 반복되는 것이 이 기법의 정상 과정입니다(7-4 §8). 더 아래에서 새 음봉+거래량이 나오면 기준봉이 그쪽으로 갱신됩니다(§7).`,"7-4 §6~§9")));
     parts.push(card("일봉 — 패턴과 기준봉","최근 6개월 · 2-1 · 2-2 · 2-7",
-      chartBlock(F,sp,LG("var(--ok)","저점①·②")+LG("var(--mid)","넥라인",1)+LG("#0b8a8a","기준봉 고점·중심·저점 / 음봉 바닥 몸통")+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선"))+table5(r)));
+      chartBlock(F,sp,LG("var(--ok)","저점①·②")+LG("var(--mid)","넥라인",1)+LG("#0b8a8a","기준봉 고점·중심·저점 / 음봉 바닥 몸통")+LG("var(--ok)","상승추세선")+LG("var(--bad)","하락추세선"),"① 초록 ①② 두 저점 — ②가 ①보다 높으면 쌍바닥 후보, 낮으면 무효. ② 노란 점선(넥라인)을 넘었나. ③ 청록선(기준봉 중심)을 지키나.")+table5(r)));
   }
   /* 주봉 */
   {
@@ -1059,7 +1104,7 @@ function ch2(s,B){
         :"기준봉 중심 위 — 중기 시세가 살아 있습니다.","9-1 §11-3")));
     r.push(row5("주봉 바닥 신호","2-7 #7","갭하락 → 도지 → 갭상승",`최근 26주 ${P.wbot?"있음":"없음"}`,P.wbot?"g":"n",P.wbot?`${esc(P.wbot.t)} 주에 나왔습니다.`:"최근 반년 사이 이 구조가 없습니다.",
       why(P.wbot?"공포로 털고(갭하락) 부담으로 못 따라오게(갭상승) 만든 구조 — 힘이 크고 자주 안 나오는 신호입니다.":"주봉 바닥 신호는 '자주 안 나온다'(#9). 없다는 것 자체가 아직 바닥 확인이 안 됐다는 뜻입니다.","2-7 #7~#9")));
-    parts.push(card("주봉 — 중기 기준봉","최근 2년 · 2-7 · 9-1 §11-3",chartBlock(F,sp,LG("#0b8a8a","주봉 기준봉 저점·중심·고점"))+table5(r)));
+    parts.push(card("주봉 — 중기 기준봉","최근 2년 · 2-7 · 9-1 §11-3",chartBlock(F,sp,LG("#0b8a8a","주봉 기준봉 저점·중심·고점"),"청록 3선 중 현재가가 어디인가 — 중심 위면 큰손이 그 자리를 지키는 중, 저점 아래면 기준봉 무효.")+table5(r)));
   }
   /* 60분 */
   {
@@ -1071,7 +1116,7 @@ function ch2(s,B){
     r.push(row5("60분 기준봉","2-7 #3 · 1-14 §5",H["기준 60분봉"]?`${esc(H["기준 60분봉"])}<br>중심 ${won(H["중심(1차 지지)"])}<br>하단 ${won(H["하단(2차 지지)"])}`:"없음","일봉 장대양봉이 진짜인지는 분봉으로 확대해 본다",
       String(H.판정).startsWith("살아")?"g":H["기준 60분봉"]?"b":"n",esc(H.판정||""),
       why(H["기준 60분봉"]?(String(H.판정).startsWith("살아")?"분봉으로 확대해도 시세가 살아 있습니다 — 일봉 신호의 신뢰도가 올라갑니다.":"분봉으로 확대하니 최근 시세의 기준이 깨졌습니다. 일봉에서 무엇이 보이든 단기 시세는 끝난 쪽으로 봅니다."):"최근 열흘 사이 분봉 기준봉이 없어, 단기 세력 유입 흔적이 없습니다.","2-7 #3 · 1-14 §5")));
-    parts.push(card("60분봉 — 기준봉 확대","최근 약 20거래일",chartBlock(F,sp,LG("#0b8a8a","기준 60분봉 중심·하단"))+table5(r)));
+    parts.push(card("60분봉 — 기준봉 확대","최근 약 20거래일",chartBlock(F,sp,LG("#0b8a8a","기준 60분봉 중심·하단"),"기준 60분봉 중심(점선) 위면 시세 유지, 하단(실선) 아래면 끝.")+table5(r)));
   }
   parts.push(card("2장 도구 점검","● 계산 · ◐ 근사 · ○ 미구현",toolTable([
     ["2-1 쌍바닥","두 저점·넥라인·20선 결합","◐","저점은 피벗으로 찾습니다. 다중 바닥(3개 이상)은 ○"],
@@ -1137,12 +1182,12 @@ function ch3(s,B){
     const Q=X.Q, t=Q.d.map(d=>`${d.slice(2,4)}-${d.slice(4,6)}-${d.slice(6)}`);
     parts.push(card("1년 흐름 — 주가와 주체별 누적 순매수","3-1 #4 '수량보다 금액' — 하루 순매수 수량 × 그날 종가로 금액(억 원)을 만들어 누적",
       lineChart(t,[{v:Q.종가,col:"var(--ink)",label:"종가",w:1.6}],{H:200,title:"주가(종가)"})
-      +lineChart(t,["외국인","기관","개인"].map(k=>({v:X.cum[k],col:COL[k],label:k+" 누적(억)",w:1.8})),{H:260,zero:true,refs:[{y:0,label:"0",col:"var(--ink-3)"}],title:"누적 순매수 금액(억 원) — 오르면 그 주체가 산 것",fmt:v=>fmt(v,0)})
+      +lineChart(t,["외국인","기관","개인"].map(k=>({v:X.cum[k],col:COL[k],label:k+" 누적(억)",w:1.8})),{H:260,zero:true,refs:[{y:0,label:"0",col:"var(--ink-3)"}],title:"누적 순매수 금액(억 원) — 오르면 그 주체가 산 것",guide:"① 위 주가 선과 모양이 가장 닮은 색 선이 이 종목의 주인입니다(아래 표의 상관계수). ② 그 선이 최근 올라가나(사는 중) 꺾였나(파는 중). ③ 0 아래로 내려간 선 = 1년 동안 산 것보다 판 게 많다.",fmt:v=>fmt(v,0)})
       +lineChart(t,[{v:Q.보유율,col:COL.외국인,label:"외국인 보유율(%)"}],{H:170,title:"외국인 보유율(%)",fmt:v=>fmt(v,2)})
       +legendRow([LG(COL.외국인,"외국인"),LG(COL.기관,"기관"),LG(COL.개인,"개인"),`<span class="lg muted">선이 오르는 구간 = 그 주체가 순매수한 구간. 주가와 같은 방향인 주체가 '이 종목의 주체'입니다.</span>`])));
     const t60=t.slice(-60);
     parts.push(card("최근 60일 — 하루하루 순매수","빨강 = 순매수, 파랑 = 순매도 (억 원)",
-      ["외국인","기관","개인"].map(k=>lineChart(t60,[{type:"bar",v:X.A[k].slice(-60),col:v=>v>=0?"var(--up)":"var(--down)",label:k+"(억)"}],{H:150,zero:true,title:k,fmt:v=>fmt(v,0)})).join("")));
+      ["외국인","기관","개인"].map(k=>lineChart(t60,[{type:"bar",v:X.A[k].slice(-60),col:v=>v>=0?"var(--up)":"var(--down)",label:k+"(억)"}],{H:150,zero:true,title:k,fmt:v=>fmt(v,0),guide:k==="외국인"?"빨강 막대 = 그날 순매수, 파랑 = 순매도. 파랑이 줄지어 나오면 연속 매도 — 그 줄이 끊기는 날(첫 빨강)을 봅니다.":""})).join("")));
   }
   const who=["외국인","기관","개인"];
   const t=`<div class="scroll"><table><thead><tr><th>주체</th><th>당일</th><th>5일 합</th><th>20일 합</th><th>당일 ÷ 평소</th><th>연속</th>${X?"<th>60일 상관(주가와)</th>":""}</tr></thead><tbody>${
@@ -1234,20 +1279,20 @@ function ch4(s,B){
       dvM.push({i:a,y:up?Fd.l[a]:Fd.h[a],label:nm+" ①",col:up?"var(--ok)":"var(--bad)",below:up},{i:b,y:up?Fd.l[b]:Fd.h[b],label:nm+" ②",col:up?"var(--ok)":"var(--bad)",below:up});});
     sp.marks=dvM;
     parts.push(card("일봉 — 엔벨로프와 RSI·MACD","최근 6개월 · 4-1 · 4-2 · 4-4",
-      chartBlock(Fd,sp,LG("#7048e8","엔벨로프 20일 ±6%",1)+LG("#ae3ec9","±3%(20일선 근접 거름망)",1))
-      +lineChart(t,[{v:cut(I.rs),col:"#e8590c",label:"RSI14"}],{H:180,lo:0,hi:100,title:"RSI(14) — 70 위 매수 금지, 30 아래 과매도",refs:[{y:70,label:"70",col:"var(--bad)"},{y:50,label:"50",col:"var(--ink-3)"},{y:30,label:"30",col:"var(--ok)"}],
+      chartBlock(Fd,sp,LG("#7048e8","엔벨로프 20일 ±6%",1)+LG("#ae3ec9","±3%(20일선 근접 거름망)",1),"① 주가가 보라 띠(±6%) 밖으로 나갔나 — 위로 나갔으면 추격 금지, 아래로 나갔으면 많이 빠진 것. ② 아래 RSI가 30 아래(과매도)·70 위(과매수)인가. ③ MACD 파란 막대가 짧아지는 중인가(파는 힘 소진).")
+      +lineChart(t,[{v:cut(I.rs),col:"#e8590c",label:"RSI14"}],{H:180,lo:0,hi:100,title:"RSI(14) — 70 위 매수 금지, 30 아래 과매도",guide:"주가 저점은 더 낮아지는데 RSI 저점은 더 높아지면 상승 다이버전스(파는 힘이 약해짐). 반대로 주가는 전저점 위인데 RSI가 먼저 전저점을 깨면 속이 무너진 것(4-1 #14).",refs:[{y:70,label:"70",col:"var(--bad)"},{y:50,label:"50",col:"var(--ink-3)"},{y:30,label:"30",col:"var(--ok)"}],
         zones:[{y1:70,y2:100,col:"var(--bad)",op:.06},{y1:0,y2:30,col:"var(--ok)",op:.06}],fmt:v=>fmt(v,0)})
       +lineChart(t,[{type:"bar",v:cut(I.hist),col:v=>v>=0?"var(--up)":"var(--down)",label:"오실레이터",op:.5},{v:cut(I.macd),col:"#1971c2",label:"MACD"},{v:cut(I.sig),col:"#e8590c",label:"시그널",dash:"4 2"}],
         {H:170,zero:true,title:"MACD(12·26·9) — 교재 기법은 1분봉 0선 수렴, 일봉은 참고",fmt:v=>fmt(v,0)})));
     if(I.W&&B.프레임.주봉){const Fw=sliceF(B.프레임.주봉,156), kw=B.프레임.주봉.c.length-156, cw=a=>a.slice(Math.max(0,kw));
       parts.push(card("주봉 — 볼린저와 OBV","최근 3년 · 1-9 PART H · 4-3",
-        chartBlock(Fw,{mas:[],series:[{v:cw(I.W.up),col:"#0ca678",label:"상단",ly:"band"},{v:cw(I.W.mid),col:"#868e96",label:"중심(20주)",dash:"4 3",ly:"band"},{v:cw(I.W.lo),col:"#0ca678",label:"하단",ly:"band"}],lines:[]},LG("#0ca678","주봉 볼린저 20·2"))
+        chartBlock(Fw,{mas:[],series:[{v:cw(I.W.up),col:"#0ca678",label:"상단",ly:"band"},{v:cw(I.W.mid),col:"#868e96",label:"중심(20주)",dash:"4 3",ly:"band"},{v:cw(I.W.lo),col:"#0ca678",label:"하단",ly:"band"}],lines:[]},LG("#0ca678","주봉 볼린저 20·2"),"① 띠 폭이 좁아지는 중(응축)인가 넓어지는 중(발산)인가. ② 아래 OBV가 주가와 다른 방향이면 정보가 있다 — 주가 횡보·OBV 상승 = 매집.")
         +lineChart(Fw.t,[{v:cw(I.W.obv),col:"#1971c2",label:"OBV"},{v:cw(I.W.obvSig),col:"#e8590c",label:"시그널(9)",dash:"4 2"}],{H:170,title:"주봉 OBV — 주가와 엇갈릴 때만 정보가 생긴다",fmt:v=>fmt(v/1e6,0)+"M"})));
     }
   }
   const VW=E["VIX 주봉"];
   if(VW) parts.push(card("VIX 주봉 — 공포를 숫자로","4-6 · 최근 10년 · 주봉으로 본다",
-    lineChart(VW.t,[{v:VW.c,col:"#c92a2a",label:"VIX"}],{H:240,refs:[{y:20,label:"20 탐욕↓",col:"var(--ok)"},{y:30,label:"30 1차",col:"var(--mid)"},{y:40,label:"40 2차",col:"var(--bad)"},{y:50,label:"50 적극",col:"var(--bad)"}],
+    lineChart(VW.t,[{v:VW.c,col:"#c92a2a",label:"VIX"}],{H:240,guide:"지금 값이 어느 가로선 근처인가 — 30·40·50을 넘을 때마다 나눠 사는 자리(4-6), 20 아래는 탐욕(보유분을 조금씩 정리). 주봉으로 보는 몇 주~몇 달짜리 지표입니다.",refs:[{y:20,label:"20 탐욕↓",col:"var(--ok)"},{y:30,label:"30 1차",col:"var(--mid)"},{y:40,label:"40 2차",col:"var(--bad)"},{y:50,label:"50 적극",col:"var(--bad)"}],
       zones:[{y1:0,y2:20,col:"var(--ok)",op:.06,label:"탐욕"},{y1:40,y2:90,col:"var(--bad)",op:.06,label:"극도의 공포"}],fmt:v=>fmt(v,0)})));
   /* 표 */
   const r=[], rs=D.RSI14;
@@ -1330,8 +1375,8 @@ function ch5(s,B){
   parts.push(topCard(5,sum5(s,B)));
   if(X){
     parts.push(card(`지수 대비 — ${esc(s.이름)} vs ${esc(X.iname)}`,"5-2 대전제 ③ · 최근 120거래일을 100으로 맞춰 비교",
-      lineChart(X.t,[{v:X.sN,col:"var(--up)",label:s.이름,w:2},{v:X.iN,col:"var(--ink-2)",label:X.iname,w:1.6,dash:"5 3"}],{H:260,refs:[{y:100,label:"출발 100",col:"var(--ink-3)"}],title:"같은 출발점에서 누가 더 갔나"})
-      +lineChart(X.t,[{v:X.rs,col:"#7048e8",label:"상대강도"}],{H:170,refs:[{y:100,label:"100",col:"var(--ink-3)"}],title:"상대강도 = 종목 ÷ 지수 × 100 — 오르면 지수보다 강해지는 중"})
+      lineChart(X.t,[{v:X.sN,col:"var(--up)",label:s.이름,w:2},{v:X.iN,col:"var(--ink-2)",label:X.iname,w:1.6,dash:"5 3"}],{H:260,refs:[{y:100,label:"출발 100",col:"var(--ink-3)"}],title:"같은 출발점에서 누가 더 갔나",guide:"빨간 선(종목)이 회색 점선(지수)보다 위면 이 기간 지수보다 강했다. 특히 지수가 빠지는 구간에서 누가 덜 빠졌는지 보세요(5-2 '하락기에 더 잘 지키는가')."})
+      +lineChart(X.t,[{v:X.rs,col:"#7048e8",label:"상대강도"}],{H:170,refs:[{y:100,label:"100",col:"var(--ink-3)"}],title:"상대강도 = 종목 ÷ 지수 × 100 — 오르면 지수보다 강해지는 중",guide:"선의 높이보다 최근 방향이 중요합니다 — 오르는 중이면 지수보다 강해지는 중."})
       +rsBars(X.R,s.이름,X.iname)));
   }
   const r=[], rel=(s.등락률??0)-(idxOf(s)?.등락률??0);
@@ -1495,7 +1540,7 @@ function trigBlock(s,B){
        :"이 아래로 마감하면 해당 매매법의 손절·포기 조건입니다."}</td></tr>`).join("")}</tbody></table></div>`;
   const ix=it.length?`<div class="scroll" style="margin-top:10px"><table><thead><tr><th>지수 트리거</th><th>현재</th><th>5일선</th><th>20일선</th><th>시사점</th></tr></thead><tbody>${
     it.map(x=>`<tr><td class="k">${x.nm}</td><td class="num">${fmt(x.c,2)}</td><td class="num">${fmt(x.m5,2)} (${sgn(gap(x.m5,x.c))})</td><td class="num">${fmt(x.m20,2)} (${sgn(gap(x.m20,x.c))})</td><td class="small">${x.c<x.m5?`5일선까지 ${sgn(gap(x.m5,x.c))} — 이 위 종가가 6-6·7-4·7-5b의 '지수 5일선 회복' 조건이고 9-1 1차 경보 해제입니다.`:"5일선 위 — 1차 경보 해제."}</td></tr>`).join("")}</tbody></table></div>`:"";
-  return card("트리거 지도 — 이 가격을 넘으면(깨면) 어떤 조건이 바뀌나","파랑 = 넘어야 열리는 가격, 빨강 = 깨면 닫히는 가격",chartBlock(F,sp,LG("var(--navy)","위로 넘어야 할 가격",1)+LG("var(--bad)","깨면 안 되는 가격",1))+tt+ix);
+  return card("트리거 지도 — 이 가격을 넘으면(깨면) 어떤 조건이 바뀌나","파랑 = 넘어야 열리는 가격, 빨강 = 깨면 닫히는 가격",chartBlock(F,sp,LG("var(--navy)","위로 넘어야 할 가격",1)+LG("var(--bad)","깨면 안 되는 가격",1),"① 현재가 바로 위 파란 점선 = 가장 먼저 넘어야 할 가격. ② 바로 아래 빨간 점선 = 깨지면 안 되는 가격. 아래 표에 선마다 어떤 조건이 바뀌는지 있습니다.")+tt+ix);
 }
 function sum67(s,which){
   const ms=(s.매매법||[]).filter(which==="6"?(m)=>m.교재.startsWith("6-"):(m)=>!m.교재.startsWith("6-"));
@@ -1564,7 +1609,7 @@ function ch8(s){
       if(a>=0&&b>a) sp.trends.push({i1:a,y1:o["1차선(시세 저점)"],i2:b,y2:o["3차선(시세 고점)"],label:nm+" 시세",col,ly:"trend",dash:"3 3",tag:false,stop:true});
       sp.lines.push({y:o["1차선(시세 저점)"],label:nm+" 1차",col,ly:"sr",from:a>=0?a:null},{y:o["2차선(시세 중심, 핵심)"],label:nm+" 2차(핵심)",col,ly:"sr",from:a>=0?a:null,w:2.2,dash:false},{y:o["3차선(시세 고점)"],label:nm+" 3차",col,ly:"sr",from:a>=0?a:null});};
     if(n){swing(sm,"var(--navy)","작은"); swing(bg,"#ae3ec9","큰");}
-    parts.push(card("보유자 가이드 3선 — 차트","8-5 · 최근 1년 · 점선 사선 = 선을 잡은 시세(저점 → 고점)",chartBlock(F,sp,LG("var(--navy)","작은 시세 1·2·3차선")+LG("#ae3ec9","큰 시세 1·2·3차선"))));
+    parts.push(card("보유자 가이드 3선 — 차트","8-5 · 최근 1년 · 점선 사선 = 선을 잡은 시세(저점 → 고점)",chartBlock(F,sp,LG("var(--navy)","작은 시세 1·2·3차선")+LG("#ae3ec9","큰 시세 1·2·3차선"),"① 지금 주가가 어느 선 사이에 있나. ② 반등이 오면 처음 닿는 선이 비중을 줄이는 자리, 아래 선을 깨면 그다음 선까지 열린다. 손실이 -20%를 넘으면 보라(큰 시세) 선을 기준으로.")));
   }
   const r=[];
   const lineRow=(nm,o)=>{if(!o) return;
@@ -1630,11 +1675,11 @@ function ch9(){
   IX.forEach(([k,nm,x])=>{const P=BUN[k]?.프레임; if(!P) return;
     const Fd=sliceF(P.일봉,250), n=Fd.t.length;
     const sp={mas:[5,20,60,120],lines:[{y:x.월봉?.["18월선"],label:"18월선",col:"#00897b",ly:"sr"},{y:x.주봉?.["120주선"],label:"120주선",col:"#795548",ly:"sr"}]};
-    parts.push(card(`${nm} — 일봉`,"최근 1년 · 9-1 §3~§5 (5일선 1차 경보, 20일선 2차 경보)",chartBlock(Fd,sp,LG("#00897b","18월선(9-1 §12)",1)+LG("#795548","120주선(하락 깊이 눈금)",1))));
+    parts.push(card(`${nm} — 일봉`,"최근 1년 · 9-1 §3~§5 (5일선 1차 경보, 20일선 2차 경보)",chartBlock(Fd,sp,LG("#00897b","18월선(9-1 §12)",1)+LG("#795548","120주선(하락 깊이 눈금)",1),"① 지수가 5일선(노랑) 위인가 — 아래면 1차 경보(신규·물타기 금지). ② 20일선(주황) 위인가 — 아래면 2차 경보. ③ 18월선·120주선까지 얼마나 남았나 = 하락이 더 깊어질 때의 눈금.")));
   });
   IX.forEach(([k,nm,x])=>{const P=BUN[k]?.프레임; if(!P) return;
     parts.push(card(`${nm} — 주봉 · 월봉`,"주봉 5년(13주 = 1분기선, 120주 = 하락 깊이 눈금) · 월봉 20년(18월선, 60·120월선 동시 이탈 = 중장기 발 빼기)",
-      chartBlock(sliceF(P.주봉,260),{mas:[10,13,20,60,120],unit:"주선",H:420})+chartBlock(sliceF(P.월봉,240),{log:true,mas:[18,20,60,120],unit:"월선",H:420})));});
+      chartBlock(sliceF(P.주봉,260),{mas:[10,13,20,60,120],unit:"주선",H:420,guide:"13주선(1분기선)·20주선 아래면 중기 흐름도 꺾인 것. 60·120주선은 큰 하락의 바닥 눈금."})+chartBlock(sliceF(P.월봉,240),{log:true,mas:[18,20,60,120],unit:"월선",H:420,guide:"60월선·120월선을 동시에 깨면 중장기도 발을 뺀다(10-3 §10). 18·20월선은 대세의 기준."})));});
   /* 표 */
   const st=(()=>{const P=BUN.tb_idx_KS11?.프레임; if(!P) return null; return {w:idxStats(P.주봉,ks["52주 고점 대비(%)"],"주"),m:idxStats(P.월봉,ks["52주 고점 대비(%)"],"월")};})();
   const sx=(S,unit)=>!S?"":S.k?`<span class="stat">자료 근거: 코스피 ${unit==="주"?"최근 5년 주봉":"최근 20년 월봉"}에서 52주 고점 대비 ${sgn(ks["52주 고점 대비(%)"],0)} 이하로 처음 내려간 때 ${S.k}번(${S.dates.slice(-3).map(esc).join(", ")}) → ${S.res.map(r=>`${r.h}${unit} 뒤 오른 비율 ${fmt(r.up,0)}% · 중간값 ${sgn(r.med,1)}`).join(" / ")}${S.k<5?" · 사례가 적어 참고만":""}</span>`:`<span class="stat">자료 근거: 코스피 ${unit==="주"?"최근 5년 주봉":"최근 20년 월봉"}에 이만큼 빠진 적이 없습니다.</span>`;
@@ -1712,7 +1757,7 @@ function ch10(s){
     const G=levelZones(s,px), sup=G.filter(g=>g.side==="아래"&&g.n>=3).sort((a,b)=>b.mid-a.mid)[0];
     const zones=sup?[{y1:sup.lo,y2:sup.hi,label:`강한 지지(근거 ${sup.n}개)`,col:"var(--ok)",ly:"box",op:.18}]:[];
     parts.push(card("결론 지도 — 기다릴 가격, 대응할 가격","파랑 = 넘으면 문이 열리는 가격 · 보라 = 보유자 매도선 · 초록 띠 = 근거가 3개 이상 겹친 지지",
-      chartBlock(F,{mas:[5,20],lines,zones},LG("var(--navy)","트리거",1)+LG("#ae3ec9","보유자 3선(8-5)")+LG("var(--ok)","강한 지지 구간"))));
+      chartBlock(F,{mas:[5,20],lines,zones},LG("var(--navy)","트리거",1)+LG("#ae3ec9","보유자 3선(8-5)")+LG("var(--ok)","강한 지지 구간"),"① 파란 점선 = 넘으면 판정이 바뀌는 가격(현재가에서 가까운 것부터). ② 보라선 = 이미 들고 있다면 대응할 가격. ③ 초록 띠 = 근거 여러 개가 겹친 받침 — 깨지면 아래가 크게 열린다.")));
   }
   const pos=c["포지션별 결론"]||{}, wait=c["유일하게 열린 문(6-6 기술적 반등) — 기다릴 조건"]||[], list=(a)=>(a||[]).filter(x=>x&&x!=="없음");
   parts.push(card("① 9장 게이트 — 시장이 허락하는가","게이트에 걸리면 6~8장 결과보다 이것이 먼저입니다",`<ul class="plain">${(c["9장 게이트"]||[]).map(g=>`<li>${esc(g)}</li>`).join("")||"<li>걸린 게이트가 없습니다.</li>"}</ul>`));
@@ -1882,10 +1927,12 @@ function render(){
   else if(ch.methods) body=methodsPage(ch,s);
   else body=ch.render(s);
   const prev=CH[CH.indexOf(ch)-1], next=CH[CH.indexOf(ch)+1];
-  $("#main").innerHTML=`<h1><span class="no">${ch.n}장</span>${esc(ch.t)}</h1><p class="lede">${esc(ch.role)}</p>${flow}${pick}${body}
+  const cc=(typeof conceptCard==="function"&&!/차트 자료를 불러오는 중/.test(body))?conceptCard(ch.n,s):"";
+  $("#main").innerHTML=`<h1><span class="no">${ch.n}장</span>${esc(ch.t)}</h1><p class="lede">${esc(ch.role)}</p>${flow}${pick}${cc}${body}
     <div class="pager"><button data-ch="${prev?.n??""}" ${prev?"":"disabled"}>← ${prev?`${prev.n}장 ${esc(prev.short)}`:""}</button>
       <button data-ch="${next?.n??""}" ${next?"":"disabled"}>${next?`${next.n}장 ${esc(next.short)}`:""} →</button></div>`;
   bindCalc();
+  if(typeof termify==="function") termify($("#main"));
 }
 function go(ch,code){
   if(ch!==undefined) CUR.ch=ch;
