@@ -35,6 +35,8 @@ a{color:var(--navy)}
 .tabs button{appearance:none;background:transparent;border:none;color:#c6d4ea;font:inherit;font-size:13px;
   padding:12px 15px;cursor:pointer;border-bottom:3px solid transparent}
 .tabs button:hover{color:#fff}
+.tabs .tablink{color:#fff;font-size:13px;padding:12px 15px;text-decoration:none;font-weight:600;border-bottom:3px solid transparent}
+.tabs .tablink:hover{border-bottom-color:#c6d4ea}
 .tabs button[aria-selected="true"]{color:#fff;font-weight:600;border-bottom-color:#fff;background:rgba(255,255,255,.08)}
 .topbar .right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;color:#c6d4ea}
 .topbar .right b{color:#fff}
@@ -312,6 +314,7 @@ body.static #runBtn{display:none}
     <button data-p="top5"    aria-selected="false">섹터별 대장주 TOP5</button>
     <button data-p="assign"  aria-selected="false">종목배정</button>
     <button data-p="raw"     aria-selected="false">RAW</button>
+    <a href="chapters.html#c10" class="tablink">교재 장별 분석 ↗</a>
   </nav>
   <div class="right">
     <span id="stamp">—</span>
@@ -330,7 +333,7 @@ body.static #runBtn{display:none}
     </div>
 
     <div class="card">
-      <div class="sheethead">▣ 교재 순서 분석 — 결론 먼저 <span class="sub">0 세팅 → 1~5 차트·수급 → 6~7 매매법 → 8 틀 → 9 시장 → 10 결론 · 설계 rulebook/교재적용체계.md</span></div>
+      <div class="sheethead">▣ 교재 결론 (10장) <span class="sub">자세한 근거는 장별 페이지에서 — <a href="chapters.html#c0" style="color:#fff">0장 세팅부터 10장 결론까지</a></span></div>
       <div id="tfMarket"></div>
       <div class="cardbody" id="tfStocks"></div>
     </div>
@@ -374,7 +377,7 @@ body.static #runBtn{display:none}
     </div>
 
     <div class="card">
-      <div class="sheethead">▣ 심층분석 — 종목 <span class="sub">watchlist.csv + 당일 대장주 · 차트·시장·모멘텀·뉴스 종합</span></div>
+      <div class="sheethead">▣ 심층분석 — 종목 · 이전 엔진(비교용) <span class="sub">결론은 위 '교재 결론'과 장별 페이지를 따릅니다 · watchlist.csv + 당일 대장주 · 차트·시장·모멘텀·뉴스 종합</span></div>
       <div class="cardbody" id="ddStocks"></div>
     </div>
 
@@ -1595,94 +1598,31 @@ function sectorCard(s){
     </div></div>`;
 }
 
-/* ── 교재 순서 분석 ── */
-function kvLine(o,keys){
-  return keys.filter(k=>o&&o[k]!==undefined&&o[k]!==null).map(k=>{
-    let v=o[k];
-    if(Array.isArray(v)) v=v.map(x=>typeof x==="number"?fmt(x,0):x).join(" · ")||"없음";
-    else if(typeof v==="object") v=Object.entries(v).map(([a,b])=>`${a} ${typeof b==="number"?fmt(b,0):b}`).join(" / ");
-    else if(typeof v==="number") v=fmt(v,Math.abs(v)<1000?1:0);
-    else if(v===true) v="예"; else if(v===false) v="아니오";
-    return `<i>${esc(k)}</i> <b>${esc(String(v))}</b>`;
-  }).join(" &nbsp;·&nbsp; ");
-}
-function tfVerdict(v){
-  const c=v==="적합"?"ok":v.startsWith("조건부")?"mid":v.startsWith("판정불가")?"na":"no";
-  return `<span class="v ${c}">${esc(v)}</span>`;
-}
+/* ── 교재 결론 (요약 — 근거는 chapters.html) ── */
 function renderTextbook(){
   const tf=DATA.교재흐름;
   if(!tf){
-    $("#tfMarket").innerHTML=`<div class="cardbody"><div class="notice small">교재 순서 분석을 아직 받지 못했습니다. 다음 수집을 기다리세요.</div></div>`;
+    $("#tfMarket").innerHTML=`<div class="cardbody"><div class="notice small">교재 분석을 아직 받지 못했습니다. 다음 수집을 기다리세요.</div></div>`;
     $("#tfStocks").innerHTML=""; return;
   }
-  const mk=tf["9장 시장"]||{}, ks=mk.코스피||{}, kq=mk.코스닥||{}, rg=mk["장세(9-2)"]||{};
+  const mk=tf["9장 시장"]||{};
   const worst=mk["가장 나쁜 장세"]||"—";
   const cls=worst==="대세 상승"?"ok":worst==="횡보"?"mid":"";
-  const fut=(mk.미국||{})["나스닥 선물"]||{}, sox=(mk.미국||{})["필라델피아 반도체"]||{};
-  const idxRow=x=>`<b>${esc(x.이름||"")}</b> ${fmt(x.종가,2)} (${pct(x.등락률)}) · 5선 ${x["5선 위"]?"위":"아래"} · 20선 ${x["20선 위"]?"위":"아래"}
-     · 이격도20 ${fmt(x.이격도20,1)} · 52주 고점 대비 ${fmt(x["52주 고점 대비(%)"],1)}% · 주봉 10·20 ${esc(x["주봉 10·20"]||"")}
-     · 월봉 이탈선 ${(x["월봉 이탈선"]||[]).join("·")||"없음"}${x.월봉?` <span class="muted">(18월선 ${fmt(x.월봉["18월선"],0)})</span>`:""}`;
   $("#tfMarket").innerHTML=`<div class="tfban ${cls}">
-      <span class="lv">9장 장세: ${esc(worst)}</span> 코스피 ${esc(rg.코스피||"")} · 코스닥 ${esc(rg.코스닥||"")}<br>
-      현금 비중 <b>${esc(mk["현금 비중(9-2)"]||"")}</b> · ${esc(mk["비중 매트릭스(9-2 §19-1)"]||"")}<br>
-      기본 스타일 <b>${esc(mk["기본 스타일"]||"")}</b> · 이 장세가 여는 매매법 <b>${esc((mk["열린 매매법"]||[]).join(", ")||"없음")}</b><br>
-      <span class="small">${idxRow(ks)}<br>${idxRow(kq)}<br>
-      미국 선물(나스닥) ${pct(fut.등락률)} · 반도체(SOX) ${pct(sox.등락률)} · VIX 주봉 ${fmt(mk["VIX 주봉 종가"],2)} = ${esc(mk["VIX 구간(4-6, 주봉)"]||"")}
-      · 시장폭 상승 ${mk.시장폭?.상승??"—"} / 하락 ${mk.시장폭?.하락??"—"}<br>
-      계절성 ${esc(mk["계절성(9-4, S&P 1950~2023 월평균)"]||"")} · 캘린더 ${esc(mk["캘린더(FOMC·CPI·고용·실적)"]||"")}</span>
-      <div class="muted small">${esc(mk["문턱 표기"]||"")} · VIX 는 S&P 기준이라 국내만 무너질 때는 신호가 늦다 (4-6)</div></div>`;
-
-  const opened=new Set(mk["열린 매매법"]||[]);
-  $("#tfStocks").innerHTML=(tf.종목||[]).map(s=>{
-    if(s.상태) return `<div class="dd"><div class="ddhead"><h4>${esc(s.이름)}</h4><span class="muted small">${esc(s.상태)}</span></div></div>`;
-    const c=s["10장 결론"]||{}, D=s.일봉||{}, W=s.주봉||{}, M=s.월봉||{}, H=s["60분봉"]||{}, M5=s["5분봉(당일)"]||{}, F=s.수급||{};
-    const go=(c["적합 매매법"]||[])[0]&&c["적합 매매법"][0]!=="없음";
-    const hl=c["보유자 대응(8-5 가이드 3선)"]||{};
-    const hlRow=(k,o)=>o?`<tr><td>${esc(k)}</td><td>${esc(o.시세||"")}</td><td class="num">${fmt(o["1차선(시세 저점)"],0)}</td>
-       <td class="num"><b>${fmt(o["2차선(시세 중심, 핵심)"],0)}</b></td><td class="num">${fmt(o["3차선(시세 고점)"],0)}</td></tr>`:"";
-    const pos=c["포지션별 결론"]||{};
-    const kb=D["일봉 기준봉"];
-    return `<div class="dd tf">
-      <div class="ddhead"><h4>${esc(s.이름)}</h4><span class="code">${esc(s.코드)} · ${esc(s.심볼||"")}</span>
-        <span class="px ${s.등락률>0?"up":s.등락률<0?"down":"flat"}">${fmt(s.현재가,0)} <span class="small">${pct(s.등락률)}</span></span></div>
-      <div class="tfline ${go?"go":"no"}">10장 결론 — ${esc(c["한 줄"]||"")}</div>
-
-      <details open><summary>10장 · 포지션별 결론 <span class="muted">— 섞지 않는다 (7-6 [0])</span></summary><div class="in kv">
-        ${Object.entries(pos).map(([k,v])=>`<i>${esc(k)}</i> <b>${esc(v)}</b>`).join("<br>")}
-        <br><i>9장 게이트</i> ${(c["9장 게이트"]||[]).map(esc).join(" / ")}
-        <br><i>적합하지만 장세가 닫은 매매법</i> ${esc((c["적합하지만 장세가 닫은 매매법"]||[]).join(", "))}
-        <br><i>목표 상한</i> ${esc(c["10-5 목표 상한"]||"")}</div></details>
-
-      <details open><summary>8장 · 보유자 대응 — 가이드 3선 (8-5) <span class="muted">— ${esc(c["보유자 현재 위치(작은 시세 기준)"]||"")}</span></summary><div class="in">
-        <div class="scroll"><table class="tfm"><thead><tr><th class="l">시세</th><th class="l">구간</th><th>1차선(저점)</th><th>2차선(중심·핵심)</th><th>3차선(고점)</th></tr></thead>
-        <tbody>${hlRow("작은 시세(직전 스윙)",hl["작은 시세(직전 스윙)"])}${hlRow("큰 시세(-20% 넘게 물렸으면)",hl["큰 시세(-20% 넘게 물렸으면)"])}</tbody></table></div>
-        <div class="kv small" style="margin-top:6px"><i>물타기</i> ${esc(c["8-1 물타기 판정식"]||"")}</div></div></details>
-
-      <details><summary>6~7장 · 매매법 ${(s.매매법||[]).length}개 판정 <span class="muted">— 흐린 줄은 오늘 장세가 닫은 매매법</span></summary><div class="in">
-        <div class="scroll"><table class="tfm"><thead><tr><th class="l">매매법</th><th class="l">교재</th><th class="l">판정</th><th class="l">미충족 · 판정불가</th><th class="l">계획 (8장 틀)</th><th class="l">예상 결과</th></tr></thead><tbody>
-        ${(s.매매법||[]).map(m=>{
-          const p=m["계획(8장 틀)"]||{}, e=m["예상 결과"]||{};
-          const shut=!opened.has(m.매매법)&&!m.매매법.startsWith("중장기");
-          return `<tr class="${shut?"shut":""}"><td><b>${esc(m.매매법)}</b><br><span class="muted">${esc(m.스타일)}</span></td>
-            <td>${esc(m.교재)}</td><td>${tfVerdict(m.판정)} <span class="muted">${esc(m.충족)}</span></td>
-            <td>${(m.미충족||[]).map(esc).join("<br>")}${(m["판정불가 항목"]||[]).length?`<br><span class="muted">불가: ${m["판정불가 항목"].map(esc).join(", ")}</span>`:""}</td>
-            <td>진입 ${esc(p.진입||"")}<br>손절 ${esc(p.손절||"")}<br>목표 ${esc(p.목표||"")}<br><span class="muted">${esc(p.대응||"")}</span></td>
-            <td>${esc(e["교재 기대"]||"")}${e.손익비!=null?`<br>손익비 ${esc(String(e.손익비))}`:""}<br><span class="muted">${esc(e["실패 시"]||"")}</span></td></tr>`;}).join("")}
-        </tbody></table></div></div></details>
-
-      <details><summary>1~5장 · 차트·수급 사실 <span class="muted">— 월봉 → 주봉 → 일봉 → 60분 → 5분 → 수급 (큰 것부터, 1-14)</span></summary><div class="in kv">
-        <b>월봉</b> ${kvLine(M,["18월선","20월선","60월선","120월선","저점 대비(%)","최고가 대비(%)","월봉 박스"])}<br>
-        <b>주봉</b> ${kvLine(W,["10주선","20주선","60주선","10주선 이격(%)","10·20주 상태","이탈한 주봉선","직전 양봉 깸","발산·응축","주봉 볼린저 하단","주봉 OBV(20주)","아래 가장 두꺼운 매물대","위 가장 두꺼운 매물대"])}<br>
-        <b>일봉</b> ${kvLine(D,["5선","20선","60선","240선","배열","20선 추이(5일)","이격도5","이격도20","60선 vs 1년선","RSI14","거래량 20일평균 대비(배)","신고가 격","60일 고점 대비(%)","위 전고점(가까운 순)","아래 전저점(가까운 순)","라운드피겨","매물대250일 아래","매물대250일 위"])}<br>
-        <i>오늘 캔들</i> <b>${esc((D["오늘 캔들"]?.형태||[]).join("/"))}</b>
-        · <i>미메움 갭</i> ${(D["미메움 갭(60일)"]||[]).map(g=>`${esc(g.방향)} ${esc(g.날짜)} ${fmt(g.하방,0)}~${fmt(g.상방,0)}`).join(" / ")||"없음"}
-        ${kb?`· <i>일봉 기준봉</i> ${esc(kb.날짜)} 시가 ${fmt(kb.시가,0)} 중심 ${fmt(kb.중심,0)} 저점 ${fmt(kb.저점,0)}`:""}<br>
-        <b>60분봉</b> ${kvLine(H,["판정","기준 60분봉","중심(1차 지지)","하단(2차 지지)","조정 거래량"])}<br>
-        <b>5분봉</b> ${kvLine(M5,["4등분 위치","고가 시각","저가 시각","장 후반 하방 지지(마지막 1시간 저점≥직전 1시간 저점)"])}<br>
-        <b>수급</b> ${kvLine(F,["외국인 당일(주)","외국인 당일/평소","외국인 연속","기관 당일(주)","기관 연속","개인 당일(주)","보유율 20일 변화(%p)"])}
-      </div></details>
-    </div>`;}).join("")||`<div class="notice small">대상 종목이 없습니다.</div>`;
+      <span class="lv">장세: ${esc(worst)}</span> 현금 비중 <b>${esc(mk["현금 비중(9-2)"]||"")}</b>
+      · 오늘 열린 매매법 <b>${esc((mk["열린 매매법"]||[]).join(", ")||"없음")}</b>
+      · <a href="chapters.html#c9">9장 시장 근거 →</a></div>`;
+  const chs=[[1,"차트"],[2,"패턴"],[3,"수급"],[4,"지표"],[5,"재료"],[6,"단타"],[7,"스윙"],[8,"관리"],[10,"결론"]];
+  $("#tfStocks").innerHTML=`<div class="scroll"><table class="tfm"><thead><tr><th class="l">종목</th><th>현재가</th><th class="l">10장 결론</th><th class="l">장별 근거</th></tr></thead><tbody>${
+    (tf.종목||[]).map(s=>{
+      if(s.상태) return `<tr><td>${esc(s.이름)}</td><td></td><td class="muted">${esc(s.상태)}</td><td></td></tr>`;
+      const c=s["10장 결론"]||{};
+      const go=(c["적합 매매법"]||[])[0]&&c["적합 매매법"][0]!=="없음";
+      return `<tr><td><b>${esc(s.이름)}</b><br><span class="muted">${esc(s.코드)}</span></td>
+        <td class="num">${fmt(s.현재가,0)}<br>${pct(s.등락률)}</td>
+        <td class="tfline ${go?"go":"no"}" style="border:none;padding:4px 7px">${esc(c["한 줄"]||"")}</td>
+        <td>${chs.map(([n,t])=>`<a href="chapters.html#c${n}/${esc(s.코드)}">${n} ${t}</a>`).join(" · ")}</td></tr>`;
+    }).join("")}</tbody></table></div>`;
 }
 
 /* ── 로딩 ── */
