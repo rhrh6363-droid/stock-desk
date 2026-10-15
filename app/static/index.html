@@ -1257,14 +1257,34 @@ async function renderMacroIndex(){
     return;
   }
 
-  const v=mi.변동성||{};
+  const v=mi.변동성||{}, vx=mi.VIX||{}, bw=mi.시장폭||{}, sb=mi.섹터선택||{};
   const lv=v.등급==="높음"?"hi":v.등급==="낮음"?"lo":"mid";
+  const 쉰다=bw.판정==="하락이 2배 이상";
   $("#volBan").innerHTML=`<div class="volban">
     <span class="lv ${lv}">변동성 ${esc(v.등급||"—")}</span>
     <b>→ ${esc(v.포지션운용||"—")}</b>
-    <span class="badge">${esc(v.등급==="보통"?"제안":"확정")}</span>
-    <ul>${(v.근거||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-    <div class="muted small" style="margin-top:6px">${esc(v.표기||"")}</div></div>`;
+    <span class="badge">사용자 확정</span>
+    <ul>${(v.위험요인||[]).map(x=>`<li>${esc(x)}</li>`).join("")
+        ||"<li>교재가 정한 매매 중단 조건에 걸린 것이 없다</li>"}</ul>
+    <div class="muted small" style="margin-top:6px">${esc(v.표기||"")}</div></div>
+
+  <div class="mtr" style="padding:12px 14px 2px">
+    <div class="m ${쉰다?"warn2":""}" style="min-width:210px">시장 폭 <span class="badge">교재 3-6</span>
+      <b>${esc(bw.판정||"자료 없음")}</b>
+      ${bw.상승!==undefined?`상승 ${fmt(bw.상승)} / 하락 ${fmt(bw.하락)}${bw.배수?` (${bw.배수}배)`:""}`:""}
+      <div class="muted">${esc(bw.행동||"")}</div></div>
+    <div class="m" style="min-width:210px">VIX <span class="badge">교재 4-6</span>
+      <b>${esc(vx.구간||"판정불가")}</b>
+      ${vx.VIX!==undefined&&vx.VIX!==null?`당일 ${fmt(vx.VIX,2)} · 5일평균 ${fmt(vx["5일평균"],2)}`:""}
+      <div class="muted">${esc(vx.행동||"")}</div></div>
+    <div class="m" style="min-width:210px">섹터 선택 <span class="badge">교재 5-3</span>
+      <b>${esc(sb.판정||"자료 없음")}</b>
+      <div class="muted">${esc(sb.볼섹터||"")}</div></div>
+  </div>
+  <div class="cardbody small muted" style="padding-top:4px">
+    ${vx.주의?esc(vx.주의)+"<br>":""}
+    ${(mi.미확인||[]).length?`<b>자료 미연결</b> — ${mi.미확인.map(esc).join(" · ")}`:""}
+  </div>`;
 
   const 묶음순=["해외지수","국내지수","변동성","매크로","대표종목"];
   const rows=[];
@@ -1333,29 +1353,44 @@ function ckTable(ck){
 function mtrBox(m){
   if(!m) return "";
   const bb=m.볼밴||{};
-  const hot=(v,bad)=>bad?"m warn2":"m";
+  const hot=(bad)=>bad?"m warn2":"m";
+  const 음봉=(m["당일등락률(%)"]??0)<0;
   return `<div class="mtr">
-    <div class="${hot(0,(m["RSI(14)"]??0)>=70)}">RSI(14)<b>${m["RSI(14)"]??"—"}</b></div>
-    <div class="${hot(0,["상단권","상단이탈"].includes(bb.위치))}">볼밴 %B<b>${bb["%B"]??"—"}</b>${esc(bb.위치||"")}</div>
-    <div class="${hot(0,(m.이격도??0)>=110)}">이격도<b>${m.이격도??"—"}</b></div>
-    <div class="${hot(0,m.이틀과열)}">2일 누적<b>${m["2일누적(%)"]??"—"}%</b></div>
-    <div class="m">거래대금 추세<b>${m.거래대금추세??"—"}배</b></div>
+    <div class="${hot((m["RSI(14)"]??0)>=70)}">RSI(14)<b>${m["RSI(14)"]??"—"}</b></div>
+    <div class="${hot((m.이격도??0)>103)}">이격도<b>${m.이격도??"—"}</b></div>
+    <div class="${hot(m.이틀과열)}">2일 누적<b>${m["2일누적(%)"]??"—"}%</b></div>
+    <div class="${hot((m.거래대금배수??0)>=5&&음봉)}">거래대금<b>${m.거래대금배수??"—"}배</b>조용구간 평균 대비</div>
     <div class="m">끼(20%↑일)<b>${m["끼(20%급등일수)"]??"—"}</b></div>
+    <div class="${hot(["상단권","상단이탈"].includes(bb.위치))}">볼밴 %B<b>${bb["%B"]??"—"}</b>${esc(bb.위치||"")}</div>
   </div>
-  <div class="muted small">${esc(m.RSI판정||"")} · ${esc(m.이격판정||"")}${
-    m.거래대금추세말?" · "+esc(m.거래대금추세말):""}</div>`;
+  <div class="muted small">${esc(m.RSI판정||"")}<br>${esc(m.이격판정||"")}${
+    m.거래대금말?"<br>"+esc(m.거래대금말):""}${
+    m.볼밴출처?`<br><span class="badge prop">볼밴 ${esc(m.볼밴출처)}</span>`:""}</div>`;
 }
 
 function rrBox(rr){
-  if(!rr||!rr.목표가) return `<div class="muted small">손익비를 계산할 자료가 부족합니다.</div>`;
-  return `<div class="rr">
-    <div>평균변동폭(20일)<b>${fmt(rr["평균변동폭(20일)"],2)}%</b></div>
-    <div class="cut">손절가 (−${fmt(rr["손절폭(%)"],1)}%)<b>${fmt(rr.손절가,0)}</b></div>
-    <div class="tgt">목표가 (+${fmt(rr["익절폭(%)"],1)}%)<b>${fmt(rr.목표가,0)}</b></div>
-    <div>구조 손절<b>${rr.구조손절가?fmt(rr.구조손절가,0):"—"}</b></div>
-  </div>
-  <div class="muted small">${esc(rr.비고||"")}${rr.구조상태?" · "+esc(rr.구조상태):""}</div>
-  <div class="muted small">${esc(rr.표기||"")}</div>`;
+  if(!rr||!rr.손절후보) return `<div class="muted small">손익비를 계산할 자료가 부족합니다.</div>`;
+  const 성립=!!rr.목표가;
+  const 후보=(rr.손절후보||[]).map(c=>
+    `<tr${rr.채택손절&&c.이름===rr.채택손절.이름?' class="ok"':''}>
+       <td class="m">${rr.채택손절&&c.이름===rr.채택손절.이름?"★":""}</td>
+       <td>${esc(c.이름)}<span class="src">${esc(c.근거||"")}</span></td>
+       <td class="vv">${c.가격?fmt(c.가격,0):"—"}${
+         c["손절폭(%)"]!==null&&c["손절폭(%)"]!==undefined?` <span class="muted">−${fmt(c["손절폭(%)"],2)}%</span>`:""}</td>
+     </tr>`).join("");
+
+  return `<div class="zone" style="border-left-color:${성립?"var(--issue)":"var(--up)"}">
+      <b>${esc(rr.판정||"")}</b><br>
+      <span class="muted small">${esc(rr.파동상한||"")} · 손절창 ${esc(rr.손절창||"")}</span></div>
+    ${성립?`<div class="rr">
+      <div>평균변동폭(20일)<b>${fmt(rr["평균변동폭(20일)"],2)}%</b></div>
+      <div class="cut">손절가 (−${fmt(rr["손절폭(%)"],2)}%)<b>${fmt(rr.손절가,0)}</b></div>
+      <div class="tgt">목표가 (+${fmt(rr["익절폭(%)"],2)}%)<b>${fmt(rr.목표가,0)}</b></div>
+    </div>`:""}
+    <div class="ddsec" style="margin-top:8px">손절 후보 — 구조에서만 뽑는다 (8-3)</div>
+    <table class="ck"><tbody>${후보||`<tr><td class="muted small">현재가 아래에 구조 손절선이 없다</td></tr>`}</tbody></table>
+    ${(rr.조건미달||[]).length?`<ul class="risk">${rr.조건미달.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    <div class="muted small">${esc(rr.손익비||"")} · ${esc(rr.표기||"")}</div>`;
 }
 
 function intradayBox(iv){
@@ -1466,7 +1501,8 @@ function stockCard(s){
           <span class="muted small">(확률 ${esc(ez.확률순서||"")})</span><br>
           신고가 격 <b>${esc(hg.신고가격||"—")}</b> · 전고점 ${fmt(hg["60일전고점"],0)}
           (${fmt(hg["전고점대비(%)"],2)}%) · 연속경신 ${hg.연속경신일??"—"}일<br>
-          성격 <b>${esc(lq.성격||"—")}</b> — ${esc(lq.쓰임||"")}</div>
+          성격 <b>${esc(lq.성격||"—")}</b> — ${esc(lq.쓰임||"")}
+          ${ch.파동?.판정?`<br>파동 <b>${esc(ch.파동.판정)}</b>`:""}</div>
 
         <div class="ddsec">${ph.국면==="눌림목 국면"?"눌림목 체크 (7-2)":"돌파 확률 5조건 (7-3 D)"}
           <span class="muted">${주체크?.통과수??"—"}/${주체크?.전체??"—"} 통과</span></div>
@@ -1475,7 +1511,7 @@ function stockCard(s){
         <div class="ddsec">모멘텀 <span class="muted">척도다 — 매수 신호가 아니다</span></div>
         ${mtrBox(s.모멘텀)}
 
-        <div class="ddsec">손익비 3:1 <span class="muted">손절폭을 먼저 정하고 익절을 3배로</span></div>
+        <div class="ddsec">손익비 3:1 <span class="muted">손절은 구조에서 · 목표는 파동 안에서</span></div>
         ${rrBox(s.손익비)}
 
         <div class="ddsec">매물대 · 라운드피겨</div>

@@ -249,30 +249,33 @@ def _verdict(bo: dict, pb: dict, mo: dict, phase: dict, rr: dict) -> dict:
     위험 = []
     r = mo.get("RSI(14)")
     if r is not None and r >= 70:
-        위험.append(f"RSI {r} — 70 이상 과매수 (교재 4-1: 그 자리에서 창을 닫는다)")
-    if (mo.get("볼밴") or {}).get("위치") in ("상단권", "상단이탈"):
-        위험.append(f"볼밴 {mo['볼밴']['위치']} ({mo['볼밴'].get('%B')}%) — 밴드 상단 위험")
+        위험.append(f"RSI {r} — 70 이상이면 그 자리에서 창을 닫는다 (4-1)")
     이격 = mo.get("이격도")
     if 이격 is not None and 이격 >= 110:
-        위험.append(f"이격도 {이격} — 110 이상은 고점 지향 (1-9)")
+        위험.append(f"이격도 {이격} — 110 이상은 진입 제외·분할 매도 구간 (1-9·6-5·7-5)")
+    elif 이격 is not None and 이격 > 103:
+        위험.append(f"이격도 {이격} — 엔벨로프 3% 밴드 밖. 교재 4-4 는 즉시 제외한다")
     if mo.get("이틀과열"):
-        위험.append(f"이틀 누적 {mo.get('2일누적(%)')}% — 40% 이상 과열 (투자원칙)")
-    추세 = mo.get("거래대금추세")
-    if 추세 is not None and 추세 <= 0.7:
-        위험.append(f"거래대금이 과거 평균의 {추세}배 — 자금이 빠지고 있다")
+        위험.append(f"이틀 누적 {mo.get('2일누적(%)')}% — 40% 이상 과열 <사용자 확정>")
+    배수 = mo.get("거래대금배수")
+    if 배수 is not None and 배수 >= 5 and (mo.get("당일등락률(%)") or 0) < 0:
+        위험.append(f"음봉에 거래대금 {배수}배 — 평균 대비 5~20배 구간의 위험 신호 (1-6)")
+    # 볼린저는 교재가 쓰지 않는다. 사용자 척도이므로 표기를 분리한다
+    if (mo.get("볼밴") or {}).get("위치") in ("상단권", "상단이탈"):
+        위험.append(f"볼밴 {mo['볼밴']['위치']} ({mo['볼밴'].get('%B')}%) <사용자 척도>")
 
-    막힘 = rr.get("목표가까지_저항밴드") or []
-    if 막힘:
-        위험.append(f"목표가 아래 매물대 {len(막힘)}개 — 익절 폭까지 길이 막혀 있다")
-    if rr.get("구조손절가") is None and "이미 충족" in (rr.get("구조상태") or ""):
-        위험.append("첫 저점을 이미 깨고 내려왔다 — 교재 7-3 PART G 매도 조건이 충족된 상태")
+    # 손익비 — 교재의 두 울타리(파동 7~15% · 손익비 1:3)를 못 넘으면 전부 위험으로 올린다
+    for m in (rr.get("조건미달") or []):
+        위험.append(m)
+    if not (rr.get("손절후보") or []):
+        위험.append("현재가 아래에 구조 손절선이 없다 — 교재 8-3 의 네 기준이 전부 위에 있다")
 
     말 = (f"{phase.get('적용교재')} 기준 {통과}/{전체} 항목 통과."
           if 통과 is not None else "체크 항목을 계산할 수 없었다.")
-    if 위험:
-        말 += f" 위험 요인 {len(위험)}개."
-    else:
-        말 += " 위에 적은 척도 중 경고 구간에 걸린 것은 없다."
+    if rr.get("판정"):
+        말 += f" 손익비: {rr['판정']}."
+    말 += (f" 위험 요인 {len(위험)}개." if 위험
+           else " 위에 적은 척도 중 경고 구간에 걸린 것은 없다.")
 
     return {"통과": 통과, "전체": 전체, "요약": 말, "위험요인": 위험,
             "표기": "<제안> — 조건 성립 여부만 센 것이다. 진입 판단은 사용자가 한다"}
@@ -328,6 +331,7 @@ def stock_one(대상: dict, date: str, rows: list[dict] | None = None) -> dict:
             "매물대": ind.supply_bands(candles),
             "라운드피겨": ind.round_figure(last["종가"]),
             "첫저점": ind.first_pivot_low(candles),
+            "파동": ind.wave_count(candles),
             "MA": {k: pb.get(k) for k in ("MA5", "MA20", "MA60", "MA220")},
         },
         "모멘텀": mo,

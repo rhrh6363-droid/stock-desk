@@ -258,10 +258,14 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
 
     # 지수 매크로 — 나스닥·S&P500·코스피·코스닥·반도체·VIX·금리·유가·금·환율
     # + 삼성전자·SK하이닉스. 캔들은 data/charts/ 로 따로 굽는다
-    지수매크로 = macro_index.snapshot()
+    지수매크로 = macro_index.snapshot(adr=adr)
     print(f"  지수 매크로 {지수매크로['받음']}/{지수매크로['전체']}개"
           f" · 변동성 {지수매크로['변동성']['등급']}"
           f" → {지수매크로['변동성']['포지션운용']}")
+    print(f"    시장폭 {지수매크로['시장폭'].get('판정')}"
+          f" → {지수매크로['시장폭'].get('행동')}"
+          f" · VIX {지수매크로['VIX'].get('구간')}"
+          f" · {지수매크로['섹터선택'].get('판정')}")
 
     # 분봉은 토스만 가능하고 한국 IP 에서만 된다. 로컬 실행일 때만 붙는다
     if toss.available():
