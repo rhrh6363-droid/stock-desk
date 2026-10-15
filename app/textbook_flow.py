@@ -9,7 +9,7 @@
   9장  시장       : 지수·해외·환율·금리·VIX·계절성 → 장세 → 현금 비중
   10장 결론       : 9장 게이트를 통과한 것만 남긴다
 """
-import json, math, sys, io, urllib.request, urllib.parse
+import json, math, os, sys, io, urllib.request, urllib.parse
 from datetime import datetime, timezone, timedelta
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -183,6 +183,60 @@ def vol_profile(rows, bins=15):
     tot = sum(acc) or 1
     return [{"하단": lo + i * step, "상단": lo + (i + 1) * step, "비중": acc[i] / tot * 100}
             for i in range(bins)]
+
+
+def trendlines(rows, look=120, k=5):
+    """1-10 추세선 — 근사 자동 작도.
+    상승추세선 = 올라가는 저점 두 개를 잇는다(A-3 '밑부분을 본다', A-4 '저점이 올라갔다').
+    하락추세선 = 내려가는 고점 두 개를 잇는다(C-2 상방 추세선).
+    두 점 사이의 봉이 선을 뚫으면 추세선이 아니다. 가장 최근 극점에서 거꾸로 찾아 처음 맞는 쌍을 쓴다.
+    반대편 극점에 같은 기울기로 복사하면 채널(C-3).
+    '봉전' = 마지막 봉에서 몇 봉 앞인지 — 화면이 차트 위치를 찾는 데 쓴다."""
+    seg = rows[-look:]
+    if len(seg) < 4 * k:
+        return {}
+    hi, lo = pivots(seg, k)
+    n = len(seg) - 1
+    c = seg[-1]["c"]
+    out = {}
+    for name, idx, key, opp, rising in (("상승추세선", lo, "l", "h", True), ("하락추세선", hi, "h", "l", False)):
+        pick = None
+        for i2 in reversed(idx):
+            for i1 in reversed([i for i in idx if i <= i2 - 2 * k]):
+                y1, y2 = seg[i1][key], seg[i2][key]
+                if (y2 <= y1) if rising else (y2 >= y1):
+                    continue
+                sl = (y2 - y1) / (i2 - i1)
+                ok = all((seg[i][key] >= y1 + sl * (i - i1) - 1e-9) if rising else
+                         (seg[i][key] <= y1 + sl * (i - i1) + 1e-9) for i in range(i1, i2 + 1))
+                if ok:
+                    pick = (i1, i2, sl)
+                    break
+            if pick:
+                break
+        if not pick:
+            continue
+        i1, i2, sl = pick
+        y1, y2 = seg[i1][key], seg[i2][key]
+        at = lambda i: y1 + sl * (i - i1)
+        now = at(n)
+        span = range(i1, n + 1)
+        j = (max(span, key=lambda i: seg[i]["h"] - at(i)) if rising else
+             min(span, key=lambda i: seg[i]["l"] - at(i)))
+        off = seg[j][opp] - at(j)
+        # 두 번째 점 이후 처음 선을 종가로 넘어선 봉 (이탈/돌파)
+        cross = next((i for i in range(i2 + 1, n + 1)
+                      if ((seg[i]["c"] < at(i)) if rising else (seg[i]["c"] > at(i)))), None)
+        if cross is not None and n - cross > look * 0.4:
+            continue                    # 오래전에 끝난 선 — 지금 작동하는 추세선이 아니다
+        out[name] = {
+            "점1": {"봉전": n - i1, "가격": r1(y1, 0)}, "점2": {"봉전": n - i2, "가격": r1(y2, 0)},
+            "봉당 기울기(%)": r1(sl / y2 * 100, 2),
+            "오늘 값": r1(now, 0), "현재가": "위" if c >= now else "아래", "이격(%)": r1(pct(c, now)),
+            "처음 넘은 봉전": None if cross is None else n - cross,
+            "채널 반대편 오늘 값": r1(now + off, 0),
+        }
+    return out
 
 
 def candle(r, prev=None):
@@ -751,9 +805,11 @@ def methods(D, W, M, H, F, M5, mk, 시총억):
 
     # 7-6 중기 스윙
     dd = D["60일 고점 대비(%)"] or 0
+    dtl = (D.get("추세선") or {}).get("하락추세선")
     add("중기 스윙", "7-6 [4][5]", "중기 1~4달", "주봉",
         [C("[4] 고점 대비 -30% 전후 조정", dd <= -25, f"60일 고점 대비 {dd}%"),
-         C("[4] 하락 추세선 돌파(바닥 확인)", None, "추세선 작도 자동화 안 됨 — 저점 상향으로 대체"),
+         C("[4] 하락 추세선 돌파(바닥 확인)", None if not dtl else dtl["현재가"] == "위",
+           "하락추세선 없음(내려오는 고점 두 개가 없다)" if not dtl else f"일봉 하락추세선 오늘 {dtl['오늘 값']:,.0f} · 현재가 {dtl['현재가']} (자동 작도 근사, 돌파 뒤 며칠 지지는 직접 확인 1-10 D-3)"),
          C("[4] 저점을 옆·위로 올림(최근 두 저점)", D["최근 두 저점 상승"], f"최근 저점 {D['최근 두 저점']}"),
          C("[6] 전체 시장 상승장", worst == "대세 상승", worst),
          C("주봉 10주선 지지(결정의 시간)", (W.get("10주선 이격(%)") or -99) >= -3, f"10주선 이격 {W.get('10주선 이격(%)')}%")],
@@ -886,6 +942,37 @@ def conclude(st, mk):
             "8-1 물타기 판정식": "(첫 매수가−평단)÷(첫 매수가−현재가) < 0.4 이면 물타기 — 지금은 8-5 허용 4조건 중 '지수 5선 회복'부터 미충족"}
 
 
+# ───────────────────────── 1장 차트 그림용 자료 ─────────────────────────
+CHART_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "charts")
+
+
+def _frame(rows, keep, mas, fmt):
+    cl = [r["c"] for r in rows]
+    seg = rows[-keep:]
+    return {"t": [r["t"].strftime(fmt) for r in seg],
+            "o": [r["o"] for r in seg], "h": [r["h"] for r in seg],
+            "l": [r["l"] for r in seg], "c": [r["c"] for r in seg],
+            "v": [int(r["v"]) for r in seg],
+            "ma": {str(n): [r1(x, 1) for x in sma(cl, n)[-keep:]] for n in mas}}
+
+
+def save_chart(code, name, S):
+    """1장 화면이 그리는 큰 차트 — 프레임별 OHLCV + 이평. data/charts/tb_{코드}.json"""
+    m5 = S["m5"]
+    days = sorted({r["t"].date() for r in m5})[-2:]
+    m5 = [r for r in m5 if r["t"].date() in days]
+    out = {"심볼": code, "이름": name, "프레임": {
+        "월봉": _frame(S["m"], 120, (18, 20, 60, 120), "%Y-%m"),
+        "주봉": _frame(S["w"], 156, (10, 20, 60, 120), "%Y-%m-%d"),
+        "일봉": _frame(S["d"], 1000, (5, 20, 60, 120, 240), "%Y-%m-%d"),
+        "60분봉": _frame(S["h60"], 210, (20, 60), "%m-%d %H:%M"),
+        "5분봉": _frame(m5, 160, (20,), "%m-%d %H:%M"),
+    }}
+    os.makedirs(CHART_DIR, exist_ok=True)
+    with open(os.path.join(CHART_DIR, f"tb_{code}.json"), "w", encoding="utf-8") as fh:
+        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
+
+
 # ───────────────────────── 실행 ─────────────────────────
 def analyze(code, name, 시총억, mk):
     S = load_stock(code)
@@ -896,6 +983,13 @@ def analyze(code, name, 시총억, mk):
     M = monthly(S["m"])
     H = hour60(S["h60"])
     M5 = min5(S["m5"])
+    D["추세선"] = trendlines(S["d"], 120, 5)
+    W["추세선"] = trendlines(S["w"], 104, 4)
+    H["추세선"] = trendlines(S["h60"], 140, 7)
+    try:
+        save_chart(code, name, S)
+    except Exception as exc:
+        print(f"  [차트 저장 실패] {code}: {exc}")
     F = flows(naver_trend(code, 60))
     ms = methods(D, W, M, H, F, M5, mk, 시총억)
     con = conclude({"_d": S["d"], "일봉": D, "월봉": M, "매매법": ms}, mk)
