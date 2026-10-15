@@ -215,6 +215,68 @@ table.kv2 td.v{text-align:left;line-height:1.65}
 .why2{max-width:340px;font-size:11.5px;line-height:1.5}
 .srcl{font-size:10px;color:var(--ink-3);white-space:nowrap}
 
+/* ── 지수 매크로 ── */
+.volban{padding:12px 14px;border-left:5px solid var(--navy);background:var(--surface-2);font-size:12.5px}
+.volban .lv{font-size:17px;font-weight:700;margin-right:8px}
+.volban .lv.hi{color:var(--up)} .volban .lv.mid{color:var(--h3)} .volban .lv.lo{color:var(--issue)}
+.volban ul{margin:7px 0 0;padding-left:18px;color:var(--ink-2);font-size:11.5px;line-height:1.7}
+.mxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:11px;padding:14px}
+.mx{border:1px solid var(--line);background:var(--surface)}
+.mx .t{display:flex;align-items:baseline;gap:7px;padding:7px 10px;border-bottom:1px solid var(--line-soft)}
+.mx .t .n{font-weight:600;font-size:12.5px}
+.mx .t .p{margin-left:auto;font-size:12.5px;font-weight:600}
+.mx .b{padding:4px 6px 7px}
+.mx .f{display:flex;gap:6px;flex-wrap:wrap;padding:0 10px 8px;font-size:10.5px;color:var(--ink-3)}
+.mx svg{display:block;width:100%;height:78px}
+.mx.big svg{height:220px}
+.tr{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 5px;white-space:nowrap}
+.tr.up{background:#fde3e1;color:#9a1f18} .tr.dn{background:#e2ecfb;color:#1b4584}
+.tr.nt{background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tr.up{background:#3a1d1a;color:#f2958d}
+:root:not([data-theme="light"]) .tr.dn{background:#18243a;color:#8fb4ee}}
+
+/* ── 심층분석 ── */
+.dd{border:1px solid var(--line);border-top:3px solid var(--navy);background:var(--surface);margin-bottom:16px}
+.ddhead{display:flex;align-items:baseline;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ddhead h4{margin:0;font-size:18px}
+.ddhead .code{font-size:11.5px;color:var(--ink-3)}
+.ddhead .px{margin-left:auto;font-size:19px;font-weight:600}
+.phase{font-size:11.5px;font-weight:700;padding:2px 8px;color:#fff;background:var(--navy);white-space:nowrap}
+.phase.pull{background:var(--issue)} .phase.brk{background:var(--lead)} .phase.na{background:var(--flat)}
+.ddgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:0}
+@media (max-width:1000px){.ddgrid{grid-template-columns:1fr}}
+.ddcol{padding:13px 14px;min-width:0}
+.ddcol+.ddcol{border-left:1px solid var(--line-soft)}
+@media (max-width:1000px){.ddcol+.ddcol{border-left:none;border-top:1px solid var(--line-soft)}}
+.ddsec{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink-3);margin:0 0 6px;text-transform:uppercase}
+.ddsec+.ddsec{margin-top:14px}
+.zone{font-size:12px;padding:7px 10px;background:var(--surface-2);border-left:3px solid var(--navy);margin-bottom:10px}
+.zone b{font-size:13px}
+.ck{width:100%;font-size:11.5px}
+.ck td{padding:4px 6px;border-bottom:1px solid var(--line-soft);text-align:left}
+.ck td.m{width:16px;text-align:center;font-weight:700}
+.ck td.vv{text-align:right;white-space:nowrap;font-weight:600}
+.ck tr.ok td.m{color:var(--issue)} .ck tr.no td.m{color:var(--up)}
+.ck .src{display:block;font-size:10px;color:var(--ink-3)}
+.mtr{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.mtr .m{border:1px solid var(--line);background:var(--surface-2);padding:4px 8px;font-size:11px;min-width:84px}
+.mtr .m b{display:block;font-size:14px;font-weight:600;color:var(--ink)}
+.mtr .m.warn2{border-color:var(--up);color:var(--up)} .mtr .m.warn2 b{color:var(--up)}
+.rr{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:7px;margin-bottom:6px}
+.rr div{border:1px solid var(--line);padding:6px 8px;font-size:11px;color:var(--ink-3)}
+.rr div b{display:block;font-size:14px;color:var(--ink);font-weight:600}
+.rr div.cut{border-color:var(--down)} .rr div.tgt{border-color:var(--up)}
+.risk{margin:6px 0 0;padding-left:17px;font-size:11.5px;color:var(--up);line-height:1.65}
+.imgs{display:flex;gap:9px;flex-wrap:wrap;margin-top:7px}
+.imgs figure{margin:0;flex:1 1 260px;min-width:0}
+.imgs img{width:100%;border:1px solid var(--line);background:#fff;display:block}
+.imgs figcaption{font-size:10.5px;color:var(--ink-3);padding-top:3px}
+.tvwrap{margin-top:9px}
+.tvwrap iframe{width:100%;height:420px;border:1px solid var(--line);display:block}
+.bands{font-size:11px;color:var(--ink-2);line-height:1.7}
+.bands i{font-style:normal;color:var(--ink-3)}
+.secrow td{font-size:12px}
+
 /* 정적 호스팅(GitHub Pages)에는 수집기가 없다 */
 body.static #runBtn{display:none}
 </style>
@@ -253,6 +315,14 @@ body.static #runBtn{display:none}
     </div>
 
     <div class="card">
+      <div class="sheethead">▣ 지수 매크로 <span class="sub">나스닥·S&P500·코스피·코스닥·반도체·VIX·금리·유가·금·환율 + 삼성전자·SK하이닉스</span></div>
+      <div id="volBan"></div>
+      <div class="scroll"><table id="mxTable"></table></div>
+      <div class="mxgrid" id="mxCharts"></div>
+      <div class="cardbody small" id="mxLead" style="border-top:1px solid var(--line-soft)"></div>
+    </div>
+
+    <div class="card">
       <div class="sheethead">▣ 시황 요약</div>
       <div class="scroll"><table class="kv2" id="summary"></table></div>
     </div>
@@ -275,6 +345,16 @@ body.static #runBtn{display:none}
     <div class="card">
       <div class="sheethead">그날의 대장주 후보 <span class="sub">주도업종 거래대금 1위 · 최대 3종목</span></div>
       <div class="cardbody"><div class="leaders" id="leadCards"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">▣ 심층분석 — 종목 <span class="sub">watchlist.csv + 당일 대장주 · 차트·시장·모멘텀·뉴스 종합</span></div>
+      <div class="cardbody" id="ddStocks"></div>
+    </div>
+
+    <div class="card">
+      <div class="sheethead">▣ 심층분석 — 섹터 <span class="sub">ADR 은 종목 하나에 못 쓴다 — 좁힐 수 있는 최소 단위가 섹터다</span></div>
+      <div class="cardbody" id="ddSectors"></div>
     </div>
 
     <div class="card">
@@ -1067,6 +1147,392 @@ async function loadHeatmap(){
       <td class="mo num">${s.등장일수??"–"}</td></tr>`).join("")}</tbody>`;
 }
 
+/* ═══════════════════════════════════════════════
+   캔들차트 — 외부 라이브러리 없이 SVG 로 직접 그린다
+
+   브라우저에서 야후를 직접 못 부른다(응답에 CORS 헤더가 없다). 그래서 수집 때
+   구워둔 data/charts/*.json 을 읽어 그린다. 갱신 주기 = 수집 배치 주기.
+   ═══════════════════════════════════════════════ */
+const CH = {};                       // 심볼 → 캔들 (한 번 읽으면 캐시)
+
+async function chartData(file){
+  if(CH[file]) return CH[file];
+  try{
+    const d = await getJSON("/api/chart/"+file, "data/charts/"+file);
+    CH[file] = d; return d;
+  }catch(e){ return null; }
+}
+
+function maSeries(vals,n){
+  const out=[];
+  for(let i=0;i<vals.length;i++)
+    out.push(i>=n-1 ? vals.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n : null);
+  return out;
+}
+
+/* candles: [{t,o,h,l,c}] · lines: [{y,label,cls}] · mas: [기간] */
+function svgChart(candles,{W=600,H=170,mas=[20,60],lines=[],pad=46}={}){
+  if(!candles||candles.length<2) return `<div class="notice small">캔들 자료 없음</div>`;
+  const cs=candles, n=cs.length;
+  const closes=cs.map(c=>c.c);
+  const maLines=mas.map(m=>({n:m,v:maSeries(closes,m)}));
+  const ys=[...cs.map(c=>c.l),...cs.map(c=>c.h),
+            ...lines.map(l=>l.y).filter(v=>v!==null&&v!==undefined)];
+  let lo=Math.min(...ys), hi=Math.max(...ys);
+  if(hi===lo){hi=lo*1.01; lo=lo*0.99;}
+  const m=(hi-lo)*0.06; lo-=m; hi+=m;
+  const plotW=W-pad, top=10, botH=H-22;
+  const X=i=>plotW*(i+0.5)/n;
+  const Y=v=>top+(botH-top)*(1-(v-lo)/(hi-lo));
+  const bw=Math.max(1,Math.min(7,plotW/n*0.64));
+
+  const bars=cs.map((c,i)=>{
+    const up=c.c>=c.o, col=up?"var(--up)":"var(--down)";
+    const x=X(i), yh=Y(c.h), yl=Y(c.l);
+    const y1=Y(Math.max(c.o,c.c)), y2=Y(Math.min(c.o,c.c));
+    return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${yh.toFixed(1)}" y2="${yl.toFixed(1)}" stroke="${col}" stroke-width=".8"/>`
+         + `<rect x="${(x-bw/2).toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.8,y2-y1).toFixed(1)}" fill="${col}"/>`;
+  }).join("");
+
+  const COLM=["#e3a81a","#2c4e8a","#7e1f8f"];
+  const mapaths=maLines.map((ml,k)=>{
+    const pts=ml.v.map((v,i)=>v===null?null:`${X(i).toFixed(1)},${Y(v).toFixed(1)}`)
+                  .filter(Boolean).join(" ");
+    return pts?`<polyline points="${pts}" fill="none" stroke="${COLM[k%3]}" stroke-width="1.1" opacity=".9"/>`:"";
+  }).join("");
+
+  const refs=lines.filter(l=>l.y!==null&&l.y!==undefined&&l.y>=lo&&l.y<=hi).map(l=>{
+    const y=Y(l.y);
+    return `<line x1="0" x2="${plotW}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${l.col||"var(--ink-3)"}" stroke-width=".8" stroke-dasharray="4 3" opacity=".85"/>`
+         + `<text x="${plotW-2}" y="${(y-2.5).toFixed(1)}" text-anchor="end" font-size="8.5" fill="${l.col||"var(--ink-3)"}">${esc(l.label)}</text>`;
+  }).join("");
+
+  const ticks=[hi,(hi+lo)/2,lo].map(v=>
+    `<text x="${W-3}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="var(--ink-3)">${fmt(v,v<100?2:0)}</text>`
+    + `<line x1="0" x2="${plotW}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line-soft)" stroke-width=".6"/>`
+  ).join("");
+
+  const dates=`<text x="0" y="${H-5}" font-size="8.5" fill="var(--ink-3)">${esc(cs[0].t)}</text>`
+            + `<text x="${plotW}" y="${H-5}" text-anchor="end" font-size="8.5" fill="var(--ink-3)">${esc(cs[n-1].t)}</text>`;
+  const legend=maLines.map((ml,k)=>
+    `<text x="${2+k*44}" y="8" font-size="8.5" fill="${COLM[k%3]}">MA${ml.n}</text>`).join("");
+
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">
+    ${ticks}${mapaths}${bars}${refs}${legend}${dates}</svg>`;
+}
+
+/* TradingView — 실시간 차트. 심볼이 확실한 것만 연다 */
+const TV={"^IXIC":"NASDAQ:IXIC","^GSPC":"SP:SPX","^KS11":"KRX:KOSPI","^KQ11":"KRX:KOSDAQ",
+          "^VIX":"CBOE:VIX","^TNX":"TVC:US10Y","CL=F":"TVC:USOIL","GC=F":"TVC:GOLD",
+          "KRW=X":"FX_IDC:USDKRW","005930.KS":"KRX:005930","000660.KS":"KRX:000660"};
+function tvBtn(sym,label){
+  if(!sym) return "";
+  return `<a class="bar2 ghost small" href="#" data-tv="${esc(sym)}">${esc(label||"실시간 차트")}</a>`;
+}
+document.addEventListener("click",(e)=>{
+  const a=e.target.closest("[data-tv]"); if(!a) return;
+  e.preventDefault();
+  const sym=a.dataset.tv;
+  let box=a.parentElement.querySelector(".tvwrap");
+  if(box){ box.remove(); a.textContent="실시간 차트"; return; }
+  box=document.createElement("div"); box.className="tvwrap";
+  const dark=matchMedia("(prefers-color-scheme: dark)").matches;
+  box.innerHTML=`<iframe loading="lazy" title="TradingView ${esc(sym)}"
+    src="https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sym)}&interval=D&theme=${dark?"dark":"light"}&style=1&locale=kr&hide_side_toolbar=1&withdateranges=1"></iframe>`;
+  a.parentElement.appendChild(box);
+  a.textContent="실시간 차트 닫기";
+});
+
+/* ── 지수 매크로 ── */
+function trChip(t){
+  const k=t==="상승추세"?"up":t==="하락추세"?"dn":"nt";
+  return `<span class="tr ${k}">${esc(t||"—")}</span>`;
+}
+
+async function renderMacroIndex(){
+  const mi=DATA.지수매크로;
+  if(!mi||!mi.지표?.length){
+    $("#volBan").innerHTML=`<div class="notice small">지수 매크로를 아직 받지 못했습니다. 다음 수집에서 채워집니다.</div>`;
+    $("#mxTable").innerHTML=""; $("#mxCharts").innerHTML=""; $("#mxLead").innerHTML="";
+    return;
+  }
+
+  const v=mi.변동성||{};
+  const lv=v.등급==="높음"?"hi":v.등급==="낮음"?"lo":"mid";
+  $("#volBan").innerHTML=`<div class="volban">
+    <span class="lv ${lv}">변동성 ${esc(v.등급||"—")}</span>
+    <b>→ ${esc(v.포지션운용||"—")}</b>
+    <span class="badge">${esc(v.등급==="보통"?"제안":"확정")}</span>
+    <ul>${(v.근거||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    <div class="muted small" style="margin-top:6px">${esc(v.표기||"")}</div></div>`;
+
+  const 묶음순=["해외지수","국내지수","변동성","매크로","대표종목"];
+  const rows=[];
+  묶음순.forEach(g=>{
+    const list=mi.지표.filter(d=>d.묶음===g);
+    if(!list.length) return;
+    rows.push(`<tr class="sub"><td class="l" colspan="9">${esc(g)}</td></tr>`);
+    list.forEach(d=>{
+      if(d.상태){ rows.push(`<tr><td class="l">${esc(d.이름)}</td>
+        <td class="l muted small" colspan="8">${esc(d.상태)}</td></tr>`); return; }
+      rows.push(`<tr>
+        <td class="l"><b>${esc(d.이름)}</b> <span class="muted small">${esc(d.심볼)}</span></td>
+        <td class="num">${fmt(d.종가,d.종가<100?2:0)}</td>
+        <td class="num">${pct(d.등락률)}</td>
+        <td class="l">${trChip(d.추세)}</td>
+        <td class="num">${d["20선이격(%)"]===null?"—":fmt(d["20선이격(%)"],1)+"%"}</td>
+        <td class="num">${rsiChip(d["RSI(14)"])}</td>
+        <td class="num">${d["52주위치(%)"]===null?"—":fmt(d["52주위치(%)"],0)+"%"}</td>
+        <td class="num">${pct(d["5일(%)"])}</td>
+        <td class="l muted small">${esc(d.비고||"")}</td></tr>`);
+    });
+  });
+  $("#mxTable").innerHTML=`<thead><tr>
+    <th class="l">지표</th><th>종가</th><th>등락률</th><th class="l">추세</th>
+    <th>20선이격</th><th>RSI</th><th>52주위치</th><th>5일</th><th class="l">무엇에 걸리는가</th>
+    </tr></thead><tbody>${rows.join("")}</tbody>`;
+
+  // 선행 관계는 차트 로딩을 기다릴 이유가 없다 — 먼저 찍는다
+  $("#mxLead").innerHTML=(mi.선행||[]).length
+    ? `<b>선행 관계</b> <span class="muted">— 교재 9-3. 영향 경로만 적는다. 해석은 직접</span><br>`
+      + mi.선행.map(x=>`${esc(x.지표)} ${pct(x.등락률)} → ${esc(x.영향경로)}
+          <span class="muted small">(${esc(x.추세||"")})</span>`).join("<br>")
+    : "";
+
+  // 미니 캔들차트 — 구워둔 파일을 읽어 그린다
+  const files=mi.차트파일||{};
+  $("#mxCharts").innerHTML=mi.지표.filter(d=>files[d.심볼]).map(d=>`
+    <div class="mx" id="mx-${esc(d.심볼).replace(/[^\w]/g,"_")}">
+      <div class="t"><span class="n">${esc(d.이름)}</span>
+        <span class="p ${d.등락률>0?"up":d.등락률<0?"down":"flat"}">${fmt(d.종가,d.종가<100?2:0)}</span></div>
+      <div class="b"><div class="notice small">불러오는 중…</div></div>
+      <div class="f">${trChip(d.추세)} ${tvBtn(TV[d.심볼],"실시간")}</div>
+    </div>`).join("");
+
+  for(const d of mi.지표){
+    const f=files[d.심볼]; if(!f) continue;
+    const got=await chartData(f);
+    const box=document.querySelector(`#mx-${d.심볼.replace(/[^\w]/g,"_")} .b`);
+    if(!box) continue;
+    box.innerHTML = got?.캔들?.length
+      ? svgChart(got.캔들.slice(-120),{W:600,H:170,mas:[20,60],
+          lines:[{y:d.MA20,label:"20선",col:"#e3a81a"}]})
+      : `<div class="notice small">차트 파일 없음</div>`;
+  }
+}
+
+/* ── 심층분석 ── */
+function ckTable(ck){
+  if(!ck?.length) return `<div class="muted small">판정할 자료가 부족합니다.</div>`;
+  return `<table class="ck"><tbody>${ck.map(c=>`
+    <tr class="${c.통과?"ok":"no"}"><td class="m">${c.통과?"✓":"✕"}</td>
+    <td>${esc(c.항목)}<span class="src">${esc(c.근거||"")}</span></td>
+    <td class="vv">${esc(c.값)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function mtrBox(m){
+  if(!m) return "";
+  const bb=m.볼밴||{};
+  const hot=(v,bad)=>bad?"m warn2":"m";
+  return `<div class="mtr">
+    <div class="${hot(0,(m["RSI(14)"]??0)>=70)}">RSI(14)<b>${m["RSI(14)"]??"—"}</b></div>
+    <div class="${hot(0,["상단권","상단이탈"].includes(bb.위치))}">볼밴 %B<b>${bb["%B"]??"—"}</b>${esc(bb.위치||"")}</div>
+    <div class="${hot(0,(m.이격도??0)>=110)}">이격도<b>${m.이격도??"—"}</b></div>
+    <div class="${hot(0,m.이틀과열)}">2일 누적<b>${m["2일누적(%)"]??"—"}%</b></div>
+    <div class="m">거래대금 추세<b>${m.거래대금추세??"—"}배</b></div>
+    <div class="m">끼(20%↑일)<b>${m["끼(20%급등일수)"]??"—"}</b></div>
+  </div>
+  <div class="muted small">${esc(m.RSI판정||"")} · ${esc(m.이격판정||"")}${
+    m.거래대금추세말?" · "+esc(m.거래대금추세말):""}</div>`;
+}
+
+function rrBox(rr){
+  if(!rr||!rr.목표가) return `<div class="muted small">손익비를 계산할 자료가 부족합니다.</div>`;
+  return `<div class="rr">
+    <div>평균변동폭(20일)<b>${fmt(rr["평균변동폭(20일)"],2)}%</b></div>
+    <div class="cut">손절가 (−${fmt(rr["손절폭(%)"],1)}%)<b>${fmt(rr.손절가,0)}</b></div>
+    <div class="tgt">목표가 (+${fmt(rr["익절폭(%)"],1)}%)<b>${fmt(rr.목표가,0)}</b></div>
+    <div>구조 손절<b>${rr.구조손절가?fmt(rr.구조손절가,0):"—"}</b></div>
+  </div>
+  <div class="muted small">${esc(rr.비고||"")}${rr.구조상태?" · "+esc(rr.구조상태):""}</div>
+  <div class="muted small">${esc(rr.표기||"")}</div>`;
+}
+
+function intradayBox(iv){
+  if(!iv||iv.상태) return `<div class="muted small">${esc(iv?.상태||"분봉 없음")}</div>`;
+  return `<div class="mtr">
+      <div class="m">${esc(iv.주기)}<b>${fmt(iv.현재가,0)}</b></div>
+      <div class="m">시가 대비<b>${fmt(iv["시가대비(%)"],2)}%</b></div>
+      <div class="m">고가 대비<b>${fmt(iv["고가대비(%)"],2)}%</b></div>
+      <div class="m">최근 거래량<b>${iv.최근거래량배수??"—"}배</b></div>
+      <div class="m">분봉 RSI<b>${iv["RSI(14)"]??"—"}</b></div></div>
+    ${svgChart(iv.캔들,{W:600,H:170,mas:[20],lines:[]})}`;
+}
+
+function newsBox(nw){
+  if(!nw||nw.상태) return `<div class="muted small">${esc(nw?.상태||"뉴스 없음")}</div>`;
+  return `<div class="small"><b>${esc(nw.재료성격||"")}</b><br>
+    <span class="muted">매체 ${nw.매체수}곳 · ${esc(nw.도배말||"")} · 지속성: ${esc(nw.지속성||"")}
+    ${nw.금액언급?" · 금액 언급 있음":""}</span></div>
+    <div style="margin-top:5px">${(nw.기사||[]).slice(0,4).map(a=>
+      `<div class="art ${/* 강한재료는 테두리를 진하게 */""}direct">
+         <a href="${esc(a.링크)}" target="_blank" rel="noopener">${esc(a.제목)}</a>
+         <span class="src">${esc(a.출처||"")} ${esc((a.날짜||"").slice(0,16))}</span></div>`).join("")}
+    </div>`;
+}
+
+async function renderDeepdive(){
+  const dd=DATA.심층분석;
+  if(!dd){
+    $("#ddStocks").innerHTML=`<div class="notice small">심층분석을 아직 받지 못했습니다.
+      app/watchlist.csv 에 대상을 적고 다음 수집을 기다리세요.</div>`;
+    $("#ddSectors").innerHTML="";
+    return;
+  }
+
+  const 수=dd.대상수||{};
+  $("#ddStocks").innerHTML=`<div class="muted small" style="margin-bottom:10px">
+      대상 ${수.종목||0}종목 — watchlist ${수.watchlist||0} + 당일 대장주 ${수.당일대장주||0}
+      · 기준일 ${esc(dd.기준일||"")}</div>`
+    + ((dd.종목||[]).length ? dd.종목.map(s=>stockCard(s)).join("")
+       : `<div class="notice small">분석할 종목이 없습니다.</div>`);
+
+  $("#ddSectors").innerHTML=(dd.섹터||[]).length
+    ? dd.섹터.map(s=>sectorCard(s)).join("")
+    : `<div class="notice small">watchlist.csv 에 <b>구분=섹터</b> 행을 추가하면 섹터 심층분석이 들어갑니다.</div>`;
+
+  // 캔들은 파일에서 읽어 나중에 채운다
+  for(const s of (dd.종목||[])){
+    if(!s.차트파일) continue;
+    const got=await chartData(s.차트파일);
+    const box=document.querySelector(`#dd-${s.코드} .ddchart`);
+    if(!box) continue;
+    const ch=s.차트||{}, rr=s.손익비||{};
+    // 140봉(약 7개월)만 그린다. 250봉을 다 담으면 몇 배 오른 종목은 가격 범위가
+    // 너무 넓어져 최근 구조(전고점·20선·매물대)가 한 줄로 눌려버린다
+    box.innerHTML = got?.캔들?.length ? svgChart(got.캔들.slice(-140),{W:900,H:330,mas:[20,60],lines:[
+        {y:ch.신고가?.["60일전고점"],label:"60일 전고점",col:"var(--lead)"},
+        {y:rr.손절가,label:"손절",col:"var(--down)"},
+        {y:rr.목표가,label:"목표",col:"var(--up)"},
+        ...(ch.매물대||[]).slice(0,3).map(b=>({y:b.밴드,label:`매물대 x${b.겹침}`,col:"var(--ink-3)"})),
+      ]}) : `<div class="notice small">차트 파일 없음</div>`;
+  }
+}
+
+function stockCard(s){
+  if(s.상태) return `<div class="dd"><div class="ddhead"><h4>${esc(s.이름)}</h4>
+    <span class="muted small">${esc(s.상태)}</span></div></div>`;
+
+  const ph=s.국면||{}, ch=s.차트||{}, ez=ch.매수자리||{}, hg=ch.신고가||{};
+  const lq=ch.요란조용||{}, v=s.종합||{};
+  const pk=ph.국면==="눌림목 국면"?"pull":ph.국면==="판정불가"?"na":"brk";
+  const 주체크=ph.국면==="눌림목 국면"?ch.눌림목체크:ch.돌파5조건;
+  const img=s.차트이미지||{};
+
+  return `<div class="dd" id="dd-${esc(s.코드)}">
+    <div class="ddhead">
+      <h4>${esc(s.이름)}</h4><span class="code">${esc(s.코드)} · ${esc(s.시장||"")}</span>
+      <span class="phase ${pk}">${esc(ph.국면||"—")}</span>
+      <span class="badge">${esc(s.출처||"")}</span>
+      ${s.비고?`<span class="muted small">${esc(s.비고)}</span>`:""}
+      <span class="px ${s["당일등락률(%)"]>0?"up":s["당일등락률(%)"]<0?"down":"flat"}">
+        ${fmt(s.현재가,0)} <span class="small">${pct(s["당일등락률(%)"])}</span></span>
+    </div>
+
+    <div class="ddgrid">
+      <div class="ddcol">
+        <div class="ddchart"><div class="notice small">차트 불러오는 중…</div></div>
+        <div class="muted small">전고점·손절·목표·매물대를 같은 축에 겹쳐 그렸다.
+          캔들 자료는 수집 때 구워둔 것 — 갱신 주기는 수집 배치와 같다.</div>
+
+        <div class="ddsec">자동 갱신 차트 <span class="muted">네이버가 직접 갱신하는 이미지</span></div>
+        <div class="imgs">
+          <figure><img loading="lazy" src="${esc(img.일봉)}" alt="${esc(s.이름)} 일봉">
+            <figcaption>일봉 (네이버)</figcaption></figure>
+          <figure><img loading="lazy" src="${esc(img["3개월"])}" alt="${esc(s.이름)} 3개월">
+            <figcaption>3개월 (네이버)</figcaption></figure>
+        </div>
+        <div class="bar">${tvBtn("KRX:"+s.코드,"실시간 차트 (TradingView)")}
+          <a class="bar2 ghost" href="${esc(img.네이버)}" target="_blank" rel="noopener">네이버 금융</a></div>
+
+        <div class="ddsec">장중 분봉 <span class="muted">토스 · 한국 IP 에서 돌릴 때만</span></div>
+        ${intradayBox(s.분봉)}
+      </div>
+
+      <div class="ddcol">
+        <div class="zone"><b>${esc(ph.적용교재||"")}</b><br>
+          <span class="muted">${esc(ph.설명||"")}</span><br>
+          매수자리 <b>${ez.자리??"—"}번</b> ${esc(ez.등급||"")} — ${esc(ez.설명||"")}
+          <span class="muted small">(확률 ${esc(ez.확률순서||"")})</span><br>
+          신고가 격 <b>${esc(hg.신고가격||"—")}</b> · 전고점 ${fmt(hg["60일전고점"],0)}
+          (${fmt(hg["전고점대비(%)"],2)}%) · 연속경신 ${hg.연속경신일??"—"}일<br>
+          성격 <b>${esc(lq.성격||"—")}</b> — ${esc(lq.쓰임||"")}</div>
+
+        <div class="ddsec">${ph.국면==="눌림목 국면"?"눌림목 체크 (7-2)":"돌파 확률 5조건 (7-3 D)"}
+          <span class="muted">${주체크?.통과수??"—"}/${주체크?.전체??"—"} 통과</span></div>
+        ${ckTable(주체크?.체크)}
+
+        <div class="ddsec">모멘텀 <span class="muted">척도다 — 매수 신호가 아니다</span></div>
+        ${mtrBox(s.모멘텀)}
+
+        <div class="ddsec">손익비 3:1 <span class="muted">손절폭을 먼저 정하고 익절을 3배로</span></div>
+        ${rrBox(s.손익비)}
+
+        <div class="ddsec">매물대 · 라운드피겨</div>
+        <div class="bands">${(ch.매물대||[]).map(b=>
+          `${fmt(b.밴드,0)} <i>(${b["현재가대비(%)"]>0?"위":"아래"} ${fmt(Math.abs(b["현재가대비(%)"]),1)}% · 겹침 ${b.겹침})</i>`
+          ).join("<br>")||"<i>판정불가</i>"}
+          ${ch.라운드피겨?`<br>라운드피겨 ${fmt(ch.라운드피겨.위,0)} <i>(+${fmt(ch.라운드피겨["위까지(%)"],2)}%)</i>`:""}</div>
+
+        <div class="ddsec">뉴스 <span class="muted">구글뉴스 RSS · 교재 5-5 로 재료를 가른다</span></div>
+        ${newsBox(s.뉴스)}
+
+        <div class="ddsec">종합 <span class="badge prop">제안</span></div>
+        <div class="small">${esc(v.요약||"")}</div>
+        ${(v.위험요인||[]).length?`<ul class="risk">${v.위험요인.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+        <div class="muted small" style="margin-top:5px">${esc(v.표기||"")}</div>
+      </div>
+    </div></div>`;
+}
+
+function sectorCard(s){
+  // 거래대금 집계가 없는 날이라도 뉴스는 붙어 있다 — 그것만이라도 보여준다
+  if(s.상태) return `<div class="dd"><div class="ddhead"><h4>${esc(s.이름)}</h4>
+    <span class="muted small">${esc(s.상태)}</span></div>
+    ${s.뉴스?`<div class="ddcol"><div class="ddsec">뉴스</div>${newsBox(s.뉴스)}</div>`:""}</div>`;
+  return `<div class="dd">
+    <div class="ddhead"><h4>${esc(s.이름)}</h4>
+      <span class="cls ${s.분류==="주도업종"?"lead":"issue"}">${esc(s.등급||"")} ${esc(s.분류||"")}</span>
+      <span class="px">${fmt(s.합산거래대금,0)}<span class="small"> 억</span></span></div>
+    <div class="ddcol">
+      <div class="mtr">
+        <div class="m">종목수<b>${s.종목수??"—"}</b></div>
+        <div class="m">대장주<b>${esc(s.대장주||"—")}</b></div>
+        <div class="m">섹터 ADR<b>${s.섹터ADR??"—"}</b>${s.상승}↑ ${s.하락}↓</div>
+        <div class="m">평균 RSI<b>${s.평균RSI??"—"}</b></div>
+        <div class="m">평균 상승률<b>${fmt(s.평균상승률,2)}%</b></div>
+      </div>
+      <div class="small muted">${esc(s.살아있나||"전일 비교 자료 없음")} · ${esc(s.표기||"")}</div>
+      <div class="ddsec">공통 키워드</div>
+      <div>${(s.공통키워드||[]).map(([k,n])=>
+        `<span class="kwc">${esc(k)}<i>${n}</i></span>`).join("")||"<span class='muted small'>없음</span>"}</div>
+      <div class="ddsec">구성 종목</div>
+      <div class="scroll"><table class="secrow"><thead><tr>
+        <th class="l">종목</th><th>거래대금(억)</th><th>등락률</th><th>RSI</th>
+        <th class="l">수급</th><th class="l">조건</th><th class="l">대표키워드</th></tr></thead>
+        <tbody>${(s.종목||[]).map(r=>`<tr>
+          <td class="l"><b>${esc(r.종목명)}</b></td>
+          <td class="num">${fmt(r["거래대금(억)"],0)}</td>
+          <td class="num">${pct(r["등락률(%)"])}</td>
+          <td class="num">${rsiChip(r.rsi)}</td>
+          <td class="l small">${esc(r.수급주체||"")}</td>
+          <td class="l">${condTag(r.조건)}</td>
+          <td class="l small">${esc(r.대표키워드||"")}</td></tr>`).join("")}</tbody></table></div>
+      <div class="ddsec">뉴스</div>
+      ${newsBox(s.뉴스)}
+    </div></div>`;
+}
+
 /* ── 로딩 ── */
 async function load(){
   try{
@@ -1085,6 +1551,8 @@ async function load(){
     $("#warn").innerHTML=warns.length?`<div class="warn">${warns.join("<br>")}</div>`:"";
 
     renderReport(); renderGroups(); renderRaw();
+    // 캔들 파일을 따로 읽으므로 await 하지 않는다 — 나머지 화면이 먼저 뜬다
+    renderMacroIndex(); renderDeepdive();
   }catch(e){
     $("#warn").innerHTML=`<div class="warn">서버에서 자료를 읽지 못했습니다: ${esc(e.message)}</div>`;
   }

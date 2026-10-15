@@ -29,9 +29,11 @@ for p in (HERE, ROOT):
         sys.path.insert(0, p)
 
 import charts                    # noqa: E402
+import deepdive                  # noqa: E402
 import flows                     # noqa: E402
 import industry                  # noqa: E402
 import macro                     # noqa: E402
+import macro_index               # noqa: E402
 import news                      # noqa: E402
 import reasons                   # noqa: E402
 import report                    # noqa: E402
@@ -254,6 +256,13 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     n = charts.attach(leaders, rows, date)
     print(f"  차트 판정 {n}종목 (전고점·이평선·끼)")
 
+    # 지수 매크로 — 나스닥·S&P500·코스피·코스닥·반도체·VIX·금리·유가·금·환율
+    # + 삼성전자·SK하이닉스. 캔들은 data/charts/ 로 따로 굽는다
+    지수매크로 = macro_index.snapshot()
+    print(f"  지수 매크로 {지수매크로['받음']}/{지수매크로['전체']}개"
+          f" · 변동성 {지수매크로['변동성']['등급']}"
+          f" → {지수매크로['변동성']['포지션운용']}")
+
     # 분봉은 토스만 가능하고 한국 IP 에서만 된다. 로컬 실행일 때만 붙는다
     if toss.available():
         try:
@@ -312,6 +321,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         "키워드집계": _clean(reasons.keyword_rollup(rows)),
         "공통키워드": _clean(rs.get("공통키워드")),
         "매크로": _clean(매크로),
+        "지수매크로": _clean(지수매크로),
         "장중분봉": _clean(intraday),
         "종목수": len(rows),
     }
@@ -327,6 +337,23 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     except Exception as exc:
         print(f"  보고서 생성 실패: {type(exc).__name__}: {exc}")
         payload["보고서"] = None
+
+    # 심층분석 — watchlist + 당일 대장주. 보고서(섹터변화) 를 쓰므로 그 뒤에 돈다
+    try:
+        payload["심층분석"] = _clean(deepdive.build(payload, date))
+        수 = payload["심층분석"]["대상수"]
+        print(f"  심층분석 종목 {수['종목']} · 섹터 {수['섹터']}"
+              f" (watchlist {수['watchlist']} + 당일대장주 {수['당일대장주']})")
+        for s in payload["심층분석"]["종목"]:
+            if s.get("상태"):
+                print(f"    {s.get('이름')}: {s['상태']}")
+            else:
+                print(f"    {s['이름']:<10} {s['국면']['국면']:<10}"
+                      f" {s['종합']['통과']}/{s['종합']['전체']} 통과"
+                      f" · 위험 {len(s['종합']['위험요인'])}건")
+    except Exception as exc:
+        print(f"  심층분석 실패: {type(exc).__name__}: {exc}")
+        payload["심층분석"] = None
 
     os.makedirs(DATA_DIR, exist_ok=True)
     for name in (f"{date}.json", "latest.json"):

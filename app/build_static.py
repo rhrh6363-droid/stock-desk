@@ -61,10 +61,23 @@ def build() -> dict:
     with open(os.path.join(DOCS_DATA, "heatmap.json"), "w", encoding="utf-8") as fh:
         json.dump(heat, fh, ensure_ascii=False)
 
+    # 3.5 캔들차트 자료 — 지수매크로·심층분석이 구워둔 OHLC
+    # 브라우저에서 야후를 직접 못 부른다(CORS 헤더 없음). 그래서 파일로 넘긴다
+    charts_src = os.path.join(DATA, "charts")
+    charts_dst = os.path.join(DOCS_DATA, "charts")
+    차트 = 0
+    if os.path.isdir(charts_src):
+        os.makedirs(charts_dst, exist_ok=True)
+        for name in os.listdir(charts_src):
+            if name.endswith(".json"):
+                shutil.copy2(os.path.join(charts_src, name),
+                             os.path.join(charts_dst, name))
+                차트 += 1
+
     # 4. Jekyll 처리 끄기 (언더바로 시작하는 파일이 사라지는 것을 막는다)
     open(os.path.join(DOCS, ".nojekyll"), "w").close()
 
-    stat = {"화면파일": copied, "히트맵날짜": len(heat.get("날짜", []))}
+    stat = {"화면파일": copied, "히트맵날짜": len(heat.get("날짜", [])), "차트파일": 차트}
     print(f"[빌드] docs/  {stat}")
     return stat
 

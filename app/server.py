@@ -184,6 +184,16 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/heatmap":
             return self._json(build_heatmap())
 
+        # 캔들차트 자료 — data/charts/ 아래. 정적 사이트에서는 docs/data/charts/ 가
+        # 같은 이름으로 복사돼 있어서 화면 코드가 양쪽에서 그대로 돈다
+        if path.startswith("/api/chart/"):
+            name = os.path.basename(path[len("/api/chart/"):])
+            f = os.path.join(DATA, "charts", name)
+            if not name.endswith(".json") or not os.path.exists(f):
+                return self._json({"상태": "없음", "파일": name}, 404)
+            with open(f, encoding="utf-8") as fh:
+                return self._json(json.load(fh))
+
         if path == "/api/run":
             threading.Thread(target=run_pipeline, args=("수동",), daemon=True).start()
             return self._json({"시작": True})
