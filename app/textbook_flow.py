@@ -10,6 +10,7 @@
   10장 결론       : 9장 게이트를 통과한 것만 남긴다
 """
 import json, math, os, sys, io, urllib.request, urllib.parse
+import day_replay
 from datetime import datetime, timezone, timedelta
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -1023,7 +1024,7 @@ def _frame(rows, keep, mas, fmt):
             "ma": {str(n): [r1(x, 1) for x in sma(cl, n)[-keep:]] for n in mas}}
 
 
-def save_chart(code, name, S, tr=None):
+def save_chart(code, name, S, tr=None, m3=None):
     """1장 화면이 그리는 큰 차트 — 프레임별 OHLCV + 이평. data/charts/tb_{코드}.json"""
     m5 = S["m5"]
     days = sorted({r["t"].date() for r in m5})[-2:]
@@ -1035,6 +1036,8 @@ def save_chart(code, name, S, tr=None):
         "60분봉": _frame(S["h60"], 210, (20, 60), "%m-%d %H:%M"),
         "5분봉": _frame(m5, 160, (20,), "%m-%d %H:%M"),
     }}
+    if m3:
+        out["프레임"]["3분봉(복기)"] = m3
     if tr:
         out["수급"] = {k: [r[k] for r in tr] for k in ("d", "외국인", "기관", "개인", "보유율", "종가")}
     _save_bundle(f"tb_{code}", name, out["프레임"], extra={k: v for k, v in out.items() if k not in ("심볼", "이름", "프레임")}, code=code)
@@ -1061,8 +1064,12 @@ def analyze(code, name, 시총억, mk):
     W["추세선"] = trendlines(S["w"], 104, 4)
     H["추세선"] = trendlines(S["h60"], 140, 7)
     tr = naver_trend(code, 250)
+    try:     # 6장 단타 장마감 복기 — 그날 1분봉에 6-2·6-3·6-4·6-7 규칙 대입
+        RP = day_replay.replay(code, "KOSDAQ" if S["sym"].endswith(".KQ") else "KOSPI", S["d"])
+    except Exception as exc:
+        RP = {"판정": f"복기 실패: {type(exc).__name__}: {exc}"}
     try:
-        save_chart(code, name, S, tr)
+        save_chart(code, name, S, tr, RP.pop("_frame", None))
     except Exception as exc:
         print(f"  [차트 저장 실패] {code}: {exc}")
     F = flows(tr[-60:])
@@ -1073,7 +1080,8 @@ def analyze(code, name, 시총억, mk):
             "등락률": r1(pct(D["종가"], prev), 2), "10장 결론": con,
             "0장 프레임": {"월봉": len(S["m"]), "주봉": len(S["w"]), "일봉": len(S["d"]),
                         "60분봉": len(S["h60"]), "5분봉": len(S["m5"])},
-            "월봉": M, "주봉": W, "일봉": D, "60분봉": H, "5분봉(당일)": M5, "수급": F, "매매법": ms}
+            "월봉": M, "주봉": W, "일봉": D, "60분봉": H, "5분봉(당일)": M5, "수급": F, "매매법": ms,
+            "단타 복기": RP}
 
 
 def build(payload: dict, date: str) -> dict:
