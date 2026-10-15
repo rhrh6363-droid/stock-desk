@@ -614,6 +614,32 @@ def index_state(sym, name):
     return out
 
 
+def index_m3(sym):
+    """6장 단타 공통 조건 '지수 3분봉 20선 위'. 야후 1분봉을 09:00 기준 3분 묶음으로 만든다.
+    야후 분봉은 늦게 들어오고 수집은 1시간 간격이라 '그 시각 참고값'이다."""
+    x, _ = yahoo(sym, "1m", "1d")
+    if not x:
+        return {"판정": "분봉 없음"}
+    bars = []
+    for r in x:
+        k = (r["t"].hour * 60 + r["t"].minute - 540) // 3
+        if bars and bars[-1]["k"] == k:
+            b = bars[-1]
+            b["h"], b["l"], b["c"] = max(b["h"], r["h"]), min(b["l"], r["l"]), r["c"]
+        else:
+            bars.append({"k": k, "t": r["t"], "o": r["o"], "h": r["h"], "l": r["l"], "c": r["c"]})
+    last = x[-1]["t"]
+    today = datetime.now(KST).date()
+    out = {"기준 시각": last.strftime("%m-%d %H:%M"), "3분봉 수": len(bars), "당일": last.date() == today}
+    if len(bars) < 20:
+        out["판정"] = "3분봉 20개 미만(장 초반)"
+        return out
+    ma = sum(b["c"] for b in bars[-20:]) / 20
+    c = bars[-1]["c"]
+    out.update({"현재": r1(c, 2), "3분봉 20선": r1(ma, 2), "20선 위": c >= ma, "이격(%)": r1(pct(c, ma), 2)})
+    return out
+
+
 def last_change(sym):
     d, meta = yahoo(sym, "1d", "1mo")
     if len(d) < 6:
@@ -645,6 +671,11 @@ SEASON = {1: "▲ 1월 효과 (+1.2%)", 2: "◆ 변동성 — 4분기 실적·�
 def market(adr=None):
     ks = index_state("^KS11", "코스피")
     kq = index_state("^KQ11", "코스닥")
+    for x, sym in ((ks, "^KS11"), (kq, "^KQ11")):
+        try:
+            x["3분봉"] = index_m3(sym)
+        except Exception as exc:
+            x["3분봉"] = {"판정": f"분봉 실패: {type(exc).__name__}"}
     us = {n: last_change(s) for s, n in (("^IXIC", "나스닥"), ("^GSPC", "S&P500"), ("^SOX", "필라델피아 반도체"),
                                           ("ES=F", "S&P 선물"), ("NQ=F", "나스닥 선물"))}
     mac = {n: last_change(s) for s, n in (("^VIX", "VIX"), ("KRW=X", "원달러"), ("^TNX", "미 10년물"),
@@ -707,7 +738,7 @@ def C(name, ok, ev=""):
     return {"조건": name, "충족": ok, "근거": ev}
 
 
-def methods(D, W, M, H, F, M5, mk, 시총억):
+def methods(D, W, M, H, F, M5, mk, 시총억, 시장="코스피"):
     c = D["종가"]
     ks = mk["코스피"]
     idx5 = ks.get("5선 위")
@@ -721,7 +752,7 @@ def methods(D, W, M, H, F, M5, mk, 시총억):
         known = [x for x in conds if x["충족"] is not None]
         ok = sum(1 for x in known if x["충족"])
         fail = [x["조건"] for x in known if not x["충족"]]
-        verdict = ("판정불가(장중 데이터 필요)" if realtime and not known else
+        verdict = ("판정불가(장중 데이터 필요)" if realtime and conds[0]["충족"] is None else
                    "적합" if known and not fail else
                    "조건부(미충족 %d)" % len(fail) if len(fail) <= 1 and ok >= 2 else "부적합")
         res.append({"매매법": name, "교재": src, "스타일": style, "프레임": frame, "판정": verdict,
@@ -883,12 +914,22 @@ def methods(D, W, M, H, F, M5, mk, 시총억):
             {"교재 기대": "손익비 1:3 이상일 때만", "손익비": None, "실패 시": "갭하락 출발 시 -3% 즉시"})
 
     # 초단타·오후·시초가 — 장중 실시간
+    m3 = (mk.get(시장) or ks).get("3분봉") or {}
+    if "20선 위" not in m3:
+        m3_ok, m3_ev = None, m3.get("판정", "분봉 없음")
+    elif not m3["당일"]:
+        m3_ok, m3_ev = None, f"오늘 장 분봉 아님(마지막 {m3['기준 시각']}) — 장중에만 판정"
+    else:
+        m3_ok = m3["20선 위"]
+        m3_ev = (f"{m3['기준 시각']} 기준 {m3['현재']:,.2f} / 3분봉 20선 {m3['3분봉 20선']:,.2f} ({m3['이격(%)']:+}%)"
+                 " — 야후 지연·1시간 수집이라 참고값")
     for nm, src in (("시초가 매매", "6-2"), ("초단타·스캘핑", "6-4"), ("오후 단타", "6-7"), ("장중 종목 선정 단타", "6-3")):
         add(nm, src, "단타(당일)", "1·3·5분봉 + 호가창",
-            [C("지수 3분봉 20선 위", None, "장중 실시간"), C("호가창 받쳐줌", None, "호가 데이터 없음"),
-             C("9:30 이전 매수 아님", None, "장중"), C("일봉 위치(5선 근접·20선 위)", c >= ma20 and abs(D["이격도5"] - 100) <= 3,
-                                                      f"이격도5 {D['이격도5']} · 20선 위 {c >= ma20}")],
-            {"진입": "다음 날 장중 조건으로만", "손절": "-3% 이내 / 타점 이탈", "목표": "1~2% 일부, 하루 1%", "대응": "하루 3종목, 9:30 전 매수 금지"},
+            [C(f"지수 3분봉 20선 위({시장})", m3_ok, m3_ev), C("호가창 받쳐줌", None, "호가 데이터 없음"),
+             C("일봉 위치(5선 근접·20선 위)", c >= ma20 and abs(D["이격도5"] - 100) <= 3,
+               f"이격도5 {D['이격도5']} · 20선 위 {c >= ma20}")],
+            {"진입": "다음 날 장중 조건으로만", "손절": "-3% 이내 / 타점 이탈", "목표": "1~2% 일부, 하루 1%",
+             "대응": "하루 3종목. 9:30 이전 매수 금지(시간 규칙 — 판정 조건이 아니라 지킬 규칙)"},
             {"교재 기대": "하루 1% (10-5)", "손익비": None, "실패 시": "-3% 즉시"}, realtime=True)
     return res
 
@@ -1025,7 +1066,7 @@ def analyze(code, name, 시총억, mk):
     except Exception as exc:
         print(f"  [차트 저장 실패] {code}: {exc}")
     F = flows(tr[-60:])
-    ms = methods(D, W, M, H, F, M5, mk, 시총억)
+    ms = methods(D, W, M, H, F, M5, mk, 시총억, "코스닥" if S["sym"].endswith(".KQ") else "코스피")
     con = conclude({"_d": S["d"], "일봉": D, "월봉": M, "매매법": ms}, mk)
     prev = S["d"][-2]["c"]
     return {"이름": name, "코드": code, "심볼": S["sym"], "현재가": D["종가"],
