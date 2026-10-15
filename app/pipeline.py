@@ -34,6 +34,7 @@ import flows                     # noqa: E402
 import industry                  # noqa: E402
 import macro                     # noqa: E402
 import macro_index               # noqa: E402
+import textbook_flow             # noqa: E402
 import news                      # noqa: E402
 import reasons                   # noqa: E402
 import report                    # noqa: E402
@@ -358,6 +359,19 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     except Exception as exc:
         print(f"  심층분석 실패: {type(exc).__name__}: {exc}")
         payload["심층분석"] = None
+
+    # 교재 순서 분석 — 0 세팅 → 1~5 재료 → 6~7 매매법 → 8 틀 → 9 시장 → 10 결론
+    # 심층분석과 같은 대상을 쓰므로 그 뒤에 돈다 (설계: rulebook/교재적용체계.md)
+    try:
+        payload["교재흐름"] = _clean(textbook_flow.build(payload, date))
+        tf = payload["교재흐름"]["9장 시장"]
+        print(f"  교재흐름 장세 {tf['가장 나쁜 장세']} · 현금 {tf['현금 비중(9-2)']}"
+              f" · 열린 매매법 {', '.join(tf['열린 매매법']) or '없음'}")
+        for s in payload["교재흐름"]["종목"]:
+            print(f"    {s['이름']:<10} {(s.get('10장 결론') or {}).get('한 줄') or s.get('상태')}")
+    except Exception as exc:
+        print(f"  교재흐름 실패: {type(exc).__name__}: {exc}")
+        payload["교재흐름"] = None
 
     os.makedirs(DATA_DIR, exist_ok=True)
     for name in (f"{date}.json", "latest.json"):
