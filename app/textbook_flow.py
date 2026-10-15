@@ -46,17 +46,27 @@ def yahoo(sym, interval, rng):
 
 
 def naver_trend(code, n=60):
-    try:
-        rows = _get(f"https://m.stock.naver.com/api/stock/{code}/trend?pageSize={n}")
-    except Exception:
-        return []
+    """종목별 투자자 순매수. 한 번에 60일까지만 주므로 bizdate 로 거슬러 올라가며 n일을 모은다."""
     num = lambda s: float(str(s).replace(",", "").replace("+", "").replace("%", "") or 0)
-    out = []
-    for r in rows:
-        out.append({"d": r["bizdate"], "외국인": num(r["foreignerPureBuyQuant"]),
-                    "기관": num(r["organPureBuyQuant"]), "개인": num(r["individualPureBuyQuant"]),
-                    "보유율": num(r["foreignerHoldRatio"]), "종가": num(r["closePrice"])})
-    return out[::-1]   # 과거 → 최근
+    out, seen, before = [], set(), None
+    while len(out) < n:
+        q = f"pageSize=60" + (f"&bizdate={before}" if before else "")
+        try:
+            rows = _get(f"https://m.stock.naver.com/api/stock/{code}/trend?{q}")
+        except Exception:
+            break
+        rows = [r for r in rows if r["bizdate"] not in seen]
+        if not rows:
+            break
+        for r in rows:
+            seen.add(r["bizdate"])
+            out.append({"d": r["bizdate"], "외국인": num(r["foreignerPureBuyQuant"]),
+                        "기관": num(r["organPureBuyQuant"]), "개인": num(r["individualPureBuyQuant"]),
+                        "보유율": num(r["foreignerHoldRatio"]), "종가": num(r["closePrice"])})
+        last = datetime.strptime(rows[-1]["bizdate"], "%Y%m%d") - timedelta(days=1)
+        before = last.strftime("%Y%m%d")
+    out.sort(key=lambda r: r["d"])
+    return out[-n:]   # 과거 → 최근
 
 
 def naver_chart(code, tf, count):
@@ -569,6 +579,13 @@ def index_state(sym, name):
     m, _ = yahoo(sym, "1mo", "max")
     if len(d) < 130:
         return {"이름": name, "판정": "데이터 부족"}
+    try:
+        _save_bundle("tb_idx_" + sym.strip("^"), name, {
+            "일봉": _frame(d, 500, (5, 20, 60, 120), "%Y-%m-%d"),
+            "주봉": _frame(w, 260, (10, 13, 20, 60, 120), "%Y-%m-%d"),
+            "월봉": _frame(m, 240, (18, 20, 60, 120), "%Y-%m")})
+    except Exception as exc:
+        print(f"  [지수 차트 저장 실패] {sym}: {exc}")
     cl = [r["c"] for r in d]
     c = cl[-1]
     ma = {n: sma(cl, n)[-1] for n in (5, 20, 60, 120)}
@@ -632,8 +649,17 @@ def market(adr=None):
                                           ("ES=F", "S&P 선물"), ("NQ=F", "나스닥 선물"))}
     mac = {n: last_change(s) for s, n in (("^VIX", "VIX"), ("KRW=X", "원달러"), ("^TNX", "미 10년물"),
                                            ("CL=F", "WTI"), ("GC=F", "금"), ("DX-Y.NYB", "달러인덱스"))}
-    vw, _ = yahoo("^VIX", "1wk", "1y")
+    vw, _ = yahoo("^VIX", "1wk", "10y")
     vix_w = vw[-1]["c"] if vw else None
+    try:
+        ext = {"VIX 주봉": _frame(vw, 520, (20,), "%Y-%m-%d")}
+        for sym, nm in (("^IXIC", "나스닥"), ("^SOX", "필라델피아 반도체"), ("KRW=X", "원달러"), ("^TNX", "미 10년물")):
+            x, _ = yahoo(sym, "1d", "1y")
+            if x:
+                ext[nm] = _frame(x, 250, (5, 20, 60), "%Y-%m-%d")
+        _save_bundle("tb_ext", "외부 변수", ext)
+    except Exception as exc:
+        print(f"  [외부 변수 차트 저장 실패] {exc}")
     # 장세 판정 (9-2) — 지수 하나라도 폭락이면 폭락
     def regime(x):
         if x.get("판정") == "데이터 부족":
@@ -956,7 +982,7 @@ def _frame(rows, keep, mas, fmt):
             "ma": {str(n): [r1(x, 1) for x in sma(cl, n)[-keep:]] for n in mas}}
 
 
-def save_chart(code, name, S):
+def save_chart(code, name, S, tr=None):
     """1장 화면이 그리는 큰 차트 — 프레임별 OHLCV + 이평. data/charts/tb_{코드}.json"""
     m5 = S["m5"]
     days = sorted({r["t"].date() for r in m5})[-2:]
@@ -968,8 +994,15 @@ def save_chart(code, name, S):
         "60분봉": _frame(S["h60"], 210, (20, 60), "%m-%d %H:%M"),
         "5분봉": _frame(m5, 160, (20,), "%m-%d %H:%M"),
     }}
+    if tr:
+        out["수급"] = {k: [r[k] for r in tr] for k in ("d", "외국인", "기관", "개인", "보유율", "종가")}
+    _save_bundle(f"tb_{code}", name, out["프레임"], extra={k: v for k, v in out.items() if k not in ("심볼", "이름", "프레임")}, code=code)
+
+
+def _save_bundle(fname, name, frames, extra=None, code=None):
+    out = {"심볼": code or fname, "이름": name, "프레임": frames, **(extra or {})}
     os.makedirs(CHART_DIR, exist_ok=True)
-    with open(os.path.join(CHART_DIR, f"tb_{code}.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(CHART_DIR, f"{fname}.json"), "w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
 
 
@@ -986,11 +1019,12 @@ def analyze(code, name, 시총억, mk):
     D["추세선"] = trendlines(S["d"], 120, 5)
     W["추세선"] = trendlines(S["w"], 104, 4)
     H["추세선"] = trendlines(S["h60"], 140, 7)
+    tr = naver_trend(code, 250)
     try:
-        save_chart(code, name, S)
+        save_chart(code, name, S, tr)
     except Exception as exc:
         print(f"  [차트 저장 실패] {code}: {exc}")
-    F = flows(naver_trend(code, 60))
+    F = flows(tr[-60:])
     ms = methods(D, W, M, H, F, M5, mk, 시총억)
     con = conclude({"_d": S["d"], "일봉": D, "월봉": M, "매매법": ms}, mk)
     prev = S["d"][-2]["c"]
