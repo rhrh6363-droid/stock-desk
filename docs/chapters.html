@@ -117,6 +117,7 @@ tr.group td{background:var(--surface-2);font-weight:600;font-size:12.5px;color:v
 .calc .out{font-size:13px;padding:6px 0}
 
 .notice{padding:30px;text-align:center;color:var(--ink-3)}
+.notice.bad{color:var(--bad);font-weight:600}
 ul.plain{margin:4px 0 0;padding-left:18px}
 ul.plain li{margin-bottom:3px}
 .pager{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
@@ -1552,8 +1553,57 @@ function sum67(s,which){
   const head=ok.length?`진입 가능: ${ok.map(m=>m.매매법).join(", ")}`:`${which}장 매매법 중 오늘 열린 문 없음`;
   const html=`<ul class="plain"><li>오늘 장세 <b>${esc(MK["가장 나쁜 장세"])}</b> → 열린 매매법 ${esc((MK["열린 매매법"]||[]).join(", ")||"없음")} (9-2 장세 스위치).</li>
     ${near?`<li>가장 가까운 매매법: <b>${esc(near.매매법)}</b> — 판정 가능한 조건 중 ${fmt(score(near)*100,0)}% 충족. 남은 조건: ${esc((near.조건||[]).filter(c=>c.충족===false).map(c=>c.조건).join(" / ")||"없음")}.</li>`:""}
-    ${which==="6"?`<li>단타 4종의 지수 3분봉 20선은 장중 수집(1시간 간격) 때만 판정합니다${(()=>{const m=(MK.코스피||{})["3분봉"]||{};return m["기준 시각"]?` — 마지막 분봉 ${esc(m["기준 시각"])}${m.당일?"":" (오늘 장 아님 → 판정불가)"}`:"";})()}. 호가창은 데이터가 없어 직접 확인, 9:30 이전 매수 금지는 판정 조건이 아니라 지킬 규칙입니다.</li>`:""}</ul>`;
+    ${which==="6"?`<li>단타 4종의 지수 3분봉 20선은 ${LIVE&&LIVE.기준일===TF.기준일?"<b>집 PC 장중 수집(5분 간격)</b>":"장중 수집(GitHub 1시간 간격)"} 때만 판정합니다${(()=>{const m=(MK.코스피||{})["3분봉"]||{};return m["기준 시각"]?` — 마지막 분봉 ${esc(m["기준 시각"])}${m.당일?"":" (오늘 장 아님 → 판정불가)"}`:"";})()}. 호가창은 데이터가 없어 직접 확인, 9:30 이전 매수 금지는 판정 조건이 아니라 지킬 규칙입니다.</li>`:""}</ul>`;
   return {tone,head,html,near};
+}
+/* ───────────── 장중 수집(로컬 PC 5분 간격) — live.json 덮어쓰기 ───────────── */
+let LIVE=null, LVBY={};
+function liveMerge(){
+  if(!LIVE||!LIVE.종목) return;
+  const newer=!TF.생성시각||String(LIVE.기준시각||"")>String(TF.생성시각);
+  if(LIVE.기준일!==TF.기준일||!newer) return;          // 수집본이 더 최신이면 그대로 둔다
+  const FR=LIVE["3분봉 프레임"]||{};
+  (LIVE.종목||[]).forEach(x=>{ if(!x["단타 복기"]?.매매법) return;
+    LVBY[x.코드]={복기:x["단타 복기"],프레임:FR[x.코드]};
+    const t=(TF.종목||[]).find(s=>s.코드===x.코드); if(t) t["단타 복기"]=x["단타 복기"];});
+  const M3=LIVE["지수 3분봉"]||{};
+  ["코스피","코스닥"].forEach(k=>{ if(MK[k]&&M3[k]) MK[k]["3분봉"]=M3[k];});
+}
+function liveStamp(){
+  if(!LIVE) return "";
+  const 장중=LIVE.장중, old=LIVE.기준일!==TF.기준일;
+  return ` · <span class="t ${old?"n":장중?"g":"b"}">장중 수집 ${esc(LIVE.기준시각||"")}${old?" (지난 장)":장중?"":" (장 마감)"}</span>`;
+}
+function scanRow(c){
+  const sig=(c.신호||[]).filter(x=>x.신선), old=(c.신호||[])[0];
+  const 자리=[];
+  if(c["20선 위"]===false) 자리.push(T("b","3분봉 20선 아래"));
+  else if(c["20선 위"]===true) 자리.push(T("g","3분봉 20선 위"));
+  if(c["전일 고가 돌파"]) 자리.push(T("g","전일 고가 돌파"));
+  let imp;
+  if(sig.length) imp=`<b>지금 ${esc(sig.map(x=>x.매매법).join("·"))} 자리</b>(${esc(sig[0].시각)}) — 손절 ${won(sig[0].손절)} / 1차 ${won(sig[0]["1차 목표"])}. 사기 전에 섹터·재료가 맞는지, 호가가 받쳐 주는지는 직접 확인하세요.`;
+  else if(c["20선 위"]===false) imp=`3분봉 20선 아래입니다 — 교재는 이 구간에서 사지 않습니다(6-4 #33). 20선을 회복하고 자리를 만들 때까지 봅니다.`;
+  else if(c["고가 대비(%)"]>=-1) imp=`당일 고가 바로 아래(${sgn(c["고가 대비(%)"],1)})입니다 — <b>추격 구간</b>. "아침 장대양봉에 따라붙지 않는다"(6-3 #16), 올라가다 멈추고 그 자리를 지킬 때가 사는 자리입니다.`;
+  else imp=`20선 위에서 쉬는 중(고가 대비 ${sgn(c["고가 대비(%)"],1)})입니다. 음봉이 20선을 지키고 그 음봉 고가를 넘는 양봉이 나오면 그때가 교재 타점입니다.${old?` 오늘 ${esc(old.시각)}에 ${esc(old.매매법)} 신호가 한 번 있었습니다(${fmt(old["경과(분)"],0)}분 전).`:""}`;
+  return `<tr><td class="k"><b>${esc(c.이름)}</b> <span class="src">${esc(c.코드)} · ${esc(c.시장)}</span></td>
+    <td class="num ${c.등락률>0?"up":"down"}">${sgn(c.등락률,2)}</td><td class="num">${fmt(c["거래대금(억)"])}억<div class="small muted">시총 ${fmt(c["시총(억)"])}억</div></td>
+    <td class="num">${won(c.현재가)}<div class="small muted">고가 ${won(c["당일 고가"])} 대비 ${sgn(c["고가 대비(%)"],1)}</div></td>
+    <td class="small">${자리.join(" ")||"—"}<div class="small muted">전일 고가 ${won(c["전일 고가"])}</div></td>
+    <td class="imp">${imp}</td></tr>`;
+}
+function scanBlock(){
+  const S=LIVE?.스캔; if(!S?.후보?.length) return "";
+  if(LIVE.기준일!==TF.기준일) return "";      /* PC 가 꺼져 있던 날 — 지난 장 후보는 보여주지 않는다 */
+  const IX=LIVE["지수 3분봉"]||{}, m3=IX.코스피||{}, kq=IX.코스닥||{};   /* 스캔과 같은 시각의 지수 값만 쓴다 */
+  const shut=m3["20선 위"]===false&&kq["20선 위"]===false;
+  const gate=("20선 위" in m3)?`<div class="notice ${shut?"bad":""}">지수 3분봉 20선 — 코스피 ${m3["20선 위"]?T("g","위"):T("b","아래")} (${fmt(m3.현재,2)} / 20선 ${fmt(m3["3분봉 20선"],2)}) · 코스닥 ${kq["20선 위"]?T("g","위"):T("b","아래")} (${fmt(kq.현재,2)} / 20선 ${fmt(kq["3분봉 20선"],2)}) — ${esc(m3["기준 시각"]||"")} 기준.
+    ${shut?"<b>두 지수 모두 20선 아래입니다. 교재 기준으로 오늘 이 시간엔 단타를 하지 않습니다</b>(6-4 #33 \"20선 아래에서는 종목을 보유하지 않는다\").":"20선 위인 시장의 종목만 봅니다."}</div>`:"";
+  return card("장중 종목 선정 후보 (6-3) — 지금 돈이 들어온 곳",`${esc(LIVE.기준시각)} 기준 · ${esc(S.기준)}`,
+    gate+`<div class="notice">이건 <b>매수 추천이 아니라 후보 목록</b>입니다. 교재 6-3의 순서는 <b>뉴스·재료 → 섹터 → 종목 → 분봉 타점</b>인데, 여기서 자동으로 되는 건 뒤쪽 절반(거래대금·차트 자리)뿐입니다. 왜 오르는지(재료·섹터)는 직접 확인하셔야 합니다. 호가창도 빠져 있습니다.</div>
+    <div class="scroll"><table class="t5"><colgroup><col style="width:17%"><col style="width:8%"><col style="width:11%"><col style="width:14%"><col style="width:16%"><col style="width:34%"></colgroup>
+    <thead><tr><th>종목</th><th>등락률</th><th>거래대금</th><th>현재가</th><th>지금 자리</th><th class="imph">시사점 — 지금 뭘 봐야 하나</th></tr></thead>
+    <tbody>${S.후보.map(scanRow).join("")}</tbody></table></div>
+    <p class="small muted" style="margin-top:8px">등락률 상위에서 거래대금·시가총액으로 거른 뒤, 종목마다 3분봉 20선·전일 고가·당일 고가 대비 위치를 붙였습니다. ETF·ETN과 거래정지 종목은 뺐습니다. "거래대금 = 돈이 들어온 곳"(6-4 #106)이라 등락률보다 거래대금 순으로 놓았습니다. 집 PC가 켜져 있는 동안 5분마다 갱신됩니다.</p>`);
 }
 /* ───────────── 6장: 장마감 복기 — 오늘 교재 규칙대로 단타했다면 (day_replay.py) ───────────── */
 const RPCOL=["var(--navy)","var(--ok)","#8e44ad","#e8590c"], RPN=["①","②","③","④"];
@@ -1568,7 +1618,7 @@ function rpRead(m){
   return `목표에 닿기 전에 '${esc(last.사유)}'로 나왔습니다 → <b>${sgn(net,2)}</b>. 보유선을 깨면 미련 없이 나온다(6-4 #95 보유선, #33 지수 스위치).`;
 }
 function replayBlock(s){
-  const R=s["단타 복기"], B=BUN["tb_"+s.코드], F=B?.프레임?.["3분봉(복기)"];
+  const R=s["단타 복기"], B=BUN["tb_"+s.코드], F=LVBY[s.코드]?.프레임||B?.프레임?.["3분봉(복기)"];
   if(!R||!R.매매법) return card("장마감 복기 — 오늘 교재대로 단타했다면","",`<p class="muted">${esc(R?.판정||"복기 자료가 없습니다.")}</p>`);
   const ms=R.매매법, traded=ms.filter(m=>m.결과==="매매");
   const status=R.확정?`${esc(R.날짜)} 장 전체 1분봉으로 확정`:`<b>장중 — ${esc(R["마지막 분봉"])}까지의 분봉</b>으로 본 중간 복기(마감 후 바뀔 수 있음)`;
@@ -1628,7 +1678,7 @@ function methodsPage(ch,s){
   ms.sort((a,b)=>(opened.has(b.매매법)-opened.has(a.매매법))||(score(b)-score(a)));
   const S=sum67(s,ch.n===6?"6":"7");
   return topCard(ch.n,S,doorSVG(ms))
-   + (ch.n===6?replayBlock(s):"")
+   + (ch.n===6?scanBlock()+replayBlock(s):"")
    + trigBlock(s,B)
    + ch.intro()
    + card(`${esc(s.이름)} — 매매법 ${ms.length}개 판정`,"오늘 장세가 연 매매법이 먼저, 그다음 충족률 순. 손절·목표·예상 결과는 8장",ms.map(methodCard).join("")||`<p class="muted">해당 매매법이 없습니다.</p>`);
@@ -2018,6 +2068,10 @@ document.addEventListener("click",e=>{
 });
 window.addEventListener("hashchange",()=>{readHash();render();});
 
+async function getLive(){
+  try{const r=await fetch("data/live.json?t="+Date.now()); if(r.ok) return await r.json();}catch(e){}
+  return null;
+}
 async function getJSON(){
   try{const r=await fetch("/api/latest"); if(r.ok) return await r.json();}catch(e){}
   const r=await fetch("data/latest.json?t="+Date.now());
@@ -2026,11 +2080,13 @@ async function getJSON(){
 }
 (async()=>{
   try{
-    DATA=await getJSON();
+    const [d,lv]=await Promise.all([getJSON(),getLive()]);
+    DATA=d; LIVE=lv;
     TF=DATA.교재흐름; MK=TF?.["9장 시장"];
     if(!TF||!MK){$("#main").innerHTML=`<div class="notice">교재 분석 자료가 아직 없습니다. 다음 수집을 기다리세요.</div>`;return;}
     (DATA.심층분석?.종목||[]).forEach(d=>DD[d.코드]=d);
-    $("#stamp").innerHTML=`기준일 <b>${esc(TF.기준일)}</b> · 생성 ${esc(TF.생성시각||"")}`;
+    liveMerge();
+    $("#stamp").innerHTML=`기준일 <b>${esc(TF.기준일)}</b> · 생성 ${esc(TF.생성시각||"")}${liveStamp()}`;
     readHash(); go();
   }catch(e){ $("#main").innerHTML=`<div class="notice">자료를 읽지 못했습니다: ${esc(e.message)}</div>`; }
 })();
