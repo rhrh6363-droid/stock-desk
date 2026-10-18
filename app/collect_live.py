@@ -23,8 +23,10 @@ GitHub 1시간 수집과 부딪히지 않는다. 화면(chapters.html)은 live.j
 """
 import json
 import os
+import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +34,11 @@ ROOT = os.path.dirname(HERE)
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import pandas as pd                           # noqa: E402
 import day_replay as dr                      # noqa: E402
+import news                                  # noqa: E402
+import reasons                               # noqa: E402
+import sector_map                            # noqa: E402
 import textbook_flow as tf                   # noqa: E402
 
 KST = timezone(timedelta(hours=9))
@@ -46,11 +52,27 @@ def _now():
 def _today():
     return DAY or datetime.now(KST).date()
 OUT = [os.path.join(ROOT, "docs", "data", "live.json"), os.path.join(HERE, "data", "live.json")]
+NEWS_CACHE = os.path.join(HERE, "data", "live_news.json")
+THEME_API = "https://m.stock.naver.com/api/stocks/theme"      # 네이버 테마 264개 — 오늘 등락률·구성종목
+
+# 증시 기사 판별 — 시세어(reasons) + 재료어. 하나라도 없으면 그 기사는 재료가 아니다
+장기사_RE = re.compile("|".join(re.escape(w) for w in (
+    *reasons.MOVE_WORDS, "증시", "코스피", "코스닥", "관련주", "테마", "수혜", "실적", "영업이익", "매출",
+    "수주", "계약", "공시", "유상증자", "무상증자", "목표주가", "증권", "투자", "상장", "인수", "합병",
+    "리포트", "컨센서스", "호재", "악재", "급등주", "상승률", "시총", "주식")))
 
 # 6-3 장중 종목 선정 거름망 — "돈이 들어온 곳"(거래대금)이 첫째, 너무 작은 종목은 뺀다
-스캔_최소_거래대금억 = 300
+스캔_최소_거래대금억 = 300      # 단타 후보로 올릴 최소 조건
 스캔_최소_시총억 = 1000
 스캔_최대후보 = 10
+테마_최소_거래대금억 = 50       # 섹터를 묶을 때는 더 넓게 본다 — 작은 종목이 테마를 알려준다
+테마_최소_시총억 = 300
+테마_모집단 = 40         # 재료(뉴스)를 붙일 종목 수
+테마_최대 = 5            # 6-3 #11 "후보 섹터는 4~5개로 압축" — 화면에 띄우는 수
+테마_태깅 = 12           # 종목에 테마를 붙일 때는 좀 더 넓게 본다
+테마_최소종목 = 5        # 2~3 종목짜리 테마는 섹터가 아니라 개별이슈다
+테마_최소상승비 = 0.6     # 테마 종목의 60% 이상이 올라야 '같이 가는' 섹터다
+뉴스_캐시분 = 45         # 재료는 분 단위로 바뀌지 않는다
 
 
 def _days(code, today, n=40):
@@ -97,9 +119,92 @@ def rank(mkt):
     return j.get("stocks") or []
 
 
+def _장기사(title):
+    """증시 기사만 남긴다. 종목명이 지명·일반명사와 겹치면 엉뚱한 기사가 붙는다
+    (예: '서산' → 지역 축제 기사). 제목에 시세·증시 낱말이 없으면 재료로 쓰지 않는다."""
+    return bool(장기사_RE.search(title))
+
+
+def _news(rows):
+    """6-3 앞쪽 — 종목마다 기사·키워드를 붙인다(구글 뉴스 RSS, 키 없이 된다).
+    재료는 분 단위로 바뀌지 않으므로 45분 캐시를 둔다. 5분마다 같은 검색을 반복할 이유가 없다."""
+    try:
+        with open(NEWS_CACHE, encoding="utf-8") as fh:
+            cache = json.load(fh)
+    except Exception:
+        cache = {}
+    if cache.get("날짜") != _today().strftime("%Y%m%d"):
+        cache = {"날짜": _today().strftime("%Y%m%d"), "종목": {}}
+    box, now, 새로 = cache["종목"], time.time(), 0
+    for r in rows:
+        hit = box.get(r["코드"])
+        if hit and now - hit["t"] < 뉴스_캐시분 * 60:
+            r["뉴스"] = hit["뉴스"]
+            continue
+        nm = r["종목명"]
+        items = [i for i in news.search(nm, limit=8) if _장기사(i["제목"])]
+        for it in items:                       # 구글은 느슨하게 맞춘다 — 제목에 종목명이 있는 것부터 쓴다
+            it["직접언급"] = news.mentions(news._strip_source(it), nm)
+        r["뉴스"] = ([i for i in items if i["직접언급"]] + [i for i in items if not i["직접언급"]])[:4]
+        box[r["코드"]] = {"t": now, "뉴스": r["뉴스"]}
+        새로 += 1
+        time.sleep(news.DELAY)
+    try:
+        with open(NEWS_CACHE, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh, ensure_ascii=False)
+    except Exception:
+        pass
+    return 새로
+
+
+def themes():
+    """6-3 '오늘의 주도 섹터' — 네이버 테마 264개 중 오늘 실제로 같이 오르는 것만 추린다.
+    교재는 후보 섹터를 4~5개로 압축하라고 한다(6-3 #11). 테마 안의 종목을 다 받아 오므로
+    '같은 테마인데 아직 안 간 종목'(6-3 #6 가지치기)이 그대로 나온다."""
+    try:
+        gs = dr._get(f"{THEME_API}?page=1&pageSize=60").get("groups") or []
+    except Exception:
+        return []
+    고른것 = [g for g in gs
+            if (g.get("totalCount") or 0) >= 테마_최소종목 and _f(g.get("changeRate")) is not None
+            and (g["riseCount"] / g["totalCount"]) >= 테마_최소상승비]
+    out = []
+    for g in 고른것[:테마_태깅]:
+        try:
+            st = dr._get(f"{THEME_API}/{g['no']}?page=1&pageSize=40").get("stocks") or []
+        except Exception:
+            continue
+        rows = [{"종목명": s["stockName"], "코드": s["itemCode"], "등락률": _f(s.get("fluctuationsRatio")),
+                 "거래대금(억)": round((_f(s.get("accumulatedTradingValueRaw")) or 0) / 1e8)}
+                for s in st if s.get("stockEndType") == "stock"]
+        rows.sort(key=lambda r: -r["거래대금(억)"])
+        오른것 = [r for r in rows if (r["등락률"] or 0) > 0]
+        out.append({"테마": g["name"], "주도": len(out) < 테마_최대,
+                    "등락률": _f(g.get("changeRate")), "종목수": g["totalCount"],
+                    "오른 종목 수": g["riseCount"], "내린 종목 수": g["fallCount"],
+                    "대장주": rows[0]["종목명"] if rows else "",
+                    "오른 종목": 오른것[:8],
+                    "아직 안 오른 종목": [r for r in rows if (r["등락률"] or 0) <= 0][:6]})
+    return out
+
+
+def _theme(rows):
+    """종목마다 뉴스 키워드로 섹터사전을 태우고(재료·대표키워드·근거링크), 이슈 키워드를 묶는다."""
+    dic = sector_map.load_dictionary()
+    df, _unmapped = sector_map.apply(pd.DataFrame(rows), dic)
+    for r, major, minor in zip(rows, df["대섹터"], df["세부섹터"]):
+        r["대섹터"], r["세부섹터"] = major, minor
+    reasons.consolidate(rows)                   # 키워드 공통도 정렬 + 상승이유 + 근거링크
+    issues = [{"키워드": k["키워드"], "종목수": k["종목수"], "거래대금(억)": k["거래대금"], "주섹터": k["주섹터"],
+               "종목": [x["종목명"] for x in k["종목"]]}
+              for k in reasons.keyword_rollup(rows) if k["종목수"] >= 2][:6]
+    return issues
+
+
 def scan():
-    """6-3 — 등락률 상위에서 거래대금·시총으로 거른 뒤, 후보마다 분봉 자리를 붙인다.
-    '아침 장대양봉에 따라붙지 않는다'(6-3 #16) 를 위해 당일 고가 대비 위치를 같이 준다."""
+    """6-3 — 등락률 상위에서 거래대금·시총으로 거른 뒤, 뉴스·키워드로 섹터를 묶고(앞쪽 절반),
+    후보마다 분봉 자리를 붙인다(뒤쪽 절반). '아침 장대양봉에 따라붙지 않는다'(6-3 #16) 를 위해
+    당일 고가 대비 위치를 같이 준다."""
     today = _today()
     cand = []
     for mkt in ("KOSPI", "KOSDAQ"):
@@ -109,7 +214,7 @@ def scan():
             chg = _f(r.get("fluctuationsRatio"))
             if val is None or cap is None or chg is None:
                 continue
-            if val / 1e8 < 스캔_최소_거래대금억 or cap / 1e8 < 스캔_최소_시총억:
+            if val / 1e8 < 테마_최소_거래대금억 or cap / 1e8 < 테마_최소_시총억:
                 continue
             if (r.get("tradeStopType") or {}).get("name") != "TRADING":
                 continue
@@ -117,10 +222,37 @@ def scan():
                 continue
             cand.append({"코드": r["itemCode"], "이름": r["stockName"], "시장": "코스피" if mkt == "KOSPI" else "코스닥",
                          "등락률": chg, "현재가": _f(r.get("closePriceRaw")),
-                         "거래대금(억)": round(val / 1e8), "시총(억)": round(cap / 1e8)})
+                         "거래대금(억)": round(val / 1e8), "시총(억)": round(cap / 1e8),
+                         "단타후보": val / 1e8 >= 스캔_최소_거래대금억 and cap / 1e8 >= 스캔_최소_시총억})
     cand.sort(key=lambda x: -x["거래대금(억)"])
+    pool = cand[:테마_모집단]
+    for c in pool:                              # 섹터 모듈이 쓰는 이름으로 맞춰 둔다
+        c["종목명"], c["등락률(%)"] = c["이름"], c["등락률"]
+    groups, issues = [], []
+    try:
+        groups = themes()
+    except Exception as exc:
+        print(f"  [테마 실패] {type(exc).__name__}: {exc}")
+    속한테마 = {}
+    for g in groups:
+        for r in g["오른 종목"] + g["아직 안 오른 종목"]:
+            속한테마.setdefault(r["코드"], []).append(g["테마"])
+    try:
+        _news(pool)
+        issues = _theme(pool)
+    except Exception as exc:
+        print(f"  [재료 실패] {type(exc).__name__}: {exc}")
+    for c in pool:                              # 뉴스 원문은 화면에 안 쓴다 — 파일만 커진다
+        c.pop("뉴스", None), c.pop("업종힌트", None), c.pop("키워드공통도", None)
+        c.pop("종목명", None), c.pop("등락률(%)", None), c.pop("상승원인", None)
+        c["테마"] = 속한테마.get(c["코드"], [])
+        c["주도섹터"] = bool(c["테마"])
+    # 6-3 #1 — 주도 섹터에 속한 종목을 먼저 본다. 그다음 거래대금 순
+    print(f"  테마 {len(groups)}개 · 모집단 {len(pool)} · 재료 {sum(1 for c in pool if c.get('근거링크'))} · "
+          f"주도테마 종목 {sum(1 for c in pool if c['주도섹터'])}")
+    pool.sort(key=lambda x: (not x["주도섹터"], -x["거래대금(억)"]))
     out = []
-    for c in cand[:스캔_최대후보]:
+    for c in [x for x in pool if x["단타후보"]][:스캔_최대후보]:
         try:
             m1 = dr.naver_min(c["코드"], "item", today)
             d = [x for x in _days(c["코드"], today, 5) if x["t"].date() < today]
@@ -151,7 +283,7 @@ def scan():
         except Exception as exc:
             c["오류"] = f"{type(exc).__name__}"
             out.append(c)
-    return out
+    return out, groups, issues
 
 
 def build():
@@ -190,17 +322,18 @@ def build():
             out_st.append({"코드": code, "이름": name, "단타 복기": {"판정": f"복기 실패: {type(exc).__name__}: {exc}"}})
 
     try:
-        sc = scan()
+        sc, groups, issues = scan()
     except Exception as exc:
-        sc = []
+        sc, groups, issues = [], [], []
         print(f"  [스캔 실패] {type(exc).__name__}: {exc}")
 
     live = {"기준일": today.strftime("%Y%m%d"),      # latest.json 의 '거래일'과 같은 꼴이라야 화면이 맞춰 본다
             "기준시각": now.strftime("%Y-%m-%d %H:%M"),
             "수집": "로컬 PC 5분 간격 (collect_live.py)", "장중": DAY is None and "0900" <= now.strftime("%H%M") <= "1540",
             "지수 3분봉": mk, "종목": out_st, "3분봉 프레임": frames,
-            "스캔": {"기준": f"등락률 상위 중 거래대금 {스캔_최소_거래대금억}억 이상 · 시총 {스캔_최소_시총억}억 이상, 거래대금 순 {스캔_최대후보}개",
-                   "후보": sc}}
+            "스캔": {"기준": f"등락률 상위 중 거래대금 {스캔_최소_거래대금억}억 이상 · 시총 {스캔_최소_시총억}억 이상 "
+                           f"{테마_모집단}개를 뉴스·섹터로 묶고, 주도 섹터 먼저 {스캔_최대후보}개",
+                   "후보": sc, "테마": [g for g in groups if g["주도"]], "이슈 키워드": issues}}
     body = json.dumps(live, ensure_ascii=False, separators=(",", ":"), default=str)
     for p in OUT:
         os.makedirs(os.path.dirname(p), exist_ok=True)
