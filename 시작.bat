@@ -3,8 +3,9 @@ chcp 65001 > nul
 title 특징주 데스크
 cd /d "%~dp0"
 
-set PY=C:\Users\USER\AppData\Local\Python\pythoncore-3.14-64\python.exe
-if not exist "%PY%" set PY=python
+set "PY="
+for %%P in ("%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" "%LOCALAPPDATA%\Python\bin\python.exe" "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%LOCALAPPDATA%\Programs\Python\Python311\python.exe") do if not defined PY if exist %%P set "PY=%%~P"
+if not defined PY set "PY=python"
 
 if "%KRX_ID%"=="" goto nocred
 if "%KRX_PW%"=="" goto nocred

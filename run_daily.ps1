@@ -11,7 +11,19 @@
 $ErrorActionPreference = "Continue"
 
 $Root   = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Python = "C:\Users\USER\AppData\Local\Python\pythoncore-3.14-64\python.exe"
+# PC마다 파이썬 설치 경로가 달라서, 있는 것을 순서대로 찾고 없으면 PATH 의 python 을 쓴다
+$Python = @(
+    "$env:LOCALAPPDATA\Python\pythoncore-3.14-64\python.exe",
+    "$env:LOCALAPPDATA\Python\bin\python.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python314\python.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $Python) {
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -notmatch 'WindowsApps') { $Python = $cmd.Source }
+}
 $LogDir = Join-Path $Root "logs"
 
 Set-Location $Root
