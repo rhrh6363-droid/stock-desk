@@ -89,8 +89,42 @@ def naver_chart(code, tf, count):
     return out
 
 
+def toss_overlay(code, d):
+    """일봉 최근 구간을 토스 통합 시세(KRX+NXT)로 덮어쓴다. 토스는 토스에서 보는 차트와 같은 값이다.
+
+    네이버·pykrx 일봉은 KRX 만이라 시가·고가·거래량·종가가 토스와 어긋난다
+    (10/15 삼성전자 시가 216,500 vs 토스 225,000).
+    토스 키가 없거나 해외 IP 라 막히면 조용히 KRX 값을 그대로 둔다. 반환: 덮어쓴 봉 수.
+    """
+    try:
+        import toss
+        if not toss.available():
+            return 0
+        rows = toss.candles(code, "1d", 250)
+    except Exception:
+        return 0
+    by = {}
+    for r in rows:
+        ts = str(r.get("시각", ""))[:10].replace("-", "")
+        if len(ts) == 8 and ts.isdigit():
+            by[ts] = r
+    n = 0
+    for b in d:
+        r = by.get(b["t"].strftime("%Y%m%d"))
+        if not r or not b["c"]:
+            continue
+        if abs(r["종가"] / b["c"] - 1) > 0.05:      # KRX 와 5% 넘게 다르면 다른 종목·단위 오류로 보고 건너뛴다
+            continue
+        b.update(o=r["시가"], h=r["고가"], l=r["저가"], c=r["종가"])
+        if r["거래량"]:
+            b["v"] = r["거래량"]
+        n += 1
+    return n
+
+
 def load_stock(code):
     d = naver_chart(code, "day", 3000)
+    통합봉 = toss_overlay(code, d) if d else 0
     w = naver_chart(code, "week", 600)
     sym, best = None, -1
     for suf in (".KS", ".KQ"):          # 코스닥 종목도 .KS 로 빈 응답이 오는 경우가 있어 5분봉 개수로 고른다
@@ -105,7 +139,7 @@ def load_stock(code):
         m[-1].update({k: nm[-1][k] for k in ("o", "h", "l", "c")})
     h60, _ = yahoo(sym, "60m", "730d")
     m5, _ = yahoo(sym, "5m", "5d")
-    return {"sym": sym, "d": d, "w": w, "m": m, "h60": h60, "m5": m5, "meta": meta}
+    return {"통합봉": 통합봉, "sym": sym, "d": d, "w": w, "m": m, "h60": h60, "m5": m5, "meta": meta}
 
 
 # ───────────────────────── 계산 도구 ─────────────────────────
@@ -1078,7 +1112,7 @@ def analyze(code, name, 시총억, mk):
     prev = S["d"][-2]["c"]
     return {"이름": name, "코드": code, "심볼": S["sym"], "현재가": D["종가"],
             "등락률": r1(pct(D["종가"], prev), 2), "10장 결론": con,
-            "0장 프레임": {"월봉": len(S["m"]), "주봉": len(S["w"]), "일봉": len(S["d"]),
+            "0장 프레임": {"월봉": len(S["m"]), "주봉": len(S["w"]), "일봉": len(S["d"]), "일봉 통합시세(KRX+NXT) 봉수": S.get("통합봉", 0),
                         "60분봉": len(S["h60"]), "5분봉": len(S["m5"])},
             "월봉": M, "주봉": W, "일봉": D, "60분봉": H, "5분봉(당일)": M5, "수급": F, "매매법": ms,
             "단타 복기": RP}
