@@ -37,9 +37,11 @@ if ($Remove) {
 
 if (-not (Test-Path $Script)) { "[중단] run_daily.ps1 을 찾을 수 없습니다."; exit 1 }
 
+# wscript 로 감싸 실행하면 검은 창이 뜨지 않는다 (run_daily.vbs 가 창 없이 run_daily.ps1 을 부른다)
+$Hidden = Join-Path $Root "run_daily.vbs"
 $action = New-ScheduledTaskAction `
-    -Execute "powershell.exe" `
-    -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$Script`"" `
+    -Execute "wscript.exe" `
+    -Argument "//B //Nologo `"$Hidden`"" `
     -WorkingDirectory $Root
 
 $trigger = New-ScheduledTaskTrigger `
