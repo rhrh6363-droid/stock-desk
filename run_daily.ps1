@@ -45,8 +45,17 @@ if (-not (Test-Path $Python)) {
     Write-Log "[중단] 파이썬을 찾을 수 없습니다: $Python"
     exit 1
 }
+# PC 공용 비밀 파일 — 환경변수에 없는 키만 채운다 (scripts\bootstrap.ps1 이 만든다)
+$Secrets = Join-Path $env:USERPROFILE ".stock-desk\secrets.env"
+if (Test-Path $Secrets) {
+    foreach ($l in Get-Content $Secrets -Encoding UTF8) {
+        if ($l -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$' -and -not [Environment]::GetEnvironmentVariable($Matches[1])) {
+            [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim('"'), 'Process')
+        }
+    }
+}
 if (-not $env:KRX_ID -or -not $env:KRX_PW) {
-    Write-Log "[중단] KRX_ID / KRX_PW 환경변수가 없습니다. setx 로 설정하세요."
+    Write-Log "[중단] KRX_ID / KRX_PW 가 없습니다. scripts\bootstrap.ps1 을 실행하세요."
     exit 1
 }
 

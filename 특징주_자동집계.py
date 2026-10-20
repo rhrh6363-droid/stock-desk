@@ -37,6 +37,10 @@ import sys
 import warnings
 from datetime import datetime, timedelta
 
+# 키는 ~/.stock-desk/secrets.env 에서 채운다. pykrx 는 import 시점에 로그인하므로 그 앞에서 부른다
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app"))
+import stock_env  # noqa: E402,F401
+
 import pandas as pd
 import requests
 from pykrx import stock

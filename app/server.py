@@ -32,6 +32,8 @@ for p in (HERE, ROOT):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import stock_env  # noqa: E402,F401  ~/.stock-desk/secrets.env
+
 BATCH_MINUTES = 60
 MARKET_OPEN = dtime(9, 0)
 MARKET_CLOSE = dtime(16, 30)

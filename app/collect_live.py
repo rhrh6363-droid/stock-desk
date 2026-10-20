@@ -34,6 +34,7 @@ ROOT = os.path.dirname(HERE)
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import stock_env                              # noqa: E402,F401  ~/.stock-desk/secrets.env
 import pandas as pd                           # noqa: E402
 import day_replay as dr                      # noqa: E402
 import news                                  # noqa: E402

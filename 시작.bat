@@ -7,6 +7,9 @@ set "PY="
 for %%P in ("%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" "%LOCALAPPDATA%\Python\bin\python.exe" "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" "%LOCALAPPDATA%\Programs\Python\Python311\python.exe") do if not defined PY if exist %%P set "PY=%%~P"
 if not defined PY set "PY=python"
 
+REM PC 공용 비밀 파일 — 환경변수에 없는 키만 채운다 (scripts\bootstrap.ps1 이 만든다)
+if exist "%USERPROFILE%\.stock-desk\secrets.env" for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%USERPROFILE%\.stock-desk\secrets.env") do if not defined %%A set "%%A=%%B"
+
 if "%KRX_ID%"=="" goto nocred
 if "%KRX_PW%"=="" goto nocred
 

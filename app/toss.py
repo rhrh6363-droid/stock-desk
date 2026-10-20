@@ -35,7 +35,9 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-BASE = "https://openapi.tossinvest.com"
+import stock_env  # noqa: F401  ~/.stock-desk/secrets.env 에서 TOSS_* 를 채운다
+
+BASE ="https://openapi.tossinvest.com"
 TOKEN_URL = f"{BASE}/oauth2/token"
 
 # 투자원칙 a: "매크로 무조건 확인(나스닥+유가+환율)"

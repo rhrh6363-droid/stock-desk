@@ -28,6 +28,7 @@ for p in (HERE, ROOT):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import stock_env                 # noqa: E402,F401  pykrx 가 import 시점에 로그인하므로 먼저
 import charts                    # noqa: E402
 import deepdive                  # noqa: E402
 import flows                     # noqa: E402

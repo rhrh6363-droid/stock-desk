@@ -21,3 +21,9 @@ scripts/*.log
 
 # app/data/*.json 은 일부러 올린다 — 히트맵의 과거 날짜가 여기서 나온다.
 app/data/live_news.json
+
+# ── PC 공용 설정 ──
+# 개인 로컬 설정은 올리지 않는다 (.claude/settings.json 의 훅은 올린다)
+.claude/settings.local.json
+secrets.env
+.stock-desk/
