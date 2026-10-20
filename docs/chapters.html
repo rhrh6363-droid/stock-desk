@@ -1565,15 +1565,9 @@ function liveMerge(){
   const newer=!TF.생성시각||String(LIVE.기준시각||"")>String(TF.생성시각);
   if(LIVE.기준일!==TF.기준일||!newer) return;          // 수집본이 더 최신이면 그대로 둔다
   const FR=LIVE["3분봉 프레임"]||{};
-  (LIVE.종목||[]).forEach(x=>{ const r=x["단타 복기"]; if(!r) return;
-    const t=(TF.종목||[]).find(s=>s.코드===x.코드);
-    // 현재가·등락률은 latest.json(시간당 생성)이 아니라 5분 수집분의 분봉 종가로 덮어쓴다
-    if(t&&r.종가&&r["전일 종가"]&&r.날짜===String(TF.기준일).replace(/^(\d{4})(\d{2})(\d{2})$/,"$1-$2-$3")){
-      t.현재가=r.종가; t.등락률=Math.round((r.종가/r["전일 종가"]-1)*10000)/100;
-      const oc=t.일봉?.["오늘 캔들"]; if(oc) oc.등락률=t.등락률; }
-    if(!r.매매법) return;
-    LVBY[x.코드]={복기:r,프레임:FR[x.코드]};
-    if(t) t["단타 복기"]=r;});
+  (LIVE.종목||[]).forEach(x=>{ if(!x["단타 복기"]?.매매법) return;
+    LVBY[x.코드]={복기:x["단타 복기"],프레임:FR[x.코드]};
+    const t=(TF.종목||[]).find(s=>s.코드===x.코드); if(t) t["단타 복기"]=x["단타 복기"];});
   const M3=LIVE["지수 3분봉"]||{};
   ["코스피","코스닥"].forEach(k=>{ if(MK[k]&&M3[k]) MK[k]["3분봉"]=M3[k];});
 }
