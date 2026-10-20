@@ -20,3 +20,4 @@ app/data/live.json
 scripts/*.log
 
 # app/data/*.json 은 일부러 올린다 — 히트맵의 과거 날짜가 여기서 나온다.
+app/data/live_news.json
