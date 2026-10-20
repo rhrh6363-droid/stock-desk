@@ -50,6 +50,7 @@ $trigger = New-ScheduledTaskTrigger `
 # StartWhenAvailable: 그 시각에 PC 가 꺼져 있었으면 켜진 뒤 한 번 따라 실행한다
 $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
+    -WakeToRun `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
     -MultipleInstances IgnoreNew `
