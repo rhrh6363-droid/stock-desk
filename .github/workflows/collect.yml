@@ -29,6 +29,7 @@ jobs:
       KRX_PW: ${{ secrets.KRX_PW }}
       TOSS_CLIENT_ID: ${{ secrets.TOSS_CLIENT_ID }}
       TOSS_CLIENT_SECRET: ${{ secrets.TOSS_CLIENT_SECRET }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # 재료 요약(catalyst.py). 없으면 규칙으로 대신한다
       PYTHONUTF8: "1"
 
     steps:

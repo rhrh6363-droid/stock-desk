@@ -37,6 +37,7 @@ import macro                     # noqa: E402
 import macro_index               # noqa: E402
 import textbook_flow             # noqa: E402
 import news                      # noqa: E402
+import catalyst                  # noqa: E402
 import reasons                   # noqa: E402
 import report                    # noqa: E402
 import sector_map                # noqa: E402
@@ -219,6 +220,12 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
     rows = rows_pre
     news_stat = news.attach(rows, vocab=news.vocabulary(merged))
     print(f"  {news_stat}")
+    # 사전에 없는 그날의 재료(미국 실적·경쟁사 파업·중동 등)는 시황 기사와 함께 따로 뽑는다
+    try:
+        cat = catalyst.attach(rows, news.market_news())
+    except Exception as exc:
+        cat = {"방식": f"실패 {type(exc).__name__}", "시장재료": [], "재료붙음": 0}
+    print(f"  재료 {cat['방식']} · 시장재료 {len(cat['시장재료'])} · 종목재료 {cat['재료붙음']}/{len(rows)}")
 
     print("\n[3/5] 섹터 매핑")
     mapped, unmapped = sector_map.apply(pd.DataFrame(rows), merged)
@@ -326,6 +333,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         # 어떤 이슈가 어느 종목을 움직였나 - "AI데이터센터 -> 광통신" 을 보이게
         "키워드집계": _clean(reasons.keyword_rollup(rows)),
         "공통키워드": _clean(rs.get("공통키워드")),
+        "시장재료": {"재료": cat["시장재료"], "방식": cat["방식"]},
         "매크로": _clean(매크로),
         "지수매크로": _clean(지수매크로),
         "장중분봉": _clean(intraday),

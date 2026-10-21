@@ -166,7 +166,7 @@ def _global_counts(rows: list[dict]) -> Counter:
     """그날 전 종목의 키워드 빈도. '가장 중복이 많은' 키워드를 고르는 기준이다."""
     c = Counter()
     for r in rows:
-        for k in (r.get("키워드") or []):
+        for k in set(r.get("키워드") or []) | set(r.get("재료키워드") or []):
             c[k] += 1
     return c
 
@@ -186,6 +186,8 @@ def consolidate(rows: list[dict]) -> dict:
     for r in rows:
         name = str(r.get("종목명") or "")
         kws = list(r.get("키워드") or [])
+        # 재료키워드(catalyst) — 사전에 없는 그날의 이슈('마이크론 파업', 'AI서버')
+        kws += [k for k in (r.get("재료키워드") or []) if k not in kws]
 
         # 1) 공통도 높은 키워드를 앞으로. 같으면 짧은 쪽(포괄적인 쪽)을 앞으로
         kws.sort(key=lambda k: (-counts[k], len(k)))
@@ -214,6 +216,9 @@ def consolidate(rows: list[dict]) -> dict:
             if p:
                 모은것.append(p)
         재료 = _dedupe(모은것)[:2]
+        # catalyst 가 기사 여러 건을 묶어 뽑은 재료가 있으면 그것을 쓴다
+        if r.get("재료"):
+            재료 = list(r["재료"])[:3]
 
         # 3) 상승이유 — 무슨 관련주고 왜 올랐나
         머리 = f"{r['대표키워드']} 관련주" if r["대표키워드"] else ""

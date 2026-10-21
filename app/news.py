@@ -25,7 +25,8 @@ import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 RSS = "https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -34,6 +35,10 @@ LOOKBACK_DAYS = 3          # 당일 재료를 보려면 짧아야 한다
 PER_STOCK = 4              # 종목당 기사 수
 DELAY = 0.25               # 연속 호출 간격 (초)
 CACHE_MIN = 30
+KST = timezone(timedelta(hours=9))
+
+# 시장 전체 재료 — 거시 재료(중동·유가·미국 실적)는 종목 기사가 아니라 시황 기사에 나온다
+MARKET_QUERIES = ("마감시황", "코스피 시황", "장중 시황 코스피", "뉴욕증시 마감")
 
 # 세 글자 이상 어휘는 제목에 들어 있기만 하면 받는다.
 # 두 글자 어휘는 'OO주' / 'OO 테마' 꼴일 때만 받는다 (_short_hit 참고).
@@ -89,20 +94,21 @@ def _clean(text: str) -> str:
     return TAG.sub("", text or "").replace("&quot;", '"').replace("&amp;", "&").strip()
 
 
-def search(query: str, limit: int = PER_STOCK) -> list[dict]:
+def search(query: str, limit: int = PER_STOCK, days: int = LOOKBACK_DAYS) -> list[dict]:
     """구글 뉴스 RSS. 실패하면 빈 리스트 — 전체를 멈추지 않는다."""
     now = time.time()
-    hit = _cache.get(query)
+    key = f"{query}|{days}"
+    hit = _cache.get(key)
     if hit and now - hit[0] < CACHE_MIN * 60:
         return hit[1][:limit]
 
-    q = urllib.parse.quote(f"{query} when:{LOOKBACK_DAYS}d")
+    q = urllib.parse.quote(f"{query} when:{days}d")
     req = urllib.request.Request(RSS.format(q=q), headers={"User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             root = ET.fromstring(r.read())
     except Exception:
-        _cache[query] = (now, [])
+        _cache[key] = (now, [])
         return []
 
     out = []
@@ -120,8 +126,76 @@ def search(query: str, limit: int = PER_STOCK) -> list[dict]:
         if len(out) >= limit:
             break
 
-    _cache[query] = (now, out)
+    _cache[key] = (now, out)
     return out
+
+
+def published(it: dict) -> datetime | None:
+    """RSS 의 pubDate(GMT) 를 한국 시각으로. 못 읽으면 None."""
+    try:
+        return parsedate_to_datetime(it.get("날짜", "") + ":00 +0000").astimezone(KST)
+    except Exception:
+        return None
+
+
+def _fresh_first(items: list[dict], day, limit: int) -> list[dict]:
+    """그날 기사만 최신순으로. 그날 기사가 모자라면 이전 기사로 채운다 (최신순).
+
+    구글은 관련도순으로 준다. 그대로 쓰면 어제 '급락' 기사가 오늘 '급등' 이유로 붙는다.
+    """
+    seen, uniq = set(), []
+    for it in items:
+        t = _strip_source(it)
+        if t in seen:
+            continue
+        seen.add(t)
+        it["시각"] = (published(it) or datetime(1970, 1, 1, tzinfo=KST)).strftime("%m-%d %H:%M")
+        uniq.append(it)
+    def ts(it):
+        d = published(it)
+        return d.timestamp() if d else 0
+    uniq.sort(key=ts, reverse=True)
+    today = [it for it in uniq if (published(it) or datetime.min.replace(tzinfo=KST)).date() == day]
+    return (today + [it for it in uniq if it not in today])[:limit]
+
+
+def stock_news(name: str, limit: int = 8, day=None) -> list[dict]:
+    """종목 기사 — '{종목명} 특징주' 를 먼저, 종목명만으로 찾은 것을 보충으로.
+
+    종목명만으로 찾으면 대형주는 회사 소식(성과급·노조·행사)이 위를 차지한다.
+    2026-10-21 삼성전자 +5.7%: '삼성전자' 검색 15건 중 상승 이유는 2~3건,
+    '삼성전자 특징주' 검색은 10건 모두 상승 이유(슈퍼마이크로 호실적·마이크론 파업 예고)였다.
+    """
+    day = day or datetime.now(KST).date()
+    # 구글은 느슨하게 맞춰 '삼성전자 특징주' 에 다른 종목의 특징주 기사도 준다 — 종목명이 나온 것만
+    hot = [it for it in search(f"{name} 특징주", limit=limit * 2, days=2)
+           if mentions(_strip_source(it), name)]
+    hot = _fresh_first(hot, day, limit * 2)
+    time.sleep(DELAY)
+    rest = _fresh_first(search(name, limit=limit * 2, days=2), day, limit * 2)
+    # 순서: 그날 특징주 기사 → 그날 일반 기사 → 이전 기사.
+    # 최신순만 쓰면 장 마감 뒤 회사 소식('자사주 매입 완료')이 그날 재료 기사를 밀어낸다
+    def today(it):
+        return (published(it) or datetime.min.replace(tzinfo=KST)).date() == day
+    seen, out = set(), []
+    for it in ([i for i in hot if today(i)] + [i for i in rest if today(i)]
+               + [i for i in hot + rest if not today(i)]):
+        t = _strip_source(it)
+        if t not in seen:
+            seen.add(t)
+            out.append(it)
+    return out[:limit]
+
+
+def market_news(themes: list[str] = (), limit: int = 24, day=None) -> list[dict]:
+    """시장 전체 재료 기사 — 시황 + 주도 테마 특징주. 그날 기사만, 최신순."""
+    day = day or datetime.now(KST).date()
+    items = []
+    for q in (*MARKET_QUERIES, *(f"{t} 특징주" for t in themes)):
+        items += search(q, limit=12, days=1)
+        time.sleep(DELAY)
+    out = _fresh_first(items, day, limit * 2)
+    return [it for it in out if (published(it) or datetime.min.replace(tzinfo=KST)).date() == day][:limit]
 
 
 def _tokens(title: str) -> list[str]:
@@ -312,7 +386,7 @@ def attach(rows: list[dict], vocab: set[str] | None = None,
             continue
 
         name = str(r.get("종목명") or "").strip()
-        items = search(name) if name else []
+        items = stock_news(name, limit=PER_STOCK * 2) if name else []
         time.sleep(DELAY)
 
         # 구글 뉴스는 느슨하게 매칭한다. '예선테크' 로 찾으면 HLB 기사가,

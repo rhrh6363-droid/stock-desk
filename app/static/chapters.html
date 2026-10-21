@@ -1600,6 +1600,12 @@ function scanRow(c){
     <td class="small">${재료}</td>
     <td class="imp">${imp}</td></tr>`;
 }
+/* 6-3 #4 재료 — 시황 기사·종목 기사 제목에서 뽑은 오늘의 시장 재료 (catalyst.py) */
+function marketCatalyst(){
+  const M=LIVE?.스캔?.시장재료, mj=M?.재료||[]; if(!mj.length) return "";
+  return `<div class="notice"><b>오늘 시장을 움직인 재료</b> <span class="muted small">(${esc(M.방식||"")} · 기사 제목 기준, 링크로 확인)</span>
+    <ul style="margin:6px 0 0 18px">${mj.map(m=>`<li><b>${esc(m.재료)}</b>${m.설명?` — ${esc(m.설명)}`:""}${m.영향?` <span class="muted">→ ${esc(m.영향)}</span>`:""}</li>`).join("")}</ul></div>`;
+}
 /* 6-3 앞쪽 — 오늘 같이 오르는 테마와 그 안에서 아직 안 간 종목(가지치기) */
 function themeBlock(){
   const G=LIVE?.스캔?.테마; if(!G?.length) return "";
@@ -1609,11 +1615,13 @@ function themeBlock(){
     return `<div class="thbox">
       <div class="thhd"><b>${esc(g.테마)}</b> <span class="t ${g.등락률>=3?"g":"w"}">${sgn(g.등락률,2)}</span>
         <span class="muted small">${fmt(g["오른 종목 수"])}/${fmt(g.종목수)}종목 상승 · 거래대금 1위 <b>${esc(g.대장주)}</b></span></div>
+      ${(g["대장주 재료"]||[]).length?`<div class="small" style="margin-top:4px">재료: ${g["대장주 재료"].map(esc).join(" · ")}</div>`:""}
       <div class="legend" style="margin-top:6px">${up}</div>
       ${rest?`<div class="legend" style="margin-top:4px"><span class="lg muted">아직 안 간 같은 테마(가지치기):</span>${rest}</div>`:""}</div>`;}).join("");
   return card("오늘의 주도 테마 (6-3) — 뭐가 같이 오르고 있나",
     `${esc(LIVE.기준시각)} 기준 · 네이버 테마 264개 중 <b>종목 5개 이상 · 60% 이상이 함께 오른</b> 테마 상위 ${G.length}개`,
     `<div class="notice">교재는 "오늘 매매의 절반은 장 시작 전에 끝난다"면서 후보 섹터를 <b>4~5개로 압축</b>하라고 합니다(6-3 #4·#11). 한 종목만 오르면 개별 이슈고, <b>같은 테마가 무리지어 오르면 그게 그날의 답</b>입니다(6-4 #39).</div>
+     ${marketCatalyst()}
      <div class="grid2">${cards}</div>
      <p class="small muted" style="margin-top:8px">"아직 안 간 같은 테마"는 교재 #6 가지치기 자리입니다 — 대장이 먼저 가고 나면 같은 테마의 다음 종목으로 옮겨 가는 일이 많습니다. 다만 <b>끝물에 따라붙는 자리</b>이기도 해서, 대장주가 이미 고점에서 꺾였는지 먼저 보셔야 합니다.</p>`);
 }

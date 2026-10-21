@@ -38,6 +38,7 @@ import stock_env                              # noqa: E402,F401  ~/.stock-desk/s
 import pandas as pd                           # noqa: E402
 import day_replay as dr                      # noqa: E402
 import news                                  # noqa: E402
+import catalyst                              # noqa: E402
 import reasons                               # noqa: E402
 import sector_map                            # noqa: E402
 import textbook_flow as tf                   # noqa: E402
@@ -143,10 +144,10 @@ def _news(rows):
             r["뉴스"] = hit["뉴스"]
             continue
         nm = r["종목명"]
-        items = [i for i in news.search(nm, limit=8) if _장기사(i["제목"])]
+        items = [i for i in news.stock_news(nm, limit=10, day=_today()) if _장기사(i["제목"])]
         for it in items:                       # 구글은 느슨하게 맞춘다 — 제목에 종목명이 있는 것부터 쓴다
             it["직접언급"] = news.mentions(news._strip_source(it), nm)
-        r["뉴스"] = ([i for i in items if i["직접언급"]] + [i for i in items if not i["직접언급"]])[:4]
+        r["뉴스"] = ([i for i in items if i["직접언급"]] + [i for i in items if not i["직접언급"]])[:8]
         box[r["코드"]] = {"t": now, "뉴스": r["뉴스"]}
         새로 += 1
         time.sleep(news.DELAY)
@@ -156,6 +157,37 @@ def _news(rows):
     except Exception:
         pass
     return 새로
+
+
+def _catalyst(rows, 테마들, 새로):
+    """시장 시황 + 종목 기사 제목에서 재료를 뽑는다 (catalyst.py). 기사가 새로 붙었을 때만 다시 돈다 —
+    AI 요약을 5분마다 부를 이유가 없다. 그 사이에는 캐시한 재료를 그대로 붙인다."""
+    try:
+        with open(NEWS_CACHE, encoding="utf-8") as fh:
+            cache = json.load(fh)
+    except Exception:
+        cache = {}
+    box, now = cache.get("재료") or {}, time.time()
+    codes = sorted(r["코드"] for r in rows)
+    if (not 새로 and box.get("종목코드") == codes and now - box.get("t", 0) < 뉴스_캐시분 * 60
+            and cache.get("날짜") == _today().strftime("%Y%m%d")):
+        for r in rows:
+            hit = box["종목"].get(r["코드"]) or {}
+            r["재료"], r["재료키워드"] = hit.get("재료", []), hit.get("재료키워드", [])
+        return box.get("시장재료", []), box.get("방식", "")
+    market = news.market_news(테마들, day=_today())
+    st = catalyst.attach(rows, market)
+    box = {"t": now, "종목코드": codes, "방식": st["방식"], "시장재료": st["시장재료"],
+           "시장기사": [{"제목": i["제목"], "링크": i["링크"], "시각": i.get("시각", "")} for i in market[:12]],
+           "종목": {r["코드"]: {"재료": r["재료"], "재료키워드": r["재료키워드"]} for r in rows}}
+    cache["재료"] = box
+    try:
+        with open(NEWS_CACHE, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh, ensure_ascii=False)
+    except Exception:
+        pass
+    print(f"  재료 {st['방식']} · 시장재료 {len(st['시장재료'])} · 종목재료 {st['재료붙음']}/{len(rows)}")
+    return st["시장재료"], st["방식"]
 
 
 def themes():
@@ -229,7 +261,7 @@ def scan():
     pool = cand[:테마_모집단]
     for c in pool:                              # 섹터 모듈이 쓰는 이름으로 맞춰 둔다
         c["종목명"], c["등락률(%)"] = c["이름"], c["등락률"]
-    groups, issues = [], []
+    groups, issues, 시장재료 = [], [], {"재료": [], "방식": ""}
     try:
         groups = themes()
     except Exception as exc:
@@ -238,14 +270,28 @@ def scan():
     for g in groups:
         for r in g["오른 종목"] + g["아직 안 오른 종목"]:
             속한테마.setdefault(r["코드"], []).append(g["테마"])
+    # 주도 테마의 거래대금 상위 종목은 재료 대상에 꼭 넣는다. 대형주는 등락률 상위 40에 안 들어
+    # 빠졌다 — 10/21 삼성전자 +5.7%·거래대금 3.5조가 재료 없이 지나갔다
+    있는코드 = {c["코드"] for c in pool}
+    for g in [g for g in groups if g["주도"]]:
+        for r in g["오른 종목"][:2]:
+            if r["코드"] in 있는코드:
+                continue
+            있는코드.add(r["코드"])
+            pool.append({"코드": r["코드"], "이름": r["종목명"], "시장": "", "등락률": r["등락률"], "현재가": None,
+                         "거래대금(억)": r["거래대금(억)"], "시총(억)": None, "단타후보": False,
+                         "종목명": r["종목명"], "등락률(%)": r["등락률"]})
     try:
-        _news(pool)
+        새로 = _news(pool)
+        재료, 방식 = _catalyst(pool, [g["테마"] for g in groups if g["주도"]][:3], 새로)
+        시장재료 = {"재료": 재료, "방식": 방식}
         issues = _theme(pool)
     except Exception as exc:
         print(f"  [재료 실패] {type(exc).__name__}: {exc}")
     for c in pool:                              # 뉴스 원문은 화면에 안 쓴다 — 파일만 커진다
         c.pop("뉴스", None), c.pop("업종힌트", None), c.pop("키워드공통도", None)
         c.pop("종목명", None), c.pop("등락률(%)", None), c.pop("상승원인", None)
+        c.pop("재료키워드", None)
         c["테마"] = 속한테마.get(c["코드"], [])
         c["주도섹터"] = bool(c["테마"])
     # 6-3 #1 — 주도 섹터에 속한 종목을 먼저 본다. 그다음 거래대금 순
@@ -284,7 +330,11 @@ def scan():
         except Exception as exc:
             c["오류"] = f"{type(exc).__name__}"
             out.append(c)
-    return out, groups, issues
+    for g in groups:                            # 테마 카드에 대장주 재료를 붙인다
+        hit = next((c for c in pool if c["이름"] == g["대장주"] and c.get("재료")), None)
+        if hit:
+            g["대장주 재료"] = hit["재료"]
+    return out, groups, issues, 시장재료
 
 
 def build():
@@ -323,9 +373,9 @@ def build():
             out_st.append({"코드": code, "이름": name, "단타 복기": {"판정": f"복기 실패: {type(exc).__name__}: {exc}"}})
 
     try:
-        sc, groups, issues = scan()
+        sc, groups, issues, 시장재료 = scan()
     except Exception as exc:
-        sc, groups, issues = [], [], []
+        sc, groups, issues, 시장재료 = [], [], [], {}
         print(f"  [스캔 실패] {type(exc).__name__}: {exc}")
 
     live = {"기준일": today.strftime("%Y%m%d"),      # latest.json 의 '거래일'과 같은 꼴이라야 화면이 맞춰 본다
@@ -334,7 +384,8 @@ def build():
             "지수 3분봉": mk, "종목": out_st, "3분봉 프레임": frames,
             "스캔": {"기준": f"등락률 상위 중 거래대금 {스캔_최소_거래대금억}억 이상 · 시총 {스캔_최소_시총억}억 이상 "
                            f"{테마_모집단}개를 뉴스·섹터로 묶고, 주도 섹터 먼저 {스캔_최대후보}개",
-                   "후보": sc, "테마": [g for g in groups if g["주도"]], "이슈 키워드": issues}}
+                   "후보": sc, "테마": [g for g in groups if g["주도"]], "이슈 키워드": issues,
+                   "시장재료": 시장재료}}
     body = json.dumps(live, ensure_ascii=False, separators=(",", ":"), default=str)
     for p in OUT:
         os.makedirs(os.path.dirname(p), exist_ok=True)

@@ -6,7 +6,7 @@
 #
 #   올리는 것
 #     secrets.env        환경변수(User) 또는 ~\.stock-desk\secrets.env 에 있는 키들
-#                        KRX_ID KRX_PW TOSS_CLIENT_ID TOSS_CLIENT_SECRET NAVER_ID NAVER_SECRET
+#                        KRX_ID KRX_PW TOSS_CLIENT_ID TOSS_CLIENT_SECRET NAVER_ID NAVER_SECRET ANTHROPIC_API_KEY
 #                        비어 있는 값은 pc-sync 에 이미 있는 값을 덮어쓰지 않는다
 #     stock-desk\config.json, service_account.json   구글시트 (있을 때만)
 #     claude\skills, claude\memory                   Claude 스킬·메모리
@@ -20,7 +20,7 @@ $StockDir = Join-Path $env:USERPROFILE ".stock-desk"
 $Sync     = Join-Path $StockDir "pc-sync"
 $Repo     = "rhrh6363-droid/pc-sync"
 $Claude   = Join-Path $env:USERPROFILE ".claude"
-$Names    = "KRX_ID", "KRX_PW", "TOSS_CLIENT_ID", "TOSS_CLIENT_SECRET", "NAVER_ID", "NAVER_SECRET"
+$Names    = "KRX_ID", "KRX_PW", "TOSS_CLIENT_ID", "TOSS_CLIENT_SECRET", "NAVER_ID", "NAVER_SECRET", "ANTHROPIC_API_KEY"
 
 function Ok($t)   { Write-Host "  [OK] $t" -ForegroundColor Green }
 function Warn($t) { Write-Host "  [!]  $t" -ForegroundColor Yellow }

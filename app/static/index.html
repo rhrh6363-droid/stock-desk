@@ -659,10 +659,12 @@ function renderReportSheet(){
   $("#summary").innerHTML = `<tbody>${line.join("")}</tbody>`;
 
   // ▶ 주요 매크로 이슈
-  const mn=rep.매크로뉴스||[];
-  $("#macroNews").innerHTML = mn.length
+  const mn=rep.매크로뉴스||[], mj=d.시장재료?.재료||[];
+  const mjHtml = mj.length ? `<div class="notice"><b>오늘 시장을 움직인 재료</b> <span class="muted small">(${esc(d.시장재료.방식||"")} · 기사 제목 기준)</span><ul style="margin:6px 0 0 18px">${
+      mj.map(m=>`<li><b>${esc(m.재료)}</b>${m.설명?` — ${esc(m.설명)}`:""}${m.영향?` <span class="muted">→ ${esc(m.영향)}</span>`:""}</li>`).join("")}</ul></div>` : "";
+  $("#macroNews").innerHTML = mjHtml + (mn.length
     ? mn.map(newsLink).join("")
-    : '<div class="notice">매크로 기사를 가져오지 못했습니다.</div>';
+    : '<div class="notice">매크로 기사를 가져오지 못했습니다.</div>');
 
   // ▣ 종합 결론 — 주도 키워드 TOP5
   $("#top5").innerHTML = 주도.length ? `
