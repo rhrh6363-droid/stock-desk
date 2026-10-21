@@ -407,6 +407,10 @@ FILTERS = [   # (키, 교재, 설명, 함수) — 하루 3종목(max3, 6-4 #7·6
 ]
 FILTER_KEYS = [k for k, *_ in FILTERS] + ["max3"]
 DAY_MAX = 3
+# 기본으로 켜는 것. 빼 둔 두 개는 교재 근거가 약해서다 —
+#   t930 : 6-2(시초가 매매)는 "초보는 9:20 이후"로 따로 정해 두어 교재끼리 충돌한다
+#   stop : "손절가가 너무 멀면 안 산다"는 교재지만 3% 라는 숫자는 교재에 없다(손절은 이미 -3% 로 잘린다)
+DEFAULT_FILTERS = ["rise", "vol", "daily", "max3"]
 
 
 def gate_for(keys):
