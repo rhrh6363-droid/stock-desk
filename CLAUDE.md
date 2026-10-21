@@ -32,6 +32,7 @@ powershell -ExecutionPolicy Bypass -File E:\Claude\stock-desk\scripts\bootstrap.
 | 장중 5분 수집 | 각 PC 작업 스케줄러 `주식 장중수집` → `scripts/장중수집.bat` → `app/collect_live.py` | 평일 08:55~15:40 밖에서는 조용히 끝난다. `docs/data/live.json` 만 커밋·푸시 |
 | 일별 수집 | GitHub Actions `특징주 수집` (`.github/workflows/collect.yml`) | PC 가 꺼져 있어도 돈다. 크론이 밀려 하루 3번쯤 돈다 |
 | 오전 보강 집계 | 작업 스케줄러 `특징주 오전집계` (평일 09:20·10:30·11:40) → `scripts/일배치.bat` → `app/run_batch.py` | GitHub 크론이 오전에 안 돌아서 첫 실행이 13시라 만들었다. pipeline → build_static → `app/data`·`docs/data` 커밋(live.json 제외). 이 PC 만 등록돼 있다 — 두 PC 가 함께 돌리지 않는 전제 |
+| 백테스트 / 모의투자 | `D:\github\BACKTEST` · `D:\github\SIMULATION` (별도 폴더, stock-desk 모듈을 가져다 쓴다) | 교재 단타 4개 규칙(`day_replay.METHODS`)을 과거 분봉에 대입 / 장중 5분마다 가상 매매. 작업 스케줄러 `모의투자 SIMULATION`·`백테스트 분봉저장 BACKTEST`. `day_replay.simulate` 의 `live` 인자는 모의투자용 |
 | 로컬 일일집계 | 작업 스케줄러 `특징주 일일집계` → `run_daily.ps1` | 엑셀 누적 · 구글시트 전송. 클라우드가 대신하므로 필수는 아님 |
 | 화면 | `docs/` (GitHub Pages) | |
 

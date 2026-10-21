@@ -170,8 +170,9 @@ class Day:
         return None if b["ma"] is None else b["c"] >= b["ma"]
 
 
-def simulate(day, n_entry, entry, stop, t1):
-    """3분봉 n_entry 마감에 entry 로 산 뒤 1분봉으로 따라간다. 반환: 체결 목록·순수익률."""
+def simulate(day, n_entry, entry, stop, t1, live=False):
+    """3분봉 n_entry 마감에 entry 로 산 뒤 1분봉으로 따라간다. 반환: 체결 목록·순수익률.
+    live=True 면 분봉이 끝까지 오지 않은 장중이라 '장 마감' 강제 청산을 하지 않는다(모의투자용) — 남은 비중은 fills 합으로 안다."""
     b3, m1 = day.b3, day.m1
     j0 = b3[n_entry]["j"]
     ends = {b["j"]: n for n, b in enumerate(b3)}      # 1분봉 인덱스 → 그 분에 마감되는 3분봉
@@ -212,7 +213,7 @@ def simulate(day, n_entry, entry, stop, t1):
                 sell(i, b["c"], left, "지수 3분봉 20선 아래 마감 — 보유하지 않는다")
                 break
     else:
-        if left > 1e-9:
+        if left > 1e-9 and not live:
             sell(len(m1) - 1, m1[-1]["c"], left, "장 마감")
     gross = sum(f["비중"] * (f["가격"] / entry - 1) * 100 for f in fills)
     return fills, _r(gross - COST)
