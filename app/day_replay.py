@@ -147,8 +147,11 @@ def _tick_round(p):
 class Day:
     """하루 복기 재료: 종목 1분봉·3분봉(오늘), 지수 3분봉 상태, 전일 고가·종가."""
 
-    def __init__(self, s1, s1p, i1, i1p, prev_hi, prev_close):
+    def __init__(self, s1, s1p, i1, i1p, prev_hi, prev_close, prev_days=None):
         self.m1 = s1
+        self.prev_days = prev_days or []          # 오늘 전까지의 일봉(오래된 순) — FILTERS 의 일봉 조건용
+        # 전일 거래량은 오늘과 같은 소스(분봉 합)로 잰다. 전일 분봉이 마감까지 없으면 모른다(None)
+        self.prev_vol = sum(r["v"] for r in s1p) if s1p and s1p[-1]["t"].strftime("%H%M") >= "1519" else None
         all3 = to3(s1p + s1)
         self.b3 = [b for b in all3 if b["k"][0] == s1[0]["t"].date()]
         off = len(s1p)
@@ -223,7 +226,7 @@ def _window(b, a, z):
     return a <= b["t"].strftime("%H%M") <= z
 
 
-def m_open(day):
+def m_open(day, gate=None):
     """6-2 시초가 매매 — 초보는 9:20 이후. '밀린 뒤 시가 회복' + 고저 1/2 중심선 위 + 음봉을 이겨내는 양봉.
     시가 돌파 직전 이미 +10% 넘게 시세가 났으면 버린다('힘쓰면 조정')."""
     b3, o = day.b3, day.open
@@ -242,13 +245,17 @@ def m_open(day):
         if day.idx_ok(b["k"][1]) is False:
             blocked.append(f"{_hm(b['t'])} 신호였지만 지수 3분봉 20선 아래 — 안 삼")
             continue
+        why = gate and gate(day, n, b["c"], lo)
+        if why:
+            blocked.append(f"{_hm(b['t'])} 신호였지만 {why}")
+            continue
         stop = max(lo, b["c"] * 0.97)
         return n, b["c"], stop, b["c"] * 1.02, (f"{_hm(b['t'])}봉: 시가 {o:,.0f} 아래로 밀렸다가 회복, 고저 중심 {(hi + lo) / 2:,.0f} 위, "
                                                 f"직전 음봉 고가 {p['h']:,.0f} 돌파"), blocked
     return None, None, None, None, None, blocked
 
 
-def m_pick(day):
+def m_pick(day, gate=None):
     """6-3 장중 종목 선정 — 첫 봉 따라가지 않기 → 이평선(3분봉 20선)을 지키는 음봉 기다리기 → 음봉 회복 양봉에 매수.
     오늘 강한 종목이어야 하므로 전일 종가 위에서만. 손절가 = 음봉 저점."""
     b3, blocked = day.b3, []
@@ -261,13 +268,17 @@ def m_pick(day):
         if day.idx_ok(b["k"][1]) is False:
             blocked.append(f"{_hm(b['t'])} 신호였지만 지수 3분봉 20선 아래 — 안 삼")
             continue
+        why = gate and gate(day, n, b["c"], p["l"])
+        if why:
+            blocked.append(f"{_hm(b['t'])} 신호였지만 {why}")
+            continue
         stop = max(p["l"], b["c"] * 0.97)
         return n, b["c"], stop, b["c"] * 1.02, (f"{_hm(p['t'])} 음봉이 20선({p['ma']:,.0f}) 위에서 멈추고, {_hm(b['t'])} 양봉이 "
                                                 f"음봉 고가 {p['h']:,.0f} 회복"), blocked
     return None, None, None, None, None, blocked
 
 
-def m_scalp(day):
+def m_scalp(day, gate=None):
     """6-4 초단타 — 전일 고가(자석) 돌파 → 그 위에서 음봉 조정(안착) → 음봉 회복 양봉에 매수.
     '양봉에 사지 않는다, 음봉을 기다린다' · 매수 가용구간(전일 고가 +3% 안). 활발 시간대 09:30~10:30, 13:30~15:00."""
     b3, lv, blocked = day.b3, day.prev_hi, []
@@ -288,6 +299,10 @@ def m_scalp(day):
         if day.idx_ok(b["k"][1]) is False:
             blocked.append(f"{_hm(b['t'])} 신호였지만 지수 3분봉 20선 아래 — 안 삼")
             continue
+        why = gate and gate(day, n, b["c"], min(p["l"], lv * 0.995))
+        if why:
+            blocked.append(f"{_hm(b['t'])} 신호였지만 {why}")
+            continue
         stop = max(min(p["l"], lv * 0.995), b["c"] * 0.97)
         return n, b["c"], stop, b["c"] * 1.015, (f"{_hm(b3[broke]['t'])} 전일 고가 {lv:,.0f} 돌파 → {_hm(p['t'])} 음봉이 그 위에서 버팀(안착) → "
                                                  f"{_hm(b['t'])} 양봉 회복"), blocked
@@ -296,7 +311,7 @@ def m_scalp(day):
     return None, None, None, None, None, blocked
 
 
-def m_after(day):
+def m_after(day, gate=None):
     """6-7 오후 단타 — 지수가 오후에 더 밀리지 않고(오전 저점 위), 종목은 오전 상승 뒤 많이 빠지지 않고(오전 고저 중심 위)
     13:00~14:30 에 오전 고점을 돌파하면 매수. 목표 5%(5~7% 분할)."""
     b3, blocked = day.b3, []
@@ -322,6 +337,10 @@ def m_after(day):
             blocked.append(f"{_hm(b['t'])} 오전 고점 돌파였지만 지수 3분봉 20선 아래 — 안 삼")
             continue
         low = min(x["l"] for x in mid) if mid else b["l"]
+        why = gate and gate(day, n, b["c"], low)
+        if why:
+            blocked.append(f"{_hm(b['t'])} 신호였지만 {why}")
+            continue
         stop = max(low, b["c"] * 0.97)
         return n, b["c"], stop, b["c"] * 1.05, f"{_hm(b['t'])}봉이 오전 고점 {H:,.0f} 돌파(점심 저점 {low:,.0f} 이 오전 고저 중심 위)", blocked
     blocked.append(f"13:00~14:30 에 오전 고점 {H:,.0f} 을 넘지 못함")
@@ -334,6 +353,74 @@ METHODS = [
     ("초단타·스캘핑", "6-4", m_scalp, "9:30~10:30·13:30~15:00 · 전일 고가 돌파 → 안착 음봉 → 회복 양봉", "음봉 저점·전일 고가 -0.5%(최대 -3%)", "+1.5% 절반"),
     ("오후 단타", "6-7", m_after, "13:00~14:30 · 오전 고점 돌파 · 지수 오후 저점 유지", "점심 저점(최대 -3%)", "+5% 절반"),
 ]
+
+
+# ── 교재 필터 — 타점(METHODS)이 떠도 교재가 '사지 말라'는 자리를 거른다 ──────────────
+# 화면의 단타 복기는 필터 없이(타점만) 보여 주고, BACKTEST·SIMULATION 이 골라 켠다.
+# 기준값은 교재 숫자 그대로다(데이터에 맞춰 바꾸지 않는다) — rulebook/교재기준표.md §16·§3·§1.
+
+def f_rise(day, n, entry, raw_stop):
+    r = (entry / day.prev_close - 1) * 100
+    if not 2 <= r <= 6:
+        return f"매수 시점 상승률 {r:+.1f}% — 주도주 자리는 2~6% (5-4)"
+
+
+def f_t930(day, n, entry, raw_stop):
+    if day.b3[n]["t"].strftime("%H%M") < "0927":          # 09:27 봉이 마감되는 09:30 부터 산다
+        return "09:30 이전 매수 금지 (5-4·6-7b·6-8)"
+
+
+def f_vol(day, n, entry, raw_stop):
+    if not day.prev_vol:
+        return None                                        # 전일 분봉이 없으면 판단하지 않는다
+    v = sum(r["v"] for r in day.m1[:day.b3[n]["j"] + 1])
+    if v < day.prev_vol * 0.3:
+        return f"거래량 부족 — 누적 {v / day.prev_vol * 100:.0f}% (전일의 30% 미만, 6-4 #114·6-8 #78)"
+
+
+def f_daily(day, n, entry, raw_stop):
+    d = day.prev_days
+    if len(d) < 20:
+        return None
+    p = d[-1]
+    if entry <= max(p["o"], p["c"]):
+        return "전날 캔들 몸통을 못 이김 (6-8 #16~18)"
+    ma5 = sum(x["c"] for x in d[-5:]) / 5
+    ma20 = sum(x["c"] for x in d[-20:]) / 20
+    if not (ma5 > ma20 and p["c"] > ma20):
+        return "일봉 5·20선 정배열 아님 (6-8 매수 직전)"
+    if entry / ma20 > 1.10:
+        return f"20일선 이격도 {entry / ma20 * 100:.0f} — 110 초과 (6-5)"
+
+
+def f_stop(day, n, entry, raw_stop):
+    if raw_stop < entry * 0.97:
+        return f"구조 손절이 {(raw_stop / entry - 1) * 100:.1f}% — 너무 멀면 매수 자체가 틀림 (6-7b #65·6-8 #32)"
+
+
+FILTERS = [   # (키, 교재, 설명, 함수) — 하루 3종목(max3, 6-4 #7·6-8 #47)은 계좌 단위라 BACKTEST·SIMULATION 이 직접 센다
+    ("rise", "5-4", "매수 시점 상승률 2~6%", f_rise),
+    ("t930", "5-4·6-7b·6-8", "09:30 이전 매수 금지", f_t930),
+    ("vol", "6-4·6-7b·6-8", "누적 거래량 ≥ 전일의 30%", f_vol),
+    ("daily", "6-8·6-5", "전날 캔들 이김 · 일봉 5>20선 · 이격도 110 이하", f_daily),
+    ("stop", "6-7b·6-8", "구조 손절 3% 이내", f_stop),
+]
+FILTER_KEYS = [k for k, *_ in FILTERS] + ["max3"]
+DAY_MAX = 3
+
+
+def gate_for(keys):
+    """켜진 필터로 gate(day, n, entry, raw_stop) -> 막힌 이유 | None 을 만든다. 켠 게 없으면 None(=타점만)."""
+    fs = [fn for k, _, _, fn in FILTERS if k in (keys or ())]
+    if not fs:
+        return None
+
+    def gate(day, n, entry, raw_stop):
+        for fn in fs:
+            why = fn(day, n, entry, raw_stop)
+            if why:
+                return why
+    return gate
 
 
 def opening_check(day):

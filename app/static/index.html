@@ -314,6 +314,7 @@ body.static #runBtn{display:none}
     <button data-p="top5"    aria-selected="false">섹터별 대장주 TOP5</button>
     <button data-p="assign"  aria-selected="false">종목배정</button>
     <button data-p="raw"     aria-selected="false">RAW</button>
+    <button data-p="trade"   aria-selected="false">모의투자·백테스트</button>
     <a href="chapters.html#c10" class="tablink">교재 장별 분석 ↗</a>
   </nav>
   <div class="right">
@@ -475,6 +476,27 @@ body.static #runBtn{display:none}
     </div>
   </section>
 
+  <!-- ── 모의투자 · 백테스트 ───────────── -->
+  <section class="panel" id="p-trade">
+    <div class="card">
+      <div class="sheethead">모의투자 <span class="sub" id="simSub"></span></div>
+      <div class="idx" id="simKpi"></div>
+      <div id="simChart" style="padding:6px 14px 2px"></div>
+      <div class="scroll"><table id="simPos"></table></div>
+      <div class="small muted" id="simSkip" style="padding:8px 14px"></div>
+    </div>
+    <div class="card">
+      <div class="sheethead">백테스트 <span class="sub" id="btSub"></span></div>
+      <div class="idx" id="btKpi"></div>
+      <div class="small muted" id="btFilt" style="padding:4px 14px 8px"></div>
+      <div class="scroll"><table id="btCmp"></table></div>
+      <div class="scroll"><table id="btTable"></table></div>
+      <div class="scroll"><table id="btWhy"></table></div>
+      <div class="scroll"><table id="btTrades"></table></div>
+      <div class="small muted" id="btNote" style="padding:8px 14px"></div>
+    </div>
+  </section>
+
   <!-- ── RAW ───────────────────────────── -->
   <section class="panel" id="p-raw">
     <div class="card">
@@ -500,6 +522,7 @@ $("#tabs").addEventListener("click",(e)=>{
   if(b.dataset.p==="heatmap") loadHeatmap();
   if(b.dataset.p==="top5")    renderDict();
   if(b.dataset.p==="assign")  renderAssign();
+  if(b.dataset.p==="trade")   loadTrade();
 });
 
 function rsiChip(v){
@@ -1152,6 +1175,70 @@ function hmLevel(v){
   if(v>=1000)  return ["lv5",fmt(v)];
   return ["lv6",fmt(v)];
 }
+/* ── 모의투자 · 백테스트 ── */
+const won=(v)=>v===null||v===undefined?"—":Math.round(v).toLocaleString("ko-KR");
+const sgn=(v,k=2)=>v===null||v===undefined?'<span class="flat">—</span>':`<span class="${v>0?"up":v<0?"down":"flat"}">${v>0?"+":""}${fmt(v,k)}%</span>`;
+const sgnW=(v)=>`<span class="${v>0?"up":v<0?"down":"flat"}">${v>0?"+":""}${won(v)}</span>`;
+function kpi(items){
+  return items.map(([k,v])=>`<div class="c"><div class="muted small">${k}</div><div class="num" style="font-size:17px;font-weight:600">${v}</div></div>`).join("");
+}
+function lineChart(pts,base){          // pts = [[라벨, 값]]
+  if(pts.length<2) return '<div class="muted small" style="padding:10px 0">자산 곡선은 장중에 5분마다 한 점씩 쌓입니다.</div>';
+  const W=900,H=150,P=6,ys=pts.map(p=>p[1]),lo=Math.min(...ys,base),hi=Math.max(...ys,base),sp=(hi-lo)||1;
+  const X=i=>P+i*(W-2*P)/(pts.length-1),Y=v=>H-P-(v-lo)/sp*(H-2*P);
+  const d=pts.map((p,i)=>(i?"L":"M")+X(i).toFixed(1)+","+Y(p[1]).toFixed(1)).join("");
+  const up=ys[ys.length-1]>=base;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:150px"><line x1="${P}" x2="${W-P}" y1="${Y(base)}" y2="${Y(base)}" stroke="var(--line)" stroke-dasharray="4 4"/>
+    <path d="${d}" fill="none" stroke="var(${up?"--up":"--down"})" stroke-width="1.8"/></svg>
+    <div class="small muted num" style="display:flex;justify-content:space-between"><span>${pts[0][0]}</span><span>최고 ${won(hi)} · 최저 ${won(lo)}</span><span>${pts[pts.length-1][0]}</span></div>`;
+}
+async function loadTrade(){
+  const get=async(f)=>{ try{ const r=await fetch(f+"?t="+Date.now()); return r.ok?await r.json():null; }catch(e){ return null; } };
+  const [S,B]=await Promise.all([get("data/sim.json"),get("data/backtest.json")]);
+  /* 모의투자 */
+  if(!S){ $("#simKpi").innerHTML='<div class="notice">아직 모의투자 기록이 없습니다. 장중에 시작됩니다.</div>'; }
+  else{
+    $("#simSub").textContent=`시작 ${S.시작} · 갱신 ${S.갱신||"—"}`;
+    const st=S.통계;
+    $("#simKpi").innerHTML=kpi([["자산",won(S.자산)+"원"],["수익률",sgn(S.수익률)],["현금",won(S.현금)+"원"],
+      ["보유",S.보유+"종목"],["청산 거래",st.청산+"건"],["승률",st.승률===null?"—":fmt(st.승률,0)+"%"],
+      ["평균",sgn(st.평균)],["이익 / 손실",`${sgn(st.평균이익)} / ${sgn(st.평균손실)}`]]);
+    const lastDay=S.곡선.length?S.곡선[S.곡선.length-1][0].slice(0,8):"";
+    const cur=S.곡선.filter(x=>x[0].slice(0,8)===lastDay);
+    $("#simChart").innerHTML=lineChart((cur.length>1?cur:S.곡선).map(x=>[x[0].slice(4,6)+"/"+x[0].slice(6,8)+" "+x[0].slice(9),x[1]]),S.초기자금);
+    const rows=[...S.포지션].reverse();
+    $("#simPos").innerHTML=`<thead><tr><th class="l">날짜</th><th class="l">종목</th><th class="l">매매법</th><th>진입</th><th>진입가</th><th>손절</th><th>목표</th><th>금액</th><th>실현</th><th>평가</th><th class="l">상태 · 체결</th></tr></thead><tbody>${
+      rows.length?rows.map(p=>`<tr><td class="l">${p.날짜.slice(4,6)}/${p.날짜.slice(6)}</td><td class="l"><b>${esc(p.이름)}</b></td><td class="l">${esc(p.매매법)}</td>
+        <td class="num">${p.진입시각}</td><td class="num">${won(p.진입가)}</td><td class="num">${won(p.손절가)}</td><td class="num">${won(p.목표가)}</td><td class="num">${won(p.금액)}</td>
+        <td class="num">${sgnW(p.실현)}</td><td class="num">${p.상태==="보유"?sgnW(p.평가):"—"}</td>
+        <td class="l small">${p.상태==="보유"?`<b>보유 ${fmt(p.남은비중*100,0)}%</b> (현재 ${won(p.현재가)}) `:""}${p.체결.map(f=>`${f.시각} ${won(f.가격)}×${f.비중} ${esc(f.사유)}`).join("<br>")}</td></tr>`).join("")
+      :'<tr><td colspan="11" class="notice">아직 체결이 없습니다. 신호가 뜨면 여기에 쌓입니다.</td></tr>'}</tbody>`;
+    $("#simSkip").innerHTML=`후보 ${S.후보수}종목 감시 · 종목당 ${S.설정["종목당 비중"]*100}% · 동시 ${S.설정["동시 보유"]}종목 · 비용 ${S.설정["비용(%)"]}%`
+      +`<br>교재 필터: ${(S.설정.필터||[]).length?S.설정.필터.map(esc).join(" · "):"없음(타점만)"}`
+      +(S.건너뜀.length?`<br>건너뜀: ${S.건너뜀.slice(-5).map(esc).join(" / ")}`:"");
+  }
+  /* 백테스트 */
+  if(!B){ $("#btKpi").innerHTML='<div class="notice">백테스트 결과가 아직 없습니다.</div>'; return; }
+  $("#btSub").textContent=`${B.기간[0]} ~ ${B.기간[1]} (${B.일수}거래일) · 생성 ${B.생성}`;
+  const A=B.계좌;
+  $("#btKpi").innerHTML=kpi([["최종 자산",won(A["최종 자산"])+"원"],["수익률",sgn(A["수익률(%)"])],["최대 낙폭",sgn(A["최대 낙폭(%)"])],["체결",A.체결+"건"],["건너뜀",A.건너뜀+"건"]]);
+  const F=B.조건.필터;
+  $("#btFilt").innerHTML=`<b>적용한 교재 필터</b>: ${F&&F.length?F.map(esc).join(" · "):"없음(타점만)"}`;
+  const C=B.필터비교||[];
+  $("#btCmp").innerHTML=C.length?`<thead><tr><th class="l">필터 비교 (같은 기간·같은 종목)</th><th>거래</th><th>승률</th><th>평균</th><th>PF</th><th>계좌 수익률</th><th>최대 낙폭</th></tr></thead><tbody>${
+    C.map(c=>{const cur=JSON.stringify(c.필터)===JSON.stringify(B.계좌.필터);return `<tr${cur?' style="background:var(--hl,#fff6d6)"':""}><td class="l">${cur?"<b>":""}${esc(c.설정)}${cur?" ← 적용 중</b>":""}</td><td class="num">${c.거래}</td>
+      <td class="num">${c["승률(%)"]??"—"}${c.거래?"%":""}</td><td class="num">${sgn(c["평균(%)"])}</td><td class="num">${c.PF??"—"}</td><td class="num">${sgn(c["계좌 수익률(%)"])}</td><td class="num">${sgn(c["최대 낙폭(%)"])}</td></tr>`;}).join("")}</tbody>`:"";
+  $("#btTable").innerHTML=`<thead><tr><th class="l">매매법</th><th>거래</th><th>승률</th><th>평균</th><th>평균 이익</th><th>평균 손실</th><th>손익비</th><th>PF</th><th>합계</th></tr></thead><tbody>${
+    Object.entries(B.매매법별).map(([k,s])=>`<tr><td class="l"><b>${esc(k)}</b></td><td class="num">${s.거래}</td><td class="num">${s["승률(%)"]??"—"}%</td><td class="num">${sgn(s["평균(%)"])}</td>
+      <td class="num">${sgn(s["평균 이익(%)"])}</td><td class="num">${sgn(s["평균 손실(%)"])}</td><td class="num">${s.손익비??"—"}</td><td class="num">${s.PF??"—"}</td><td class="num">${sgn(s["합계(%)"],1)}</td></tr>`).join("")}</tbody>`;
+  $("#btWhy").innerHTML=`<thead><tr><th class="l">청산 사유</th><th>건수</th></tr></thead><tbody>${
+    Object.entries(B.청산사유).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td class="l">${esc(k)}</td><td class="num">${v}</td></tr>`).join("")}</tbody>`;
+  $("#btTrades").innerHTML=`<thead><tr><th class="l">날짜</th><th class="l">종목</th><th class="l">매매법</th><th>진입</th><th>진입가</th><th>청산</th><th>순수익</th><th class="l">청산 사유</th></tr></thead><tbody>${
+    [...B.거래].reverse().slice(0,60).map(t=>`<tr><td class="l">${t.날짜.slice(5)}</td><td class="l">${esc(t.이름)}</td><td class="l">${esc(t.매매법)}</td><td class="num">${t.진입}</td><td class="num">${won(t.진입가)}</td><td class="num">${t.청산}</td><td class="num">${sgn(t["순수익(%)"])}</td><td class="l small">${esc(t.사유)}</td></tr>`).join("")}</tbody>`;
+  $("#btNote").innerHTML=`비용 0.2% + 슬리피지 ${B.조건["슬리피지(%)"]}% 차감 · 종목당 ${B.조건["종목당 비중"]*100}% · 동시 ${B.조건["동시 보유"]}종목 · 최근 거래 60건만 표시.<br><b>주의</b>: 특징주는 그날 이미 오른 종목을 마감 뒤에 고른 것이라 결과가 낙관적입니다(생존 편향). 분봉 이력이 1~2주뿐이라 표본이 적습니다.`;
+}
+setInterval(()=>{ if($("#p-trade").classList.contains("on")) loadTrade(); },60000);
+
 async function loadHeatmap(){
   const h=await getJSON("/api/heatmap","data/heatmap.json");
   if(!h.날짜?.length){ $("#hm").innerHTML=`<tbody><tr><td class="notice">아직 쌓인 날짜가 없습니다. 며칠 돌리면 채워집니다.</td></tr></tbody>`; return; }

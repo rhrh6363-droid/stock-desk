@@ -488,6 +488,8 @@ body.static #runBtn{display:none}
     <div class="card">
       <div class="sheethead">백테스트 <span class="sub" id="btSub"></span></div>
       <div class="idx" id="btKpi"></div>
+      <div class="small muted" id="btFilt" style="padding:4px 14px 8px"></div>
+      <div class="scroll"><table id="btCmp"></table></div>
       <div class="scroll"><table id="btTable"></table></div>
       <div class="scroll"><table id="btWhy"></table></div>
       <div class="scroll"><table id="btTrades"></table></div>
@@ -1212,6 +1214,7 @@ async function loadTrade(){
         <td class="l small">${p.상태==="보유"?`<b>보유 ${fmt(p.남은비중*100,0)}%</b> (현재 ${won(p.현재가)}) `:""}${p.체결.map(f=>`${f.시각} ${won(f.가격)}×${f.비중} ${esc(f.사유)}`).join("<br>")}</td></tr>`).join("")
       :'<tr><td colspan="11" class="notice">아직 체결이 없습니다. 신호가 뜨면 여기에 쌓입니다.</td></tr>'}</tbody>`;
     $("#simSkip").innerHTML=`후보 ${S.후보수}종목 감시 · 종목당 ${S.설정["종목당 비중"]*100}% · 동시 ${S.설정["동시 보유"]}종목 · 비용 ${S.설정["비용(%)"]}%`
+      +`<br>교재 필터: ${(S.설정.필터||[]).length?S.설정.필터.map(esc).join(" · "):"없음(타점만)"}`
       +(S.건너뜀.length?`<br>건너뜀: ${S.건너뜀.slice(-5).map(esc).join(" / ")}`:"");
   }
   /* 백테스트 */
@@ -1219,6 +1222,12 @@ async function loadTrade(){
   $("#btSub").textContent=`${B.기간[0]} ~ ${B.기간[1]} (${B.일수}거래일) · 생성 ${B.생성}`;
   const A=B.계좌;
   $("#btKpi").innerHTML=kpi([["최종 자산",won(A["최종 자산"])+"원"],["수익률",sgn(A["수익률(%)"])],["최대 낙폭",sgn(A["최대 낙폭(%)"])],["체결",A.체결+"건"],["건너뜀",A.건너뜀+"건"]]);
+  const F=B.조건.필터;
+  $("#btFilt").innerHTML=`<b>적용한 교재 필터</b>: ${F&&F.length?F.map(esc).join(" · "):"없음(타점만)"}`;
+  const C=B.필터비교||[];
+  $("#btCmp").innerHTML=C.length?`<thead><tr><th class="l">필터 비교 (같은 기간·같은 종목)</th><th>거래</th><th>승률</th><th>평균</th><th>PF</th><th>계좌 수익률</th><th>최대 낙폭</th></tr></thead><tbody>${
+    C.map(c=>{const cur=JSON.stringify(c.필터)===JSON.stringify(B.계좌.필터);return `<tr${cur?' style="background:var(--hl,#fff6d6)"':""}><td class="l">${cur?"<b>":""}${esc(c.설정)}${cur?" ← 적용 중</b>":""}</td><td class="num">${c.거래}</td>
+      <td class="num">${c["승률(%)"]??"—"}${c.거래?"%":""}</td><td class="num">${sgn(c["평균(%)"])}</td><td class="num">${c.PF??"—"}</td><td class="num">${sgn(c["계좌 수익률(%)"])}</td><td class="num">${sgn(c["최대 낙폭(%)"])}</td></tr>`;}).join("")}</tbody>`:"";
   $("#btTable").innerHTML=`<thead><tr><th class="l">매매법</th><th>거래</th><th>승률</th><th>평균</th><th>평균 이익</th><th>평균 손실</th><th>손익비</th><th>PF</th><th>합계</th></tr></thead><tbody>${
     Object.entries(B.매매법별).map(([k,s])=>`<tr><td class="l"><b>${esc(k)}</b></td><td class="num">${s.거래}</td><td class="num">${s["승률(%)"]??"—"}%</td><td class="num">${sgn(s["평균(%)"])}</td>
       <td class="num">${sgn(s["평균 이익(%)"])}</td><td class="num">${sgn(s["평균 손실(%)"])}</td><td class="num">${s.손익비??"—"}</td><td class="num">${s.PF??"—"}</td><td class="num">${sgn(s["합계(%)"],1)}</td></tr>`).join("")}</tbody>`;
