@@ -18,8 +18,9 @@
          한 매매법당 첫 신호 1회만 본다.
 """
 import json
+import time
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 COST = 0.2      # 왕복 수수료·세금(%)
@@ -51,6 +52,69 @@ def naver_min(sym, kind, day):
         out.append({"t": t, "o": r.get("openPrice") or c, "h": r.get("highPrice") or c,
                     "l": r.get("lowPrice") or c, "c": c, "v": r.get("accumulatedTradingVolume") or 0})
     return out
+
+
+_toss_cache = {}        # 코드 → {"t": 받은 시각, "봉": 오래된 순 1분봉, "다음": 다음 쪽 before}
+TOSS_최대_쪽수 = 12     # 한 번에 200개씩. 통합 분봉은 하루 최대 720개라 전일·오늘 두 날이면 8쪽 안팎이다
+
+
+def _toss_ts(v):
+    """토스 캔들 시각 → KST naive datetime. ISO 문자열(오프셋 유무 모두)과 epoch(초·밀리초)를 받는다."""
+    kst = timezone(timedelta(hours=9))
+    if isinstance(v, (int, float)):
+        return datetime.fromtimestamp(v / 1000 if v > 1e11 else v, kst).replace(tzinfo=None)
+    t = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    return t.astimezone(kst).replace(tzinfo=None) if t.tzinfo else t
+
+
+def _toss_load(code, day):
+    """day 의 첫 봉까지 거슬러 올라가며 받는다. 이미 받은 쪽은 60초 동안 다시 받지 않는다."""
+    import toss
+    hit = _toss_cache.get(code)
+    if not hit or time.time() - hit["t"] > 60:
+        rows, nxt = toss.candles_page(code, "1m", 200)
+        hit = _toss_cache[code] = {"t": time.time(), "봉": rows, "다음": nxt, "쪽": 1}
+    while hit["다음"] and hit["쪽"] < TOSS_최대_쪽수 and hit["봉"] and _toss_ts(hit["봉"][0]["시각"]).date() >= day:
+        rows, nxt = toss.candles_page(code, "1m", 200, hit["다음"])
+        if not rows:
+            break
+        seen = {r["시각"] for r in hit["봉"]}
+        hit["봉"] = [r for r in rows if r["시각"] not in seen] + hit["봉"]
+        hit["다음"], hit["쪽"] = nxt, hit["쪽"] + 1
+        time.sleep(0.06)            # 초당 20회 한도
+    return hit["봉"]
+
+
+def toss_min(code, day):
+    """토스 통합(KRX+NXT) 1분봉에서 하루치를 뽑아 naver_min 과 같은 모양으로 돌려준다.
+    키가 없거나 허용 IP 에 없어 막히면 빈 리스트 → 호출한 쪽이 네이버로 넘어간다."""
+    try:
+        import toss
+        if not toss.available():
+            return []
+        bars = _toss_load(code, day)
+    except Exception:
+        return []
+    out = []
+    for r in bars:
+        try:
+            # 토스 봉 시각은 그 1분이 끝나는 시각이다(09:01 봉이 첫 거래 구간). 네이버는 시작 시각이라 1분 당겨 맞춘다
+            t = _toss_ts(r["시각"]) - timedelta(minutes=1)
+        except (KeyError, ValueError, TypeError, OSError):
+            continue
+        if t.date() != day or not ("0900" <= t.strftime("%H%M") <= "1530"):
+            continue
+        out.append({"t": t, "o": r["시가"], "h": r["고가"], "l": r["저가"], "c": r["종가"], "v": r["거래량"]})
+    return out
+
+
+def minute(sym, kind, day):
+    """종목은 토스 통합 분봉 우선, 없으면 네이버(KRX 정규장). 지수는 토스에 심볼이 없어 네이버만."""
+    if kind == "item":
+        rows = toss_min(sym, day)
+        if rows:
+            return rows
+    return naver_min(sym, kind, day)
 
 
 def to3(m1):
@@ -310,7 +374,7 @@ def chase_open(day):
 def replay(code, idx_kind, d_rows):
     """d_rows = 네이버 일봉(마지막이 오늘). 오늘·전일 1분봉으로 4개 매매법을 대입한다."""
     today, prev = d_rows[-1]["t"].date(), d_rows[-2]["t"].date()
-    s1, s1p = naver_min(code, "item", today), naver_min(code, "item", prev)
+    s1, s1p = minute(code, "item", today), minute(code, "item", prev)
     i1, i1p = naver_min(idx_kind, "index", today), naver_min(idx_kind, "index", prev)
     if len(s1) < 30:
         return {"판정": "오늘 분봉 부족", "날짜": str(today)}

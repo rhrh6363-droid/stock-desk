@@ -48,6 +48,9 @@ MACRO = [
     ("USO", "WTI 원유", "원유 ETF"),
 ]
 
+TOKEN_FILE = os.path.join(os.path.expanduser("~"), ".stock-desk", "toss_token.json")
+# 토스는 새 토큰을 발급하면 이전 토큰을 즉시 무효로 만든다(401 token-revoked).
+# 5분마다 새 프로세스가 뜨므로 토큰을 파일에 두고 같이 쓴다. 안 그러면 동시에 도는 프로세스끼리 서로 끊는다.
 _token: tuple[str, float] | None = None     # (access_token, 만료시각)
 _blocked = False                            # 해외 IP 차단(403) 을 만나면 더 두드리지 않는다
 
@@ -76,6 +79,14 @@ def token() -> str | None:
         return None
     if _token and time.time() < _token[1] - 300:
         return _token[0]
+    try:
+        with open(TOKEN_FILE, encoding="utf-8") as fh:
+            saved = json.load(fh)
+        if saved.get("id") == os.environ.get("TOSS_CLIENT_ID") and time.time() < float(saved["exp"]) - 300:
+            _token = (saved["token"], float(saved["exp"]))
+            return _token[0]
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
 
     global _blocked
     if _blocked:
@@ -95,7 +106,8 @@ def token() -> str | None:
     except urllib.error.HTTPError as exc:
         if exc.code == 403:
             _blocked = True
-            print("  토스 403 — 해외 IP 차단. 분봉은 한국에서 돌릴 때만 붙습니다.")
+            why = _decode(exc.read())[:120]
+            print(f"  토스 403 - 허용 IP 에 없거나 해외 IP 다. 토스증권 설정 > Open API > 허용 IP 확인. ({why})")
         else:
             print(f"  토스 토큰 발급 실패: HTTP {exc.code}")
         return None
@@ -107,10 +119,35 @@ def token() -> str | None:
     if not tok:
         return None
     _token = (tok, time.time() + float(res.get("expires_in", 3600)))
+    try:
+        os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
+        with open(TOKEN_FILE, "w", encoding="utf-8") as fh:
+            json.dump({"id": os.environ.get("TOSS_CLIENT_ID"), "token": tok, "exp": _token[1]}, fh)
+    except OSError:
+        pass
     return tok
 
 
-def _get(path: str) -> dict | None:
+def _forget_token():
+    """무효가 된 토큰을 메모리와 파일에서 지운다."""
+    global _token
+    _token = None
+    try:
+        os.remove(TOKEN_FILE)
+    except OSError:
+        pass
+
+
+_last_call = 0.0
+MIN_GAP = 0.08          # 초당 20회 한도 → 호출 사이를 80ms 이상 둔다
+
+
+def _get(path: str, _retry: bool = True, _wait: int = 2) -> dict | None:
+    global _last_call
+    gap = time.time() - _last_call
+    if gap < MIN_GAP:
+        time.sleep(MIN_GAP - gap)
+    _last_call = time.time()
     tok = token()
     if not tok:
         return None
@@ -122,7 +159,13 @@ def _get(path: str) -> dict | None:
             return json.loads(_decode(r.read()))
     except urllib.error.HTTPError as e:
         detail = _decode(e.read())[:160]
-        print(f"  토스 {e.code} {path.split('?')[0]} — {detail}")
+        if e.code == 429 and _wait > 0:         # 한도 초과 - 잠깐 쉬고 다시 (최대 2번)
+            time.sleep(1.2)
+            return _get(path, _retry, _wait - 1)
+        if e.code == 401 and _retry:            # 다른 프로세스가 새 토큰을 발급해 내 토큰이 끊겼다 → 한 번만 새로 받아 재시도
+            _forget_token()
+            return _get(path, _retry=False)
+        print(f"  토스 {e.code} {path.split('?')[0]} - {detail}")
     except Exception as exc:
         print(f"  토스 호출 실패 {type(exc).__name__}: {exc}")
     return None
@@ -146,23 +189,37 @@ def prices(symbols: list[str]) -> dict[str, float]:
 
 
 def candles(symbol: str, interval: str = "1d", count: int = 30) -> list[dict]:
-    """일봉(1d) 또는 분봉(1m). 최신이 앞에 온다 → 오래된 순으로 뒤집어 돌려준다."""
-    res = _get(f"/api/v1/candles?symbol={symbol}&interval={interval}&count={count}")
-    rows = (res or {}).get("result", {}).get("candles", []) or []
+    """일봉(1d) 또는 분봉(1m). 한 번에 200개까지라 그보다 많으면 쪽을 이어 받는다. 오래된 순으로 돌려준다."""
+    out: list[dict] = []
+    before = None
+    while len(out) < count:
+        rows, before = candles_page(symbol, interval, min(200, count - len(out)), before)
+        if not rows:
+            break
+        seen = {r["시각"] for r in out}
+        out = [r for r in rows if r["시각"] not in seen] + out
+        if not before:
+            break
+    return out
+
+
+def candles_page(symbol: str, interval: str = "1m", count: int = 200, before: str | None = None):
+    """캔들 한 쪽. count 는 최대 200 이다. before 보다 같거나 이른 봉을 준다(nextBefore 를 그대로 넘기면 이어진다).
+    반환: (오래된 순 봉 목록, 다음 쪽 before 또는 None)"""
+    q = f"/api/v1/candles?symbol={symbol}&interval={interval}&count={min(count, 200)}"
+    if before:
+        q += "&before=" + before         # _get 이 '+' 를 알아서 %2B 로 바꾼다
+    res = _get(q)
+    result = (res or {}).get("result") or {}
     out = []
-    for c in rows:
+    for c in result.get("candles") or []:
         try:
-            out.append({
-                "시각": c["timestamp"],
-                "시가": float(c["openPrice"]),
-                "고가": float(c["highPrice"]),
-                "저가": float(c["lowPrice"]),
-                "종가": float(c["closePrice"]),
-                "거래량": float(c.get("volume") or 0),
-            })
+            out.append({"시각": c["timestamp"], "시가": float(c["openPrice"]), "고가": float(c["highPrice"]),
+                        "저가": float(c["lowPrice"]), "종가": float(c["closePrice"]),
+                        "거래량": float(c.get("volume") or 0)})
         except (KeyError, TypeError, ValueError):
             continue
-    return list(reversed(out))
+    return list(reversed(out)), result.get("nextBefore")
 
 
 def resample(minute_candles: list[dict], minutes: int) -> list[dict]:

@@ -255,7 +255,7 @@ def scan():
     out = []
     for c in [x for x in pool if x["단타후보"]][:스캔_최대후보]:
         try:
-            m1 = dr.naver_min(c["코드"], "item", today)
+            m1 = dr.minute(c["코드"], "item", today)
             d = [x for x in _days(c["코드"], today, 5) if x["t"].date() < today]
             if len(m1) < 10 or not d:
                 continue

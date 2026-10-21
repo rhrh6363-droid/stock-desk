@@ -31,6 +31,7 @@ powershell -ExecutionPolicy Bypass -File E:\Claude\stock-desk\scripts\bootstrap.
 |---|---|---|
 | 장중 5분 수집 | 각 PC 작업 스케줄러 `주식 장중수집` → `scripts/장중수집.bat` → `app/collect_live.py` | 평일 08:55~15:40 밖에서는 조용히 끝난다. `docs/data/live.json` 만 커밋·푸시 |
 | 일별 수집 | GitHub Actions `특징주 수집` (`.github/workflows/collect.yml`) | PC 가 꺼져 있어도 돈다. 크론이 밀려 하루 3번쯤 돈다 |
+| 오전 보강 집계 | 작업 스케줄러 `특징주 오전집계` (평일 09:20·10:30·11:40) → `scripts/일배치.bat` → `app/run_batch.py` | GitHub 크론이 오전에 안 돌아서 첫 실행이 13시라 만들었다. pipeline → build_static → `app/data`·`docs/data` 커밋(live.json 제외). 이 PC 만 등록돼 있다 — 두 PC 가 함께 돌리지 않는 전제 |
 | 로컬 일일집계 | 작업 스케줄러 `특징주 일일집계` → `run_daily.ps1` | 엑셀 누적 · 구글시트 전송. 클라우드가 대신하므로 필수는 아님 |
 | 화면 | `docs/` (GitHub Pages) | |
 
@@ -41,5 +42,14 @@ powershell -ExecutionPolicy Bypass -File E:\Claude\stock-desk\scripts\bootstrap.
 ## 가격 기준 규칙
 - **일봉은 토스 통합 시세(KRX+NXT)가 기준이다.** `textbook_flow.toss_overlay` 가 네이버·pykrx(KRX 만) 일봉을 덮어쓴다.
   예) 10/15 삼성전자 시가 KRX 216,500 vs 토스 225,000.
-- 장중 분봉(`day_replay.naver_min`)은 아직 네이버(KRX 정규장) 값이다 → 토스 통합 분봉으로 맞추는 작업이 남아 있다.
-  지수(코스피·코스닥)는 토스가 심볼을 안 줘서 네이버를 유지한다.
+- 장중 분봉: 종목은 토스 통합 1분봉(`day_replay.toss_min`)이 우선이고, 키가 없거나 막히면 네이버(KRX 정규장)로 떨어진다 (`day_replay.minute`).
+  지수(코스피·코스닥)는 토스가 심볼을 안 줘서 네이버를 유지한다. 순위·테마 목록도 네이버다.
+
+## 알려진 문제 (발생하면 그때 처리)
+- **토스 토큰 충돌**: 토스는 새 토큰을 발급하면 이전 토큰을 즉시 끊는다(401 `token-revoked`). 두 PC 가 같은 키로 동시에 돌면 서로 끊는다.
+  `toss.py` 가 토큰을 `~/.stock-desk/toss_token.json` 에 공유하고 401 이면 한 번 재발급해 재시도하지만, 두 PC 가 번갈아 돌면 호출이 늘어난다.
+  → 토스 장중 수집은 한 PC 에서만 돌리거나, PC 마다 키를 따로 발급한다.
+- **토스 허용 IP**: 토스증권 설정 > Open API > 허용 IP 에 등록된 공인 IP 에서만 붙는다(미등록 403 `IP address not allowed`). 공인 IP 가 바뀌면 다시 등록한다.
+  막히면 장중 분봉은 네이버로 자동으로 떨어진다. 이 PC 는 2026-10-21 에 58.226.27.226 을 등록했다.
+- **pc-sync 의 secrets.env 가 비어 있다**: 다른 PC 에서 토스를 쓰려면 키가 있는 PC 에서 `scripts\export-secrets.ps1` 을 먼저 돌린다.
+- **토스 분봉 규격**: 한 번에 최대 200개, 초당 20회, 봉 시각은 끝나는 시각이다(네이버는 시작 시각 → `toss_min` 이 1분 당긴다). 거래량은 NXT 포함이라 네이버의 1.4~1.7배.

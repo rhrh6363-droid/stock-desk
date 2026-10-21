@@ -112,8 +112,10 @@ if ($synced) {
 if (-not $NoTasks) {
     Step "작업 스케줄러"
     $name = "주식 장중수집"
-    if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) {
-        Ok "'$name' 이미 등록됨 (건드리지 않음)"
+    # 예전 이름('장중수집')으로 이미 등록된 PC 에 또 등록하면 5분마다 두 번 돌아 커밋이 충돌한다
+    $have = @($name, "장중수집") | Where-Object { Get-ScheduledTask -TaskName $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+    if ($have) {
+        Ok "'$have' 이미 등록됨 (건드리지 않음)"
     } else {
         $bat = Join-Path $Root "scripts\장중수집.bat"
         $action  = New-ScheduledTaskAction -Execute $bat -WorkingDirectory $Root
