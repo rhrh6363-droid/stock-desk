@@ -25,6 +25,13 @@
 | `모의투자 SIMULATION` | `stock\simulation\run_tick.vbs` |
 | `백테스트 분봉저장 BACKTEST` | `stock\backtest\run_fetch.vbs` |
 
+## 자동 커밋·푸시 (Claude 훅)
+`.claude\settings.json` 의 **Stop 훅**(응답이 끝날 때마다, 백그라운드)과 **SessionEnd 훅**(세션을 닫을 때)이
+`stock\stock-desk\scripts\auto-commit.ps1` 을 돌린다 → `stock\*`·`youtube\*` 저장소에서 바뀐 것(코드·.md 전부)을 커밋하고 pull --rebase 뒤 push.
+- 빼는 것: stock-desk 의 `app/data`·`docs/data`(수집기가 직접 커밋), `*.err`·`*.log`·`*.tmp`, 키로 보이는 파일·내용(걸리면 그 저장소는 커밋 안 함).
+- 기록: `%USERPROFILE%\.stock-desk\auto-commit.log`. 충돌이면 커밋은 로컬에 남고 다음 응답 때 다시 올린다.
+- 그래서 응답이 끝난 뒤 IDE 를 꺼도 된다. 의미 있는 단위로 남기고 싶은 작업은 지금처럼 직접 메시지를 써서 커밋해도 된다.
+
 ## 세션을 열면
 `.claude\settings.json` 의 SessionStart 훅이 `stock\stock-desk\scripts\session-check.ps1` 을 돌린다(코드 pull · 구조 점검 · PC 점검).
 **`[구조 변경 필요]` 가 나오면 다른 작업보다 먼저** 안내된 `workspace.ps1` 을 실행한다. git 폴더 이동은 Claude 샌드박스가 막으므로 사용자에게 `! powershell -NoProfile -ExecutionPolicy Bypass -File <경로>\workspace.ps1` 로 실행해 달라고 한다.

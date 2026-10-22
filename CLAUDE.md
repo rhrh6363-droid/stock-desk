@@ -33,6 +33,10 @@ powershell -ExecutionPolicy Bypass -File <루트>\stock\stock-desk\scripts\boots
 - 필요한 것: `gh auth login` 이 되어 있을 것 (비공개 저장소 `pc-sync`·`backtest`·`simulation` 을 받는다)
 - 하는 일: 구조 맞추기 · 패키지 설치 · 키/구글시트 설정 배치 · Claude 스킬/훅/메모리를 pc-sync 로 정션 연결(이후 세션 시작 때 자동 pull, 응답 끝에 자동 push — `pc-sync\claude\hooks\claude-sync.ps1`) · 작업 스케줄러 `주식 장중수집` 등록
 
+## 자동 커밋·푸시
+루트 `.claude\settings.json` 의 Stop·SessionEnd 훅이 `scripts\auto-commit.ps1` 로 `stock\*`·`youtube\*` 저장소의 변경을 자동 커밋·푸시한다
+(`app/data`·`docs/data`·`*.log`·키로 보이는 것은 제외, 기록 `~/.stock-desk/auto-commit.log`). 훅 정의는 `workspace.ps1` 한 곳 — 다른 PC 는 `session-check.ps1` 이 빠진 훅을 다시 쓴다.
+
 ## 비밀은 어디에
 - **이 저장소는 공개다. 키·config.json·서비스 계정 JSON 을 절대 커밋하지 않는다.**
 - 키는 `~/.stock-desk/secrets.env` 한 곳. 코드가 읽는다 (`app/stock_env.py`, `run_daily.ps1`, `시작.bat`).

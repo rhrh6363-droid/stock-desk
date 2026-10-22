@@ -3,7 +3,7 @@
 # ===========================================================
 #   <루트>\                      (이 PC: D:\github, 다른 PC: E:\Claude 등 — 루트 이름은 PC 마다 달라도 된다)
 #     CLAUDE.md                  ← 이 스크립트가 scripts\workspace\ROOT_CLAUDE.md 로 덮어쓴다
-#     .claude\settings.json      ← SessionStart 훅 (세션마다 session-check.ps1 → 구조 점검)
+#     .claude\settings.json      ← SessionStart 훅(session-check.ps1) · Stop/SessionEnd 훅(auto-commit.ps1 — 작업 저장소 자동 커밋·푸시)
 #     stock\   stock-desk · backtest · simulation
 #     youtube\ youtube · siyun
 #   주식·유튜브가 아닌 것(SAP 등)은 루트에 두지 않는다 → D:\work 같은 다른 폴더로.
@@ -14,11 +14,12 @@
 #       없는 저장소는 받고, 작업 스케줄러의 옛 경로를 새 경로로 바꾼다.
 #     ... -Check   옮기지 않고 문제만 출력한다 (session-check.ps1 · bootstrap.ps1 이 부른다). 문제 없으면 출력 없음
 #     ... -Root E:\Claude   루트를 직접 지정 (기본: 이 스크립트 위치로 추정)
+#     ... -Hooks   루트 CLAUDE.md · .claude\settings.json 훅만 다시 쓴다 (session-check.ps1 이 훅이 빠졌을 때 부른다)
 #
 #   이 스크립트는 git 저장소를 지우지 않는다. 같은 저장소의 중복 사본(옛 'trading')은 <루트>\_삭제예정 으로 옮긴다.
 # ===========================================================
 
-param([string]$Root, [switch]$Check)
+param([string]$Root, [switch]$Check, [switch]$Hooks)
 
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $PSScriptRoot                     # 지금 stock-desk 가 있는 곳
@@ -90,6 +91,7 @@ function Warn($t) { Write-Host "  [!]  $t" -ForegroundColor Yellow }
 Set-Location $Root                                               # 옮길 폴더 안에 있으면 이름을 못 바꾼다
 Write-Host "루트: $Root"
 
+if (-not $Hooks) {                                               # -Hooks 면 1)·2) 를 건너뛰고 훅만 쓴다
 # ── 1) 옮기기 / 받기
 Step "폴더"
 $moved = @{}                                                     # 옛 경로 → 새 경로 (작업 스케줄러 고칠 때 쓴다)
@@ -158,7 +160,9 @@ foreach ($task in Get-ScheduledTask | Where-Object { $_.TaskPath -eq "\" }) {
 }
 if ($fixed -eq 0) { Ok "고칠 작업 없음" }
 
-# ── 3) 루트 안내문 + SessionStart 훅
+}
+
+# ── 3) 루트 안내문 + 훅 (SessionStart 점검 · Stop/SessionEnd 자동 커밋)
 Step "루트 CLAUDE.md · 세션 점검 훅"
 $sd = Target $Layout[0]
 $tpl = Join-Path $sd "scripts\workspace\ROOT_CLAUDE.md"
@@ -166,22 +170,30 @@ if (Test-Path $tpl) { Copy-Item $tpl (Join-Path $Root "CLAUDE.md") -Force; Ok "C
 $cfgDir = Join-Path $Root ".claude"
 New-Item -ItemType Directory -Force $cfgDir | Out-Null
 $checkPs = Join-Path $sd "scripts\session-check.ps1"            # $check 는 -Check 스위치와 이름이 겹친다(대소문자 무시)
+$autoPs  = Join-Path $sd "scripts\auto-commit.ps1"
+function Hook($ps, $t, [switch]$Async) { "{ `"hooks`": [ { `"type`": `"command`", `"shell`": `"powershell`", `"timeout`": $t,$(if($Async){' "async": true,'})`n          `"command`": `"powershell -NoProfile -ExecutionPolicy Bypass -File \`"$($ps.Replace('\','\\'))\`"`" } ] }" }
 $hook = @"
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "shell": "powershell", "timeout": 30,
-          "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$($checkPs.Replace('\','\\'))\"" } ] }
+      $(Hook $checkPs 30)
+    ],
+    "Stop": [
+      $(Hook $autoPs 120 -Async)
+    ],
+    "SessionEnd": [
+      $(Hook $autoPs 60)
     ]
   }
 }
 "@
 $cfg = Join-Path $cfgDir "settings.json"
 if ((Test-Path $cfg) -and ((Get-Content $cfg -Raw) -notmatch 'session-check\.ps1')) {
-    Warn "$cfg 가 이미 있어 덮어쓰지 않았습니다. SessionStart 훅으로 $checkPs 를 직접 추가하세요."
+    Warn "$cfg 가 이미 있어 덮어쓰지 않았습니다. 훅(SessionStart → $checkPs, Stop·SessionEnd → $autoPs)을 직접 추가하세요."
 } else {
-    [IO.File]::WriteAllText($cfg, $hook, (New-Object Text.UTF8Encoding $false)); Ok ".claude\settings.json (SessionStart → session-check.ps1)"
+    [IO.File]::WriteAllText($cfg, $hook, (New-Object Text.UTF8Encoding $false)); Ok ".claude\settings.json (SessionStart → session-check · Stop·SessionEnd → auto-commit)"
 }
+if ($Hooks) { exit 0 }
 
 # ── 결과
 Step "점검"
