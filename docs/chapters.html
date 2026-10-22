@@ -1919,6 +1919,7 @@ function methodsPage(ch,s){
   return topCard(ch.n,S,doorSVG(ms))
    + (ch.n===6?themeBlock()+scanBlock()+replayBlock(s):"")
    + trigBlock(s,B)
+   + (ch.n===6&&typeof chk6==="function"?chk6(s,B):ch.n===7&&typeof chk7==="function"?chk7(s,B):"")
    + ch.intro()
    + card(`${esc(s.이름)} — 매매법 ${ms.length}개 판정`,"오늘 장세가 연 매매법이 먼저, 그다음 충족률 순. 손절·목표·예상 결과는 8장",ms.map(methodCard).join("")||`<p class="muted">해당 매매법이 없습니다.</p>`);
 }
