@@ -146,8 +146,9 @@ def apply(df: pd.DataFrame, dic: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]
     majors, minors, hows, unmapped = [], [], [], []
 
     kw_col = df["키워드"] if "키워드" in df.columns else [None] * len(df)
+    names = df["종목명"] if "종목명" in df.columns else []     # 특징주 0 종목이면 열도 없다
 
-    for name, kws in zip(df["종목명"], kw_col):
+    for name, kws in zip(names, kw_col):
         if isinstance(kws, str):
             kws = _multi(kws)
         hit = map_stock(name, kws or [], rules)

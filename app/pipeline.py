@@ -188,6 +188,11 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         d = (base - timedelta(days=back)).strftime("%Y%m%d")
         print(f"\n[1/5] 수집  {d}")
         df, adr = collector.fetch_date(d)
+        if back == 0 and not explicit and _breadth(adr) > 0 and not (adr.get("상승") or adr.get("하락")):
+            # 장 초반엔 KRX 스냅샷이 전 종목 '보합' 으로 온다 (10/22 09:20: 보합 2745, 상승·하락 0).
+            # 이걸로 만들면 특징주 0 종목이 되고 화면이 비어 버린다. 덮지 않고 다음 회차를 기다린다
+            print("  KRX 당일 자료가 아직 안 들어왔습니다(전 종목 보합) — latest.json 을 덮지 않습니다.")
+            return {"상태": "준비중", "거래일": d}
         if _breadth(adr) > 0:
             date = d
             break
@@ -197,7 +202,7 @@ def run(target_date: str | None = None, push_sheet: bool = True) -> dict:
         print(f"\n[중단] {len(tried)}일을 거슬러도 자료가 없습니다: {', '.join(tried)}")
         print("  latest.json 을 덮지 않습니다 — 화면에는 지난 거래일 자료가 그대로 남습니다.")
         return {"상태": "데이터없음", "거래일": date, "시도": tried}
-    if df is None:
+    if df is None or "종목명" not in df.columns:      # 특징주 0 종목이면 열 없는 빈 표가 온다
         df = pd.DataFrame(columns=["종목명", "거래대금(억)", "등락률(%)", "조건"])
 
     rows_pre = _clean(df.to_dict("records"))
