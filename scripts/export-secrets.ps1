@@ -76,7 +76,8 @@ if (Test-Path $sk) {
     Copy-Item $sk (Join-Path $Sync "claude\skills") -Recurse -Force
     Ok "스킬 trading-desk"
 }
-$key = (Split-Path $Root -Parent) -replace '[:\\/]', '-'
+$Up  = Split-Path $Root -Parent                                    # <루트>\stock (옛 구조면 <루트>)
+$key = $(if ((Split-Path -Leaf $Up) -eq "stock") { Split-Path $Up -Parent } else { $Up }) -replace '[:\\/]', '-'
 $mem = Join-Path $Claude "projects\$key\memory"
 if (Test-Path $mem) {
     New-Item -ItemType Directory -Force (Join-Path $Sync "claude\memory") | Out-Null

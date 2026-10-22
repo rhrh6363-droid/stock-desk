@@ -31,6 +31,20 @@ function Step($t) { Write-Host ""; Write-Host "== $t" -ForegroundColor Cyan }
 function Ok($t)   { Write-Host "  [OK] $t" -ForegroundColor Green }
 function Warn($t) { Write-Host "  [!]  $t" -ForegroundColor Yellow }
 
+# ── 0) 폴더 구조 — stock-desk 는 <루트>\stock\stock-desk 에 있어야 한다 (scripts\workspace.ps1, <루트>\CLAUDE.md)
+$Up = Split-Path -Parent $Root
+if ((Split-Path -Leaf $Up) -ne "stock") {
+    Write-Host ""
+    Write-Host "[구조 변경 필요] stock-desk 가 옛 위치($Root)에 있습니다. 먼저 이 폴더 밖에서 구조를 맞추세요:" -ForegroundColor Red
+    Write-Host "  cd $Up"
+    Write-Host "  powershell -NoProfile -ExecutionPolicy Bypass -File `"$PSScriptRoot\workspace.ps1`""
+    Write-Host "  그다음 <루트>\stock\stock-desk\scripts\bootstrap.ps1 을 다시 실행합니다."
+    exit 1
+}
+$WsRoot = Split-Path -Parent $Up                                   # 작업 루트 (D:\github, E:\Claude …)
+Step "폴더 구조"
+& (Join-Path $PSScriptRoot "workspace.ps1") -Root $WsRoot          # 없는 저장소 받기 · 루트 CLAUDE.md · 세션 점검 훅
+
 New-Item -ItemType Directory -Force $StockDir | Out-Null
 
 # ── 1) 파이썬
@@ -100,7 +114,7 @@ if ($synced) {
 
     $mem = Join-Path $Sync "claude\memory"
     if (Test-Path $mem) {
-        $key = (Split-Path $Root -Parent) -replace '[:\\/]', '-'      # E:\Claude → E--Claude
+        $key = $WsRoot -replace '[:\\/]', '-'                       # E:\Claude → E--Claude (Claude 는 루트에서 연다)
         $memDst = Join-Path $Claude "projects\$key\memory"
         New-Item -ItemType Directory -Force $memDst | Out-Null
         Copy-Item (Join-Path $mem "*") $memDst -Recurse -Force
