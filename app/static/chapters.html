@@ -278,7 +278,7 @@ async function loadB(name){
 const idxName=(s)=>String(s?.심볼||"").endsWith(".KQ")?"tb_idx_KQ11":"tb_idx_KS11";
 function needs(ch,s){
   const st=s?["tb_"+s.코드]:[];
-  return ({1:[...st,idxName(s)],2:[...st,idxName(s)],3:st,4:[...st,"tb_ext"],5:[...st,idxName(s),...(TF?.종목||[]).map(x=>"tb_"+x.코드)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
+  return ({1:[...st,idxName(s)],2:[...st,idxName(s)],3:st,4:[...st,"tb_ext",idxName(s)],5:[...st,idxName(s),...(TF?.종목||[]).map(x=>"tb_"+x.코드)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
     8:st,9:["tb_idx_KS11","tb_idx_KQ11","tb_ext"],10:[...st,idxName(s),"tb_ext"]})[ch.n]||[];
 }
 function sliceF(F,n){
@@ -1234,6 +1234,7 @@ function ch3(s,B){
   r.push(row5("시장 강도","3-6 #3·#4",`상승 ${fmt(b.상승)} / 하락 ${fmt(b.하락)}<br>ADR ${fmt(b.ADR,1)}`,"하락 종목이 2배 많은 날은 소극적으로",b.ADR<50?"b":b.ADR>120?"g":"n",`${esc(b.구간||"")} — 오른 종목 1개당 내린 종목 ${fmt(b.하락/(b.상승||1),1)}개.`,
     why(b.ADR<50?`하락 종목이 상승의 ${fmt(b.하락/(b.상승||1),0)}배 — 교재 기준선(2배)을 크게 넘습니다. 개별 종목의 수급이 좋아도 <b>시장 전체 돈이 빠지는 날</b>입니다.`:"시장 전체 강도는 정상 범위입니다.","3-6 #4")));
   parts.push(card(`${esc(s.이름)} — 주체별 순매수`,"",t)+card("읽는 법과 시사점","",table5(r)));
+  if(typeof chk3==="function") parts.push(chk3(s,B));
   parts.push(card("3장 도구 점검","",toolTable([
     ["3-1 수급 주체","외국인·기관·개인 1년 일별, 금액 환산, 누적, 주가와의 상관, 손바뀜","●","기관 세부(투신·연기금)는 ✕"],
     ["3-2 외국인 한도소진율","보유율 1년 추이","◐","한도소진율 자체는 ✕"],
@@ -1337,6 +1338,7 @@ function ch4(s,B){
   r.push(row5("VIX(주봉)","4-6",`${fmt(vx,2)} · ${esc(MK["VIX 구간(4-6, 주봉)"]||"")}`,"20 아래 탐욕, 26·27·28·30·40·50 올라갈 때마다 분할 매수. 주봉·월봉으로",vx>=30?"g":"n",`분할 매수 신호(30 이상)가 ${vx>=30?"나왔습니다":"아닙니다"}.`,
     why(vx<20?`미국 시장은 <b>탐욕</b> 구간입니다. 국내 지수가 폭락했는데 VIX가 낮다는 것은 <b>이번 하락이 국내만의 문제</b>라는 뜻입니다 — VIX로 국내 바닥을 잴 수 없는 상황입니다(시차·대상 차이).`:"공포가 커지는 구간 — 4-6은 이때 미리 만든 리스트로 '실행만' 하라고 합니다(#20).","4-6 #5·#13·#20")));
   parts.push(card("읽는 법과 시사점","보조지표는 '주가가 낮은(높은) 위치에 와 있구나'까지만 말한다 (4-7 #9)",table5(r)));
+  if(typeof chk4==="function") parts.push(chk4(s,B));
   parts.push(card("4장 도구 점검","",toolTable([
     ["4-1 RSI","14일 RSI 차트, 70·50·30, 과매도 뒤 통계, 'RSI 먼저 전저점 이탈'","●",""],
     ["4-2 MACD","12·26·9 차트","●","교재 기법(1분봉)은 ✕"],

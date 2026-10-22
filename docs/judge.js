@@ -687,3 +687,180 @@ plunge:{t:"과감한 하락 후 2~3일",ch:2,al:["과감한 하락"],src:"2-9 §
  fig:()=>FG({n:11,c:KS([80,78,79,70,58,46,40,44,50,48]),marks:[{i:5,p:36,t:"2~3일째",col:COK,below:true}]})},
 });
 if(typeof CHC!=="undefined"&&CHC[2]) CHC[2].ids.push("hs","ihs","flag","cup","triple","ride","fall3","failbo","prebuy","wave","stab20","cage","plunge");}
+
+/* 선 그래프 미니 — 값 배열 여러 개를 0~100으로 눌러 FG에 그린다. S:[{v,col,t,w,d}] · refs:[{y,t,col}] */
+function miniL(S,o={}){
+  if(typeof FG!=="function") return "";
+  const n=Math.max(...S.map(x=>x.v.length)), all=[...S.flatMap(x=>x.v.filter(v=>v!=null&&isFinite(v))),...(o.refs||[]).map(r=>r.y)];
+  if(!all.length) return "";
+  let hi=Math.max(...all), lo=Math.min(...all); const pd=(hi-lo)*0.06||1; hi+=pd; lo-=pd; const Y=v=>(v-lo)/(hi-lo)*100;
+  return `<div class="mini">${FG({W:300,H:o.H||110,n,paths:S.map(x=>({p:x.v.map((v,i)=>[i,v]).filter(([,v])=>v!=null&&isFinite(v)).map(([i,v])=>[i,Y(v)]),col:x.col,w:x.w||1.6,d:x.d,t:x.t})),
+    lines:(o.refs||[]).map(r=>({p:Y(r.y),col:r.col||CI3,t:r.t}))})}${o.cap?`<div class="mcap">${o.cap}</div>`:""}</div>`;
+}
+
+/* ───────────── 3장: 수급 ───────────── */
+function chk3(s,B){
+  const X=JC(s,B); if(!X) return "";
+  const {F,n,L,c,m,avgV,loIn,rg,ut,lt,dt,D}=X, r=[], Q=B?.수급, SF=s.수급||{}, fc=typeof flowCalc==="function"?flowCalc(s,B):null;
+  const sh=v=>typeof shares==="function"?shares(v):fmt(v);
+  r.push(grp5("3-1 수급 주체 읽기"));
+  if(fc){
+    const f20=SF["외국인 20일(주)"], i20=SF["기관 20일(주)"], p20=SF["개인 20일(주)"], px=(c/F.c[L-20]-1)*100;
+    const k=60, sl=a=>a.slice(-k);
+    const cumFig=miniL([{v:sl(fc.cum.외국인),col:"#1971c2",t:"외국인"},{v:sl(fc.cum.기관),col:"#e8590c",t:"기관"},{v:sl(fc.cum.개인),col:"#868e96",t:"개인",d:"4 3"}],{refs:[{y:sl(fc.cum.외국인)[0],t:""}],cap:"최근 60일 누적 순매수(억원) — 파랑 외국인 · 주황 기관 · 회색 개인"});
+    r.push(rowJ("1 수급의 두 종류 — 누가 사고 누가 파나","3-1 §1",`20일: 외국인 ${sh(f20)} · 기관 ${sh(i20)} · 개인 ${sh(p20)}<br>주가 ${sgn(px)}`,"외국인·기관(큰손)과 개인 — 큰손이 사고 개인이 팔면 오르고, 반대면 내린다",
+      f20>0&&i20>0?"y":f20<0&&i20<0&&p20>0?"n":"w",f20>0&&i20>0?"큰손 둘 다 샀습니다.":f20<0&&i20<0&&p20>0?"큰손이 팔고 개인만 받았습니다.":"큰손끼리 방향이 엇갈립니다.",
+      why(f20<0&&i20<0&&p20>0?"'개인이 사면 내려간다' — 파는 주체가 멈추는 날이 반등의 첫 조건입니다.":"","3-1 §1·§8"),{g:"flow",fig:cumFig}));
+    const best=Object.entries(fc.co).filter(([,v])=>v!=null).sort((a,b)=>b[1]-a[1])[0];
+    r.push(rowJ("4 종목마다 수급 주체가 다르다","3-1 §4",`상관계수 외국인 ${fmt(fc.co.외국인,2)} · 기관 ${fmt(fc.co.기관,2)} · 개인 ${fmt(fc.co.개인,2)}`,"이 종목의 주가를 실제로 움직이는 주체를 찾아 그 주체만 본다",
+      best&&best[1]>=0.3?"y":"w",best?`이 종목을 움직이는 주체는 <b>${best[0]}</b>입니다.`:"주체를 정하지 못했습니다.",why(best?`${best[0]}의 하루 순매수와 주가 등락이 가장 같이 움직였습니다(최근 60일).`:"","3-1 §4"),{g:"corr"}));
+    const kind=f20>0?(px<0?"선매집형(주가 하락 중 매수)":"추세형(주가와 함께 매수)"):null;
+    r.push(rowJ("5 외국인 매수의 두 가지 성격","3-1 §5",`외국인 20일 ${sh(f20)} · 주가 ${sgn(px)} · ${esc(SF["외국인 연속"]||"")}`,"주가가 빠지는데 사는 외국인(선매집)과 따라 사는 외국인(추세)은 다르다",
+      kind?(kind.startsWith("선")?"w":"y"):"n",kind?`<b>${kind}</b>입니다.`:"외국인이 팔고 있습니다.",why(kind&&kind.startsWith("선")?"선매집이면 외국인 매수가 이어지는 동안 바닥을 다집니다 — 매수 전환일을 확인.":"","3-1 §5"),{g:"flow"}));
+    let xi=-1; const cf=fc.cum.외국인, cp=fc.cum.개인, N=cf.length; for(let i=N-1;i>=N-20;i--) if((cf[i]-cp[i])*(cf[i-1]-cp[i-1])<0){xi=i;break;}
+    r.push(rowJ("6 손바뀜 (X자 교차)","3-1 §6",xi>=0?`${esc(String(Q.d[xi]).slice(4,6)+"-"+String(Q.d[xi]).slice(6))} 외국인·개인 누적선 교차`:"최근 20일 교차 없음","외국인 누적선이 개인 누적선을 아래에서 위로 뚫으면 손바뀜 — 물량이 큰손에게 넘어갔다",
+      xi<0?"x":cf[N-1]>cp[N-1]?"y":"n",xi<0?"교차가 없습니다.":cf[N-1]>cp[N-1]?"외국인이 위로 올라선 손바뀜입니다.":"외국인이 아래로 내려간 교차입니다(물량이 개인에게).",
+      "",{g:"xch",fig:miniL([{v:cf.slice(-40),col:"#1971c2",t:"외국인"},{v:cp.slice(-40),col:"#868e96",t:"개인"}],{cap:"최근 40일 누적선 — X자로 교차하나"})}));
+  } else r.push(rowJ("수급 자료","3-1","—","주체별 순매수","q","수급 자료를 받지 못했습니다.",""));
+  r.push(naJ("3-1 §2·§3·§7",["2 HTS 설정","3 기관 세부(연기금·투신 등)","7 지수에서의 외국인 — 반등 신호"],"2는 화면 설정, 3은 기관 세부 자료를 받지 않고, 7은 지수 단위 외국인 수급 자료가 없어 판정하지 않습니다."));
+
+  r.push(grp5("3-2 외국인 한도소진율"));
+  const hold=Q?.보유율||[];
+  r.push(rowJ("3·5 보유율 실전 해석","3-2 §3·§5",`외국인 보유율 ${fmt(SF["외국인 보유율"],2)}% · 20일 ${SF["보유율 20일 변화(%p)"]>0?"+":""}${fmt(SF["보유율 20일 변화(%p)"],2)}%p`,"보유율의 '높이'가 아니라 '방향'을 본다 — 늘면 외국인이 모으는 중",
+    SF["보유율 20일 변화(%p)"]>0.1?"y":SF["보유율 20일 변화(%p)"]<-0.1?"n":"w",SF["보유율 20일 변화(%p)"]>0.1?"보유율이 늘고 있습니다.":SF["보유율 20일 변화(%p)"]<-0.1?"보유율이 줄고 있습니다.":"보유율 변화가 작습니다.",
+    why("보유율이 높다고 좋은 게 아닙니다 — 높은 보유율에서 빠지기 시작하면 매물이 됩니다(§6 흔한 함정).","3-2 §5·§6"),{g:"hold",fig:hold.length?miniL([{v:hold.slice(-120),col:"#1971c2",t:"보유율"}],{cap:"최근 120일 외국인 보유율(%)"}):""}));
+  r.push(naJ("3-2 §1·§2·§4·§6",["1 어디서 보나","2 외국인 한도란 — 배경","4 HTS 실전 조회","6 흔한 함정"],"조회 방법·배경 설명입니다(함정은 위 해석에 반영)."));
+
+  r.push(grp5("3-3 공매도와 대차잔고"));
+  r.push(rowJ("1~6 공매도·대차잔고 실전 해석","3-3 §1~§7","—","대차잔고가 쌓이면 공매도 연료가 쌓인 것 — 줄어들 때 숏커버 반등","q","공매도·대차잔고 자료를 받지 않습니다.",why("KRX 정보데이터시스템·HTS 대차잔고 화면에서 직접 확인하세요. 공매도 국면에서는 지수·물타기 모두 조심(§7).","3-3"),{}));
+
+  r.push(grp5("3-4 세력의 흔적 읽기"));
+  const lo60=F.l[loIn(n-65,n-5)]; let spring=-1; for(let i=L;i>=L-9;i--) if(F.l[i]<lo60&&F.c[i]>lo60){spring=i;break;}
+  r.push(rowJ("1 터는 방식 ① — 밑으로 내린다","3-4 §1",spring>=0?`${dt(spring)} 60일 저점(${won(lo60)}) 아래 찍고 위로 마감`:"최근 10일 없음","전저점을 살짝 깨 겁을 준 뒤 다시 올린다 — 손절 물량을 받아 가는 털기",
+    spring>=0?"y":"x",spring>=0?"저점을 깼다가 되돌린 흔적이 있습니다.":"해당 없습니다.","",{g:"shake",fig:spring>=0?mini(F,spring-25,{lines:[{p:lo60,col:CMD,t:"전저점"}],marks:[{i:spring,p:F.l[spring],t:"털기",col:COK,below:true}],cap:"전저점 아래로 찍고 다시 위로"}):""}));
+  const BX=D["40일 박스"]||{}, bw=BX.상단?(BX.상단/BX.하단-1)*100:null;
+  r.push(rowJ("2 터는 방식 ② — 옆으로 민다","3-4 §2",bw!=null?`40일 박스 폭 ${fmt(bw,0)}%`:"—","좁은 박스로 오래 끌어 지겨워서 팔게 만든다",
+    bw!=null&&bw<=15?"y":"x",bw!=null&&bw<=15?"좁게 옆으로 미는 중입니다.":"좁은 횡보가 아닙니다.","",{g:"box"}));
+  let tails=0; for(let i=L-19;i<=L;i++) if(rg(i)&&(ut(i)+lt(i))/rg(i)>=0.6) tails++;
+  r.push(rowJ("3 터는 방식 ③ — 긴 꼬리로 흔든다","3-4 §3",`최근 20일 중 꼬리가 몸통보다 긴 봉 ${tails}개`,"위아래 긴 꼬리를 반복해 흔들어 턴다",
+    tails>=6?"y":"x",tails>=6?"꼬리로 흔드는 모습이 잦습니다.":"흔드는 모습이 두드러지지 않습니다.","",{g:"tail"}));
+  const v20=avgV(L-20,L); let dry=[]; for(let i=L-9;i<=L;i++) if(F.c[i]<F.o[i]&&F.v[i]<0.7*v20) dry.push(i);
+  r.push(rowJ("4 가장 중요한 단서 — 음봉인데 거래량이 줄었다","3-4 §4",`최근 10일 거래량 적은 음봉 ${dry.length}개 · 5선 ${c>=m(5)?"위":"아래"}`,"음봉인데 거래량이 줄면 세력이 안 판 것 — 개인만 판 음봉",
+    dry.length>=2&&c>=m(20)?"y":dry.length>=2?"w":"x",dry.length>=2?(c>=m(20)?"거래량 없는 음봉 — 세력이 남아 있는 모양입니다.":"거래량 없는 음봉이지만 20선 아래라 하락 추세 속입니다."):"해당 없습니다.","",
+    {g:"voldry",fig:dry.length?mini(F,n-25,{vol:true,marks:dry.map(i=>({i,p:F.h[i],t:"○",col:COK,dot:false})),cap:"○ = 거래량이 평소 70% 아래인 음봉"}):""}));
+  const s20=m(20)>m(20,L-10), s60=m(60)>m(60,L-10);
+  r.push(rowJ("5 관리의 흔적 ① — 20·60일선 우상향","3-4 §5",`20선 ${s20?"상승":"하락"} · 60선 ${s60?"상승":"하락"}`,"20·60선을 우상향으로 관리하는 종목 — 세력이 손을 놓지 않았다",
+    s20&&s60?"y":s60?"w":"n",s20&&s60?"둘 다 우상향입니다.":s60?"60선만 우상향입니다.":"관리의 흔적이 없습니다.","",{g:"ma60"}));
+  const pl=pivots(F,4,n-60).lo; let twice=null; for(let a=pl.length-1;a>0&&!twice;a--) for(let b=a-1;b>=0;b--) if(Math.abs(F.l[pl[a]]/F.l[pl[b]]-1)<=0.02&&pl[a]-pl[b]>=5){twice=[pl[b],pl[a]];break;}
+  r.push(rowJ("6 관리의 흔적 ② — 같은 가격을 두 번 지켜낸다","3-4 §6",twice?`${won(F.l[twice[0]])}(${dt(twice[0])}) · ${won(F.l[twice[1]])}(${dt(twice[1])})`:"최근 60일 없음","같은 가격대를 두 번 지켜 주면 그 가격을 관리하는 손이 있다",
+    twice?(c>=Math.min(F.l[twice[0]],F.l[twice[1]])?"y":"n"):"x",twice?(c>=Math.min(F.l[twice[0]],F.l[twice[1]])?"두 번 지킨 가격 위입니다.":"두 번 지킨 가격을 깼습니다."):"해당 없습니다.","",
+    {g:"triple",fig:twice?mini(F,twice[0]-10,{lines:[{p:Math.min(F.l[twice[0]],F.l[twice[1]]),col:COK,t:"지킨 가격"}],marks:twice.map(i=>({i,p:F.l[i],t:"●",col:COK,below:true,dot:false})),cap:"같은 가격대를 두 번 지켰나"}):""}));
+  r.push(naJ("3-4 §0·§7",["0 세력이란 · 세력은 개미를 털고 간다","7 세력주를 상대할 때의 원칙"],"정의와 태도에 관한 절입니다."));
+
+  r.push(grp5("3-5 호가창 분석"));
+  r.push(naJ("3-5 §0~§9",["0 순서","1 호가창 구조","2 시장원리의 배신","3 비율","4 모양","5 세 가지 쓰임","6 호가창만 보면 안 될 때","7 수익 구조","8 여러 개 띄우기","9 체결창"],"실시간 호가·체결 자료를 받지 않아 판정하지 않습니다 — 장중 HTS 호가창에서 봅니다."));
+
+  r.push(grp5("3-6 시장 유동성 지표"));
+  const b=MK?.시장폭||{};
+  r.push(rowJ("2 먼저 보는 것 — 시장의 강도","3-6 §2",b.ADR!=null?`상승 ${fmt(b.상승)} / 하락 ${fmt(b.하락)} · ADR ${fmt(b.ADR,1)}`:"—","하락 종목이 상승의 2배를 넘는 날은 소극적으로",
+    b.ADR==null?"q":b.ADR<50?"n":b.ADR>120?"y":"w",b.ADR==null?"자료가 없습니다.":`오른 종목 1개당 내린 종목 ${fmt(b.하락/(b.상승||1),1)}개.`,"",{g:"adr"}));
+  const ix=idxOf(s)||{};
+  r.push(rowJ("9 지수와 자금의 선후관계","3-6 §9",`지수 ${sgn(ix.등락률,2)} · 종목 ${sgn(s.등락률,2)}`,"돈(수급·시장폭)이 먼저 움직이고 지수가 따라온다 — 지수가 올라도 시장폭이 나쁘면 의심",
+    b.ADR==null||ix.등락률==null?"q":ix.등락률>0&&b.ADR<80?"w":ix.등락률<0&&b.ADR>100?"w":"y",ix.등락률>0&&b.ADR<80?"지수는 올랐는데 내린 종목이 더 많습니다 — 소수 대형주가 끈 지수.":ix.등락률<0&&b.ADR>100?"지수는 내렸는데 오른 종목이 더 많습니다.":"지수와 시장폭의 방향이 같습니다.","",{g:"adr"}));
+  r.push(naJ("3-6 §1·§3~§8",["1 0210 시장지도","3 비율분할 vs 균등분할","4 업종 안으로","5 업종차트","6 루틴","7 봐야 할 지표","8 어디서 보나"],"HTS 화면 사용법과 루틴입니다 — 섹터 흐름은 일일보고서 히트맵에서 봅니다."));
+  return cardJ(3,r);
+}
+
+/* ───────────── 4장: 보조지표 ───────────── */
+function chk4(s,B){
+  const X=JC(s,B), I=typeof indCalc==="function"?indCalc(B):null; if(!X||!I) return "";
+  const {F,n,L,c,m,hiIn,loIn,dt,D,Fw}=X, r=[], rs=I.rs, R=rs[L], k=120, sl=a=>a.slice(-k);
+  const rsFig=miniL([{v:sl(rs),col:"#7048e8",t:"RSI"}],{refs:[{y:70,t:"70",col:CBD},{y:30,t:"30",col:COK}],cap:"최근 120일 RSI(14)"});
+  r.push(grp5("4-1 RSI"));
+  r.push(rowJ("3 과매수 구간에서 손을 묶는다","4-1 §3",`RSI ${fmt(R,1)}`,"RSI 70 위에서는 매수 금지 — 손을 묶는다",R>=70?"n":"y",R>=70?"매수 금지 구간입니다.":"과매수가 아닙니다.","",{g:"rsi",fig:rsFig}));
+  const rw=Fw?rsiA(Fw.c)[Fw.c.length-1]:null;
+  r.push(rowJ("4 시간프레임별 적용","4-1 §4",`일봉 ${fmt(R,1)} · 주봉 ${fmt(rw,1)}`,"단타는 분봉, 스윙은 일봉, 큰 방향은 주봉 RSI",
+    rw==null?"q":rw>=70?"n":rw<=30?"w":"y",rw==null?"주봉 자료가 없습니다.":`주봉 RSI ${rw>=70?"과매수":rw<=30?"과매도":"중립"}입니다.`,"",{g:"rsi",fig:Fw?miniL([{v:rsiA(Fw.c).slice(-60),col:"#7048e8",t:"주봉 RSI"}],{refs:[{y:70,t:"70",col:CBD},{y:30,t:"30",col:COK}],cap:"주봉 RSI 60주"}):""}));
+  r.push(rowJ("5 과매도는 바닥이 아니다","4-1 §5",`RSI ${fmt(R,1)}`,"30 아래는 바닥이 아니라 '바닥권으로 가는 중' — 일괄이 아니라 분할",R<=30?"w":"x",R<=30?"과매도 — 분할로만.":"과매도가 아닙니다.","",{g:"rsi"}));
+  const dv=I.div;
+  r.push(rowJ("6 다이버전스 (가장 중요한 절)","4-1 §6 · 4-7",Object.entries(dv).filter(([,v])=>v).map(([k_])=>k_).join(" · ")||"없음","주가와 RSI가 엇갈리는 곳 — 일반 상승은 바닥, 일반 하락은 천장",
+    dv["일반 상승"]?"y":dv["일반 하락"]||dv["히든 하락"]?"n":"x",dv["일반 상승"]?"일반 상승 다이버전스 — 바닥 신호.":dv["일반 하락"]?"일반 하락 다이버전스 — 천장 신호.":dv["히든 하락"]?"히든 하락 — 하락 지속.":"다이버전스가 없습니다.","",
+    {g:"div",fig:mini(F,n-30,{marks:[{i:I.l1,p:F.l[I.l1],t:"①",col:CNV,below:true},{i:I.l2,p:F.l[I.l2],t:"②",col:CNV,below:true}],cap:"최근 30일 앞·뒤 저점 — RSI 저점과 방향이 엇갈리나"})}));
+  const Ix=BUN[idxName(s)]?.프레임?.일봉, iR=Ix?rsiA(Ix.c):null;
+  r.push(rowJ("7 지수에 적용한다 — 대세 판단","4-1 §7",iR?`${esc(BUN[idxName(s)].이름)} RSI ${fmt(iR[iR.length-1],1)}`:"—","지수 RSI가 과매도면 시장 전체 공포, 과매수면 과열",
+    !iR?"q":iR[iR.length-1]<=30?"w":iR[iR.length-1]>=70?"n":"y",!iR?"자료가 없습니다.":iR[iR.length-1]<=30?"지수 과매도 — 공포 구간.":iR[iR.length-1]>=70?"지수 과열입니다.":"지수 중립입니다.","",{g:"rsi",fig:iR?miniL([{v:iR.slice(-120),col:"#7048e8",t:"지수 RSI"}],{refs:[{y:70,t:"70",col:CBD},{y:30,t:"30",col:COK}],cap:"지수 RSI 120일"}):""}));
+  r.push(rowJ("9 RSI가 틀리는 경우 — 먼저 전저점 이탈","4-1 §9",I.rsiFirst?"RSI가 먼저 전저점을 깸":"해당 없음","주가는 버티는데 RSI가 먼저 전저점을 깨면 속은 무너진 것",
+    I.rsiFirst?"n":"x",I.rsiFirst?"겉은 멀쩡해도 속은 무너졌습니다.":"해당 없습니다.","",{g:"rsi"}));
+  r.push(naJ("4-1 §0~§2·§8·§10",["0 보조지표는 보조","1 RSI란","2 설정법","8 실전 녹화 — RSI 단타","10 운용 플로우"],"정의·설정·장중 사례·정리 절입니다."));
+
+  r.push(grp5("4-2 MACD"));
+  const hist=I.hist, mc=I.macd; let x0=-1; for(let i=L;i>=L-9;i--) if(mc[i]>0&&mc[i-1]<=0){x0=i;break;}
+  const hFig=miniL([{v:sl(hist),col:"#868e96",t:"오실레이터"},{v:sl(mc),col:"#1971c2",t:"MACD"}],{refs:[{y:0,t:"0선"}],cap:"최근 120일 MACD(파랑)와 오실레이터(회색)"});
+  r.push(rowJ("2 0선 돌파를 보고 사면 늦는다","4-2 §2",x0>=0?`${dt(x0)} MACD 0선 상향 돌파`:"최근 10일 0선 돌파 없음","0선 돌파는 이미 오른 뒤 — 교재 기법은 0선에 다가갈 때",
+    x0>=0?"w":"x",x0>=0?"0선 돌파 — 이미 오른 뒤입니다.":"해당 없습니다.","",{g:"macd",fig:hFig}));
+  const trendOK=c>m(20)&&m(20)>m(60);
+  r.push(rowJ("3·6 기법의 전제 — 어떤 종목에서 쓰나","4-2 §3·§6",`20선 ${c>m(20)?"위":"아래"} · 20>60 ${m(20)>m(60)?"예":"아니오"}`,"상승 추세(정배열) 종목에서만 쓴다 — 조건이 깨지면 안 한다",
+    trendOK?"y":"n",trendOK?"기법을 쓸 수 있는 추세입니다.":"조건이 깨져 이 기법을 쓰지 않습니다.","",{g:"macd"}));
+  const conv=hist[L]<0&&hist[L]>hist[L-1]&&hist[L-1]>hist[L-2];
+  r.push(rowJ("4·7 4단계 시나리오 — 0선에 붙는 그림","4-2 §4·§7",`오실레이터 ${fmt(hist[L],0)} (3일 ${hist[L]>hist[L-3]?"상승":"하락"})`,"0선 아래 오실레이터가 줄어들며 0선에 붙을 때가 타점(교재는 1분봉)",
+    conv&&trendOK?"y":conv?"w":"x",conv?"0선으로 다가가는 중입니다.":"0선 수렴 모양이 아닙니다.",why("교재 기법은 장중 1분봉 — 일봉 값은 방향 참고만.","4-2 §4"),{g:"macd"}));
+  r.push(naJ("4-2 §0·§1·§5·§8·§9",["0 성격","1 MACD 최소 지식","5 사례 ①②","8 리스크 관리","9 종합 플로우"],"정의·사례·정리 절입니다."));
+
+  r.push(grp5("4-3 OBV"));
+  let o=0; const obv=F.c.map((x,i)=>i?(o+=x>F.c[i-1]?F.v[i]:x<F.c[i-1]?-F.v[i]:0):0);
+  const ob20=obv[L]-obv[L-20], px20=(c/F.c[L-20]-1)*100, obNew=obv[L]>=Math.max(...obv.slice(n-60));
+  r.push(rowJ("3 돌파 — 신뢰도는 낮다","4-3 §3",obNew?"OBV 60일 신고가":"OBV 신고가 아님","OBV가 먼저 전고점을 넘으면 주가도 넘는다 — 단, 신뢰도 낮음",obNew?"y":"x",obNew?"OBV가 먼저 신고가입니다.":"해당 없습니다.","",{g:"obv"}));
+  const odiv=ob20>0&&px20<0?"매집(주가↓ OBV↑)":ob20<0&&px20>0?"분산(주가↑ OBV↓)":"같은 방향";
+  r.push(rowJ("4 추이 — OBV의 본론","4-3 §4",`20일 주가 ${sgn(px20)} · OBV ${ob20>0?"증가":"감소"}`,"주가와 OBV의 방향이 엇갈릴 때만 정보 — 주가 횡보·하락 중 OBV 상승은 매집",
+    odiv.startsWith("매집")?"y":odiv.startsWith("분산")?"n":"x",`<b>${odiv}</b>.`,"",{g:"obv",fig:miniL([{v:sl(obv).map(v=>v/1e6),col:"#1971c2",t:"OBV"}],{cap:"일봉 OBV 120일(백만 주)"})}));
+  r.push(naJ("4-3 §0~§2·§5",["0 지표는 재료 하나","1 OBV란","2 설정법","5 종합 플로우"],"정의·설정·정리 절입니다."));
+
+  r.push(grp5("4-4 엔벨로프·그물망·고점대 밴드"));
+  const m20=m(20), ig=c/m20*100;
+  r.push(rowJ("3 상·하단 지지저항 (±6%)","4-4 §3",`상단 ${won(m20*1.06)} · 하단 ${won(m20*0.94)} · 지금 ${sgn(ig-100)}`,"20일선 ±6% 상하단이 지지·저항",
+    ig<94?"w":ig>106?"n":"y",ig<94?"하단 아래로 밀렸습니다.":ig>106?"상단 위로 떴습니다.":"밴드 안입니다.","",{g:"env",fig:mini(F,n-60,{paths:[{p:maP(F,"20",n-60),col:CNV,t:"20선"},{p:maP(F,"20",n-60).map(([i,v])=>[i,v*1.06]),col:CMD,d:"3 2"},{p:maP(F,"20",n-60).map(([i,v])=>[i,v*0.94]),col:CMD,d:"3 2"}],cap:"20선과 ±6% 엔벨로프"})}));
+  r.push(rowJ("4·5·7 3% 채널 — 안에 들어와야 '고려'","4-4 §4·§5·§7",`20선과 ${sgn(ig-100)}`,"±3% 밴드 안에 들어와야 비로소 매수를 고려 — 관심종목 선정 필터",Math.abs(ig-100)<=3?"y":"n",Math.abs(ig-100)<=3?"3% 안 — 고려 대상입니다.":"3% 밖 — 아직 고려 대상이 아닙니다.","",{g:"env"}));
+  r.push(rowJ("6 밴드 밖에서는 먹을 게 없다","4-4 §6",`±6% ${ig<94||ig>106?"밖":"안"}`,"밴드 밖으로 튄 종목을 따라가면 먹을 게 없다",ig<94||ig>106?"n":"x",ig<94||ig>106?"밴드 밖 — 따라가지 않습니다.":"해당 없습니다.","",{g:"env"}));
+  const ps=[]; for(let p=5;p<=100;p+=5) ps.push(p); const net=i=>ps.map(p=>m(p,i)); const wd=i=>{const v=net(i); return (Math.max(...v)/Math.min(...v)-1)*100;};
+  const w0=wd(L), w20=wd(L-20), above=net(L).every(v=>c>v);
+  r.push(rowJ("8·9 그물망 — 벌어지면 매도, 좁아지면 매수","4-4 §8·§9",`이평선 20개 폭 ${fmt(w20,1)}% → ${fmt(w0,1)}%`,"이동평균선 5~100일 20개 — 벌어지면 매도, 좁아지면 매수 준비",
+    w0<w20?"y":"n",w0<w20?"그물이 좁아지는 중입니다.":"그물이 벌어지는 중입니다.","",{g:"conv",fig:mini(F,n-80,{noC:true,paths:ps.map((p,j)=>({p:Array.from({length:80},(_,q)=>[n-80+q,m(p,n-80+q)]),col:j<4?"#e8590c":j<10?CNV:"#868e96",w:1}))
+      .concat([{p:Array.from({length:80},(_,q)=>[n-80+q,F.c[n-80+q]]),col:CI2,w:1.8}]),cap:"이평선 20개(그물)와 종가(굵은 선)"})}));
+  r.push(rowJ("10 응축 후 전체 돌파 → 되돌림 지지","4-4 §10",`종가가 이평선 20개 ${above?"모두 위":"모두 위는 아님"} · 폭 ${fmt(w0,1)}%`,"그물이 모였다가 종가가 전부를 뚫으면 신호, 되돌림에서 그물이 지지",
+    above&&w0<=10?"y":above?"w":"n",above?(w0<=10?"응축 뒤 전체 돌파입니다.":"전부 위지만 그물이 벌어져 있습니다."):"그물 아래·안입니다.","",{g:"conv"}));
+  const dr20=(F.l[loIn(n-20)]/F.h[hiIn(n-40)]-1)*100;
+  r.push(rowJ("11 변형 — 급락 후 상단 돌파","4-4 §11",`최근 급락 ${sgn(dr20)} · 그물 위 ${above?"예":"아니오"}`,"급락 뒤 그물 상단을 뚫으면 빠른 반전",dr20<=-20&&above?"y":"x",dr20<=-20&&above?"급락 뒤 그물 위로 올라섰습니다.":"해당 없습니다.","",{g:"conv"}));
+  const ph=pivots(F,5,n-250).hi.filter(i=>F.h[i]>c).map(i=>[F.h[i],Math.max(F.o[i],F.c[i])]).sort((a,b)=>a[1]-b[1]).slice(0,2);
+  r.push(rowJ("13·15 고점대 밴드 — 과거 고점이 남긴 띠","4-4 §13·§15",ph.length?ph.map(([h,b])=>`${won(b)}~${won(h)}`).join("<br>"):"위 고점 없음","과거 고점봉의 몸통 위~고가가 띠(밴드)가 되어 저항으로 작동한다",
+    ph.length?"w":"x",ph.length?`가장 가까운 띠까지 ${sgn(gap(ph[0][1],c))}.`:"위에 걸리는 띠가 없습니다.","",{g:"sr",fig:ph.length?mini(F,n-250,{zones:ph.map(([h,b])=>({a:b,b:h,col:CBD,op:.18})),cap:"과거 고점봉의 몸통 위~고가 띠"}):""}));
+  const GU=(D["미메움 갭(60일)"]||[]).filter(g=>g.하방>c);
+  r.push(rowJ("16 목표가 — 갭 메우기","4-4 §16",GU.length?GU.map(g=>`${won(g.하방)}~${won(g.상방)}`).join("<br>"):"위 갭 없음","위에 남은 갭이 반등 목표 — 갭은 메운다",GU.length?"y":"x",GU.length?`첫 목표 ${won(GU[GU.length-1].하방)}(${sgn(gap(GU[GU.length-1].하방,c))}).`:"해당 없습니다.","",{g:"gap"}));
+  r.push(naJ("4-4 §0~§2·§12·§14·§17·§18",["0 세 도구의 공통점","1 출발점","2 설정법","12 실패하는 경우","14 사례","17 마무리","18 종합"],"설명·설정·사례·정리 절입니다."));
+
+  r.push(grp5("4-5 P&F 차트"));
+  r.push(naJ("4-5 §0~§11",["0~2 파동 규칙·사례","3 전환법","4·5 읽는 법","6 추세선 돌파","7 파동 길이로 신뢰도","8·9 사례·매도 시점","10·11 마무리"],"P&F(포인트 앤 피겨) 차트를 만들지 않아 판정하지 않습니다 — 교재도 '잘 보이면 필요 없다'(§10)고 합니다."));
+
+  r.push(grp5("4-6 VIX 공포지수"));
+  const vx=MK?.["VIX 주봉 종가"];
+  r.push(rowJ("3·5 구간별 해석과 운용법","4-6 §3·§5",vx!=null?`VIX 주봉 ${fmt(vx,2)}`:"—","20 아래 탐욕(조금씩 정리), 30·40·50을 넘을 때마다 나눠 산다",
+    vx==null?"q":vx>=30?"y":vx<20?"w":"x",vx==null?"자료가 없습니다.":vx>=30?"공포 — 분할 매수 구간입니다.":vx<20?"탐욕 구간입니다.":"평균 구간입니다.","",{g:"vix"}));
+  r.push(naJ("4-6 §0~§2·§4·§6~§9",["0·1 위치·대전제","2 VIX란","4 역사적 사례","6 CNN Fear & Greed","7 조회 방법","8 담대함","9 연결"],"설명·사례·태도 절입니다(Fear & Greed 자료는 받지 않습니다)."));
+
+  r.push(grp5("4-7 보조지표를 대하는 태도 — 다이버전스 4형"));
+  const dd4=[["6 일반 상승","주가 저점↓ RSI 저점↑ → 하락의 끝, 바닥"],["7 히든 상승","주가 저점↑ RSI 저점↓ → 상승 지속, 눌림목"],["8 일반 하락","주가 고점↑ RSI 고점↓ → 상승의 끝, 천장"],["9 히든 하락","주가 고점↓ RSI 고점↑ → 하락 지속, 기술적 반등 경고"]];
+  dd4.forEach(([k_,rule])=>{const key=k_.slice(2), on=!!dv[key];
+    r.push(rowJ(`${k_} 다이버전스`,`4-7 §${k_[0]}`,on?"있음":"없음",rule,on?(key.includes("상승")?"y":"n"):"x",on?"최근 30일에 나왔습니다.":"없습니다.","",{g:"div"}));});
+  if(Ix){const ir=iR, nI=Ix.c.length; const l1=(()=>{let k_=nI-30; for(let i=nI-30;i<nI-15;i++) if(Ix.l[i]<Ix.l[k_]) k_=i; return k_;})(), l2=(()=>{let k_=nI-15; for(let i=nI-15;i<nI;i++) if(Ix.l[i]<Ix.l[k_]) k_=i; return k_;})();
+    const bull=Ix.l[l2]<Ix.l[l1]&&ir[l2]>ir[l1];
+    r.push(rowJ("10 지수에도 그대로 적용된다","4-7 §10",`${esc(BUN[idxName(s)].이름)} 저점 ${fmt(Ix.l[l1],0)}→${fmt(Ix.l[l2],0)} · RSI ${fmt(ir[l1],0)}→${fmt(ir[l2],0)}`,"지수의 일반 상승 다이버전스 = 시장 바닥 신호",
+      bull?"y":"x",bull?"지수에 일반 상승 다이버전스가 있습니다.":"지수 다이버전스가 없습니다.","",{g:"div"}));}
+  r.push(naJ("4-7 §0~§5·§11·§12",["0 결론","1 거른 것의 거른 것","2 스토캐스틱 실증","3·4 어떻게 쓰나","5 4형 지도","11 숙달","12 도구 배치도"],"보조지표를 대하는 태도 — 이 표 전체가 '결론을 바꾸지 않고 보탠다'는 원칙으로 쓰였습니다."));
+  return cardJ(4,r);
+}
+if(typeof GLOSS!=="undefined"){Object.assign(GLOSS,{
+shake:{t:"털기 — 밑으로 내린다",ch:3,al:["털기"],src:"3-4 §1~§3",
+ one:"세력은 개미를 털고 간다. <b>전저점을 살짝 깨 겁을 주고</b>(밑으로), 좁게 오래 끌어 지겹게 하고(옆으로), 긴 꼬리로 흔든다.",
+ read:[["전저점 아래 찍고 위로 마감","손절 물량을 받아 간 털기"],["좁은 박스 장기 횡보","지겨움으로 털기"],["위아래 긴 꼬리 반복","흔들어 털기"]],ex:"",now:null,
+ fig:()=>FG({n:16,lines:[{p:30,col:CMD,t:"전저점"}],c:KS([60,52,44,36,32,38,44,40,34,30,22,34,42,50,58]),marks:[{i:9,p:18,t:"털기",col:COK,below:true}]})},
+});
+if(typeof CHC!=="undefined"&&CHC[3]) CHC[3].ids.push("shake");}
