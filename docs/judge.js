@@ -463,3 +463,227 @@ gapgb:{t:"좋은 갭 · 나쁜 갭",ch:1,al:["좋은 갭","나쁜 갭"],src:"1-1
   zones:[{i1:2,i2:3,a:32,b:37,col:COK,op:.25},{i1:9,i2:10,a:70,b:78,col:CBD,op:.25}],marks:[{i:3,p:50,t:"좋은 갭",col:COK,dot:false},{i:10,p:86,t:"나쁜 갭",col:CBD,dot:false}]})},
 });
 if(typeof CHC!=="undefined"&&CHC[1]) CHC[1].ids.push("hammer","harami","engulf","utail","evening","volmid","vol3","voldry","gold","ma60","conv","overshoot","stair","adjstage","gapgb");}
+
+/* ───────────── 2장: 차트 패턴 ───────────── */
+function chk2(s,B){
+  const X=JC(s,B); if(!X) return "";
+  const {F,n,L,c,m,avgV,hiIn,loIn,rg,lt,dt,D,W}=X, r=[], P=(typeof pat==="function"?pat(s,B):{})||{};
+  const m5=m(5),m20=m(20),m60=m(60), td=D.추세선?.하락추세선;
+  const pv=pivots(F,5,n-250), PH=pv.hi, PL=pv.lo;
+
+  /* 2-1 쌍바닥 */
+  r.push(grp5("2-1 쌍바닥·다중바닥"));
+  const wb=P.wb, wfig=wb?mini(F,wb.i1-15,{lines:[{p:wb.neck,col:CMD,t:"넥라인",i1:wb.ih}],marks:[{i:wb.i1,p:wb.l1,t:"①",col:COK,below:true},{i:wb.i2,p:wb.l2,t:"②",col:wb.up?COK:CBD,below:true}],cap:"저점 ①② 와 그 사이 반등 고점(넥라인)"}):"";
+  r.push(rowJ("1 왜 V자가 아니라 W인가","2-1 §1",wb?`저점 ${won(wb.l1)} → ${won(wb.l2)} · 넥라인 ${won(wb.neck)}`:"두 저점 없음","V자 바닥은 확인할 수 없다 — 한 번 더 눌러 저점을 확인한 W가 바닥",
+    !wb?"x":wb.up?"y":"n",!wb?"W를 그릴 두 저점이 없습니다.":wb.up?"두 번째 저점이 첫 저점 이상 — W 모양입니다.":"두 번째 저점이 더 낮습니다 — W가 아닙니다.",
+    wb?why(wb.up?"바닥을 두 번 확인했습니다.":"저점을 낮춘 건 '바닥 확인'이 아니라 하락 지속입니다.","2-1 §1"):"",{g:"dbottom",fig:wfig}));
+  r.push(rowJ("2 교과서적 타점 — 넥라인 돌파","2-1 §2",wb?`넥라인 ${won(wb.neck)} · 종가 ${sgn(gap(c,wb.neck))}`:"—","FM 타점은 넥라인(두 저점 사이 고점) 종가 돌파",
+    !wb?"x":wb.broke&&wb.up?"y":"n",!wb?"해당 없습니다.":wb.broke?"넥라인을 넘었습니다.":"넥라인 아래입니다.",wb&&!wb.broke?why(`${won(wb.neck)} 종가 돌파가 FM 타점입니다.`,"2-1 §2"):"",{g:"dbottom"}));
+  r.push(rowJ("3 타점 더하기 ① — 추세선 결합","2-1 §3",td?`하락추세선 ${won(td["오늘 값"])} · ${td.현재가}`:"하락추세선 없음","W의 두 번째 저점 뒤 하락추세선을 넘으면 넥라인보다 먼저 들어갈 수 있다",
+    wb&&wb.up&&td?.현재가==="위"?"y":"n",wb&&wb.up?(td?.현재가==="위"?"W + 하락추세선 돌파 — 타점이 더해졌습니다.":"W는 있지만 하락추세선 아래입니다."):"W가 아니라 결합할 타점이 없습니다.","",{g:"trend"}));
+  r.push(rowJ("4 타점 더하기 ② — 20일선 결합","2-1 §4",`20선 ${won(m20)} · 종가 ${sgn(gap(c,m20))}`,"두 번째 저점 뒤 20선을 넘는 날이 또 하나의 타점",
+    wb&&wb.up&&c>m20?"y":"n",c>m20?"20선 위입니다.":"20선 아래입니다.","",{g:"ma"}));
+  r.push(rowJ("6 가장 빠른 타점 (경험자용)","2-1 §6",wb?`두 번째 저점 뒤 ${wb.ago}일 · 저점 ${wb.held?"지킴":"깸"}`:"—","두 번째 저점이 첫 저점 근처에서 받치는 그 자리 — 손절이 가장 짧다",
+    wb&&wb.up&&wb.held&&wb.ago<=5?"y":"x",wb&&wb.up&&wb.held&&wb.ago<=5?`손절선 ${won(Math.min(wb.l1,wb.l2))} 바로 위입니다.`:"지금은 그 자리가 아닙니다.","",{g:"dbottom"}));
+  const st4=[["두 번째 저점 ≥ 첫 저점",!!wb?.up],["하락추세선 돌파",td?.현재가==="위"],["20선 돌파",c>m20],["넥라인 돌파",!!wb?.broke]];
+  r.push(rowJ("7 타점 정리 — 4단계","2-1 §7",ckJ(st4),"저점 확인 → 추세선 → 20선 → 넥라인. 단계가 오를수록 확실하지만 비싸진다",
+    cntJ(st4)>=3?"y":cntJ(st4)?"w":"n",`${cntJ(st4)}/4 단계.`,"",{g:"stair"}));
+  r.push(naJ("2-1 §5·§8",["5 종목 찾는 법 — 20일선 돌파 검색식","8 쌍바닥은 어디에나 있다"],"5는 전 종목 검색식, 8은 모든 시간대에 같은 원리가 있다는 설명입니다."));
+
+  /* 2-2 삼각수렴 */
+  r.push(grp5("2-2 삼각수렴"));
+  const T=P.tri, tfig=T?mini(F,n-1-Math.max(T.u.점1.봉전,T.d.점1.봉전)-5,{paths:[{p:[[n-1-T.u.점1.봉전,T.u.점1.가격],[L,T.u["오늘 값"]]],col:COK,w:1.6},{p:[[n-1-T.d.점1.봉전,T.d.점1.가격],[L,T.d["오늘 값"]]],col:CBD,w:1.6}],cap:"위 하락추세선 · 아래 상승추세선 — 두 선이 모이는 삼각형"}):"";
+  r.push(rowJ("1 세 가지 기본형","2-2 §1",T?`대칭 삼각 · 폭 ${fmt(T.width,1)}% · ${T.pos}`:"삼각형 없음","대칭·상승·하락 삼각형 — 고점은 낮아지고 저점은 높아지며 모인다",
+    T?"y":"x",T?"수렴 중인 삼각형이 있습니다.":"두 추세선이 모이지 않습니다.","",{g:"tri",fig:tfig}));
+  const vdn=T&&T.vIn!=null&&T.vBefore?T.vIn/T.vBefore:null;
+  r.push(rowJ("2 수렴 중의 조건 — 거래량 감소","2-2 §2",vdn!=null?`수렴 중 거래량 = 그 전의 ${fmt(vdn,2)}배`:"—","수렴하는 동안 거래량이 줄어야 정상 — 매물을 소화하는 중",
+    vdn==null?"x":vdn<0.8?"y":"w",vdn==null?"해당 없습니다.":vdn<0.8?"거래량이 줄며 수렴합니다.":"거래량이 줄지 않습니다.","",{g:"tri"}));
+  r.push(rowJ("3 돌파 판정 — 두 가지 확인","2-2 §3",T?`${T.pos} · 오늘 거래량 ${fmt(F.v[L]/avgV(L-20,L),1)}배`:"—","종가로 선 밖에 마감 + 거래량 증가 — 두 가지가 다 있어야 돌파",
+    !T?"x":T.pos==="위로 이탈"&&F.v[L]>=1.5*avgV(L-20,L)?"y":T.pos==="아래로 이탈"?"n":"w",!T?"해당 없습니다.":T.pos==="위로 이탈"?"위로 나갔습니다.":T.pos==="아래로 이탈"?"아래로 빠졌습니다.":"아직 안입니다.","",{g:"tri"}));
+  const bb=T&&T.pos==="위로 이탈"?(F.c[L]/F.o[L]-1)*100:null;
+  r.push(rowJ("4 돌파 양봉이 너무 클 때","2-2 §4",bb!=null?`돌파 봉 ${sgn(bb)}`:"돌파 없음","돌파 양봉이 지나치게 크면 따라 사지 말고 되돌림(삼각형 윗선 재확인)을 기다린다",
+    bb==null?"x":bb>=8?"w":"y",bb==null?"해당 없습니다.":bb>=8?"너무 큰 돌파 — 되돌림 대기.":"적당한 돌파입니다.","",{g:"tri"}));
+  const wtu=W.추세선?.상승추세선, wtd=W.추세선?.하락추세선;
+  r.push(rowJ("5 모든 시간대에 적용 — 주봉","2-2 §5",wtu&&wtd?`주봉 위선 ${won(wtd["오늘 값"])} · 아래선 ${won(wtu["오늘 값"])}`:"주봉 삼각 없음","일봉·주봉·분봉 어디서나 같은 원리",
+    wtu&&wtd&&wtd["오늘 값"]>wtu["오늘 값"]&&(wtd["오늘 값"]/wtu["오늘 값"]-1)<0.4?"y":"x",wtu&&wtd?`주봉 두 선 사이 폭 ${fmt((wtd["오늘 값"]/wtu["오늘 값"]-1)*100,0)}%.`:"주봉 추세선 한쪽이 없습니다.","",{g:"tri"}));
+  r.push(rowJ("7 초보가 가장 위험한 지점 — 꼭짓점","2-2 §7",T?`꼭짓점까지 약 ${T.apex}봉`:"—","꼭짓점 직전 — 방향이 나오기 전에 미리 들어가는 것이 가장 위험",
+    T&&T.apex<=5&&T.pos==="수렴 안"?"w":"x",T&&T.apex<=5&&T.pos==="수렴 안"?"방향이 곧 나옵니다 — 미리 들어가지 않습니다.":"해당 없습니다.","",{g:"tri"}));
+  r.push(naJ("2-2 §6",["6 분봉 실전 — 세력 관점으로 기다리기"],"장중 분봉 판단이라 6장에서 봅니다."));
+
+  /* 2-3 헤드앤숄더 */
+  r.push(grp5("2-3 헤드앤숄더"));
+  const hs=(()=>{const H=PH.filter(i=>i>=n-160); if(H.length<3) return null; const [a,b,c_]=H.slice(-3);
+    if(!(F.h[b]>F.h[a]&&F.h[b]>F.h[c_]&&Math.abs(F.h[a]/F.h[c_]-1)<=0.1)) return null;
+    const la=loIn(a,b+1), lb=loIn(b,c_+1), neckAt=i=>F.l[la]+(F.l[lb]-F.l[la])/(lb-la)*(i-la); return {a,b,c:c_,la,lb,neck:neckAt(L),neckAt,head:F.h[b]};})();
+  const ihs=(()=>{const Lw=PL.filter(i=>i>=n-160); if(Lw.length<3) return null; const [a,b,c_]=Lw.slice(-3);
+    if(!(F.l[b]<F.l[a]&&F.l[b]<F.l[c_]&&Math.abs(F.l[a]/F.l[c_]-1)<=0.1)) return null;
+    const ha=hiIn(a,b+1), hb=hiIn(b,c_+1), neckAt=i=>F.h[ha]+(F.h[hb]-F.h[ha])/(hb-ha)*(i-ha); return {a,b,c:c_,ha,hb,neck:neckAt(L),neckAt,head:F.l[b]};})();
+  const hsfig=hs?mini(F,hs.a-10,{paths:[{p:[[hs.la,F.l[hs.la]],[L,hs.neck]],col:CMD,w:1.6,t:"넥"}],marks:[{i:hs.a,p:F.h[hs.a],t:"어깨",col:CBD},{i:hs.b,p:F.h[hs.b],t:"머리",col:CBD},{i:hs.c,p:F.h[hs.c],t:"어깨",col:CBD}],cap:"왼어깨 · 머리 · 오른어깨와 넥라인"}):"";
+  const hsT=hs?hs.neckAt(hs.b)-(hs.head-hs.neckAt(hs.b)):null;
+  r.push(rowJ("1·2 헤드앤숄더 — 하락 추세 전환","2-3 §1·§2",hs?`어깨 ${won(F.h[hs.a])} · 머리 ${won(hs.head)} · 어깨 ${won(F.h[hs.c])}`:"최근 160일 없음","가운데가 가장 높은 세 봉우리 — 상승 끝의 하락 전환. 실전형은 삐딱하다(넥라인이 기운다)",
+    hs?["w","해당"]:"x",hs?"헤드앤숄더 모양이 있습니다.":"모양이 없습니다.","",{g:"hs",fig:hsfig}));
+  r.push(rowJ("3 넥라인 이탈 = 손절","2-3 §3",hs?`넥라인 오늘 ${won(hs.neck)} · 종가 ${sgn(gap(c,hs.neck))}`:"—","넥라인을 종가로 깨면 손절",
+    !hs?"x":c<hs.neck?"n":"w",!hs?"해당 없습니다.":c<hs.neck?"<b>넥라인을 깼습니다</b> — 손절 자리.":"넥라인 위입니다 — 이탈을 지켜봅니다.","",{g:"hs"}));
+  r.push(rowJ("4 하락 목표치 — 넥라인-머리 폭","2-3 §4",hs?`목표 ${won(hsT)}`:"—","넥라인에서 머리 높이만큼 아래가 하락 목표",
+    hs&&c<hs.neck?["w","해당"]:"x",hs&&c<hs.neck?`목표까지 ${sgn(gap(hsT,c))}.`:"이탈 전이라 목표를 쓰지 않습니다.","",{g:"hs"}));
+  r.push(rowJ("5 이탈 후 기술적 반등 — 마지막 탈출","2-3 §5",hs&&c<hs.neck?`넥라인까지 ${sgn(gap(hs.neck,c))}`:"—","넥라인을 깬 뒤 넥라인까지 다시 오는 반등이 마지막 탈출 기회",
+    hs&&c<hs.neck&&c>=hs.neck*0.97?["w","탈출 기회"]:"x",hs&&c<hs.neck&&c>=hs.neck*0.97?"넥라인 아래까지 반등했습니다 — 보유자 탈출 자리.":"해당 없습니다.","",{g:"hs"}));
+  const ihfig=ihs?mini(F,ihs.a-10,{paths:[{p:[[ihs.ha,F.h[ihs.ha]],[L,ihs.neck]],col:CMD,w:1.6,t:"넥"}],marks:[{i:ihs.a,p:F.l[ihs.a],t:"어깨",col:COK,below:true},{i:ihs.b,p:F.l[ihs.b],t:"머리",col:COK,below:true},{i:ihs.c,p:F.l[ihs.c],t:"어깨",col:COK,below:true}],cap:"역헤드앤숄더 — 넥라인을 넘는가"}):"";
+  r.push(rowJ("7 역헤드앤숄더 — 상승 추세 전환","2-3 §7",ihs?`어깨 ${won(F.l[ihs.a])} · 머리 ${won(ihs.head)} · 어깨 ${won(F.l[ihs.c])}`:"최근 160일 없음","가운데가 가장 낮은 세 골짜기 — 하락 끝의 상승 전환",
+    ihs?(c>ihs.neck?"y":"w"):"x",ihs?(c>ihs.neck?"넥라인을 넘었습니다.":"모양은 있고 넥라인 아래입니다."):"모양이 없습니다.","",{g:"ihs",fig:ihfig}));
+  r.push(rowJ("8 넥라인 복사로 매수 구간","2-3 §8",ihs?`넥라인 ${won(ihs.neck)} · 목표 ${won(ihs.neck+(ihs.neckAt(ihs.b)-ihs.head))}`:"—","넥라인을 복사해 오른어깨 저점에 붙이면 매수 구간, 머리 깊이만큼 위가 목표",
+    ihs?"y":"x",ihs?`오른어깨 ${won(F.l[ihs.c])} 근처가 매수 구간입니다.`:"해당 없습니다.","",{g:"ihs"}));
+  r.push(naJ("2-3 §6",["6 모든 배율에 존재한다"],"원리 설명입니다(주봉·분봉에도 같은 판정)."));
+
+  /* 2-4 깃발형 */
+  r.push(grp5("2-4 플래그·깃발형"));
+  const flag=(up)=>{for(let e=L-3;e>=L-40;e--){for(let len=3;len<=10;len++){const a=e-len, ch=(F.c[e]/F.c[a]-1)*100;
+      if(up?ch>=20:ch<=-20){const ret=up?(F.h[e]-F.l[loIn(e+1)])/(F.h[e]-F.l[a]):(F.h[hiIn(e+1)]-F.l[e])/(F.h[a]-F.l[e]);
+        if(ret<=0.5) return {a,e,ch,len,ret,top:F.h[hiIn(e+1)],pole:Math.abs(F.c[e]-F.c[a]),vr:avgV(e+1,n)/avgV(a,e+1)};}}} return null;};
+  const fu=flag(true), fd=flag(false);
+  r.push(rowJ("1·2·3 상승 깃발형 — 급하게 올랐는가","2-4 §1~§3",fu?`${dt(fu.a)}→${dt(fu.e)} ${fu.len}일 ${sgn(fu.ch)} · 되돌림 ${fmt(fu.ret*100,0)}%`:"최근 40일 깃대 없음","짧은 기간 급등(깃대) 뒤 거래량이 줄며 얕게 쉬는 깃발",
+    fu?"y":"x",fu?"깃대와 깃발이 있습니다.":"깃대(10일 안 20%↑)가 없습니다.",fu?why(`깃발 동안 거래량 ${fmt(fu.vr,2)}배 — ${fu.vr<0.7?"줄었습니다(정상).":"줄지 않았습니다."} 삼각수렴과 달리 '급하게' 오른 뒤라는 심리 차이(§2)가 핵심입니다.`,"2-4 §2·§3"):"",
+    {g:"flag",fig:fu?mini(F,fu.a-5,{marks:[{i:fu.a,p:F.l[fu.a],t:"깃대 시작",col:COK,below:true},{i:fu.e,p:F.h[fu.e],t:"깃대 끝",col:COK}],cap:"깃대(급등)와 그 뒤 깃발(얕은 조정)"}):""}));
+  r.push(rowJ("4·5 기대 수익과 타점","2-4 §4·§5",fu?`깃발 상단 ${won(fu.top)} · 목표 ${won(fu.top+fu.pole)}`:"—","깃발 상단 돌파가 타점, 목표는 깃대 길이만큼",
+    !fu?"x":c>fu.top?"y":"w",!fu?"해당 없습니다.":c>fu.top?"깃발 상단을 넘었습니다.":"깃발 안입니다 — 상단 돌파 대기.","",{g:"flag"}));
+  r.push(rowJ("6 하락 깃발형","2-4 §6",fd?`${dt(fd.a)}→${dt(fd.e)} ${sgn(fd.ch)} 뒤 약한 반등`:"없음","급락 뒤 약한 반등(깃발)은 추가 하락의 쉼표",
+    fd?["w","해당"]:"x",fd?"급락 뒤 약한 반등 — 추가 하락 경계.":"해당 없습니다.",fd?why(`깃발 하단 이탈 시 깃대 길이(${won(fd.pole)})만큼 더 빠질 수 있습니다.`,"2-4 §6"):"",{g:"flag"}));
+  r.push(naJ("2-4 §7·§8",["7 모든 시간대에 적용","8 외우지 말고 이해하라"],"원리·태도 설명입니다."));
+
+  /* 2-5 상승 패턴 모음 */
+  r.push(grp5("2-5 상승 패턴 모음"));
+  const got=[["쌍바닥",!!wb?.up],["역헤드앤숄더",!!ihs],["상승 깃발",!!fu],["삼각수렴",!!T]];
+  r.push(rowJ("1~4 쌍바닥·역H&S·깃발·삼각수렴","2-5 §1~4",ckJ(got),"위 2-1~2-4 판정의 요약",cntJ(got)?"y":"x",`${cntJ(got)}개 패턴이 보입니다.`,"",{g:"dbottom"}));
+  const cup=(()=>{const A=hiIn(n-250,n-30), lo=loIn(A,n-10), dep=(F.l[lo]/F.h[A]-1)*100; if(dep>-15||dep<-50) return null;
+    const rimI=hiIn(lo,n); if(F.h[rimI]<F.h[A]*0.9||rimI-lo<10) return null; return {A,lo,rimI,dep,hd:(c/F.h[rimI]-1)*100};})();
+  r.push(rowJ("5 컵앤핸들","2-5 §5",cup?`컵 ${dt(cup.A)}→바닥 ${dt(cup.lo)}(${sgn(cup.dep,0)})→${dt(cup.rimI)} · 손잡이 ${sgn(cup.hd)}`:"없음","둥근 바닥(컵)으로 전고점까지 회복한 뒤 얕은 손잡이 조정 — 손잡이 위 돌파가 타점",
+    !cup?"x":c>F.h[cup.A]?"y":cup.hd>-15?"y":"w",!cup?"컵 모양이 없습니다.":cup.hd>-15?"손잡이 조정 중입니다.":"손잡이가 너무 깊습니다.","",
+    {g:"cup",fig:cup?mini(F,cup.A-10,{lines:[{p:F.h[cup.A],col:CMD,t:"컵 테두리"}],cap:"컵 테두리(전고점)까지 회복했는가"}):""}));
+  const tri3=(()=>{const Lw=PL.slice(-6); for(let k=Lw.length-3;k>=0;k--){const z=Lw.slice(k,k+3), mn=Math.min(...z.map(i=>F.l[i])), mx=Math.max(...z.map(i=>F.l[i])); if(mx/mn-1<=0.05&&z[2]-z[0]>=20) return z;} return null;})();
+  r.push(rowJ("6 3중 바닥 — 장기 상승을 노리는 패턴","2-5 §6",tri3?tri3.map(i=>`${won(F.l[i])}(${dt(i)})`).join(" · "):"없음","같은 가격대를 세 번 지킨 바닥 — 장기 상승의 출발점",
+    tri3?(c>=Math.min(...tri3.map(i=>F.l[i]))?"y":"n"):"x",tri3?"세 번 지킨 바닥이 있습니다.":"해당 없습니다.","",
+    {g:"triple",fig:tri3?mini(F,tri3[0]-10,{marks:tri3.map((i,k)=>({i,p:F.l[i],t:"①②③"[k],col:COK,below:true})),lines:[{p:Math.min(...tri3.map(i=>F.l[i])),col:COK,t:"바닥"}],cap:"같은 가격대 세 번"}):""}));
+  let ride=0; for(let i=L-19;i<=L;i++) if(F.c[i]>m(20,i)) ride++;
+  r.push(rowJ("7 이평선 타고 가는 형태","2-5 §7",`최근 20일 중 20선 위 종가 ${ride}일 · 20선 ${m20>m(20,L-5)?"상승":"하락"}`,"20선 위에서 20선을 타고 오르는 종목 — 20선 이탈 전까지 보유",
+    ride>=16&&m20>m(20,L-5)?"y":"x",ride>=16?"20선을 타고 갑니다.":"20선을 타는 형태가 아닙니다.","",{g:"ride",fig:mini(F,n-40,{paths:[{p:maP(F,"20",n-40),col:CNV,t:"20선"}],cap:"20선 위에서 타고 가는가"})}));
+  const Ix=BUN[idxName(s)]?.프레임?.일봉, ixd=Ix?(Ix.c[Ix.c.length-1]/Math.max(...Ix.h.slice(-60))-1)*100:null, held=c>=F.l[loIn(n-65,n-5)];
+  r.push(rowJ("8 지수 하락기 후의 반등 패턴","2-5 §8",ixd!=null?`지수 60일 고점 대비 ${sgn(ixd)} · 종목 60일 저점 ${held?"지킴":"깸"}`:"—","지수가 크게 빠진 뒤, 저점을 지킨 종목이 반등 때 먼저 간다",
+    ixd==null?"q":ixd>-10?"x":held?"y":"n",ixd!=null&&ixd<=-10?(held?"지수 하락기에 저점을 지켰습니다 — 반등 후보.":"지수와 함께 저점을 깼습니다."):"지수 하락기가 아닙니다.","",{g:"sw"}));
+  r.push(naJ("2-5 §9·§10",["9 패턴 비교표","10 패턴을 공부하는 이유"],"정리·태도 설명입니다."));
+
+  /* 2-6 하락 패턴 */
+  r.push(grp5("2-6 하락 패턴과 상투 신호"));
+  const lh=PH.slice(-3), ll=PL.slice(-3), stairDn=lh.length===3&&F.h[lh[2]]<F.h[lh[1]]&&F.h[lh[1]]<F.h[lh[0]]&&ll.length===3&&F.l[ll[2]]<F.l[ll[1]];
+  const d20=(c/F.h[hiIn(n-20)]-1)*100, bx=D["40일 박스"], f3=d20<=-15?"급락형":stairDn?"계단식 하락":bx&&c<bx.하단?"횡보 후 이탈":null;
+  r.push(rowJ("1 하락의 3가지 형태","2-6 §1",`20일 고점 대비 ${sgn(d20)}<br>최근 고점 ${lh.map(i=>won(F.h[i])).join(" → ")}`,"급락형 · 계단식 하락(고점·저점이 계속 낮아짐) · 횡보 후 이탈",
+    f3?["b",f3]:"x",f3?`지금은 <b>${f3}</b>입니다.`:"하락 형태가 아닙니다.",f3?why(f3==="계단식 하락"?"고점이 낮아지는 동안은 반등을 매도 기회로 봅니다.":f3==="급락형"?"급락 뒤 기술적 반등(6-6)은 짧게만.":"박스 하단이 이제 저항입니다.","2-6 §1"):"",
+    {g:"fall3",fig:mini(F,n-90,{marks:lh.filter(i=>i>=n-90).map(i=>({i,p:F.h[i],t:"▼",col:CBD,dot:false})),cap:"최근 고점 — 계속 낮아지는가"})}));
+  let fb=null; for(let i=L-3;i>=L-60;i--){const ph=F.h[hiIn(i-60,i)]; if(F.c[i]>ph&&F.c[i-1]<=ph){fb={i,lv:ph}; break;}}
+  r.push(rowJ("2 고점 돌파 매매에서의 하락 — 가장 비싸게 물리는 자리","2-6 §2",fb?`${dt(fb.i)} 60일 고점 ${won(fb.lv)} 돌파 · 지금 ${sgn(gap(c,fb.lv))}`:"최근 60일 돌파 없음","돌파 뒤 돌파 가격을 다시 깨면 가장 비싸게 물린다 — 즉시 손절",
+    !fb?"x":c<fb.lv*0.97?"n":"y",!fb?"해당 없습니다.":c<fb.lv*0.97?"<b>돌파 실패</b> — 돌파 가격 아래로 내려왔습니다.":"돌파 가격을 지키고 있습니다.","",
+    {g:"failbo",fig:fb?mini(F,fb.i-30,{lines:[{p:fb.lv,col:CMD,t:"돌파 가격",i1:fb.i-30}],marks:[{i:fb.i,p:F.h[fb.i],t:"돌파",col:COK}],cap:"돌파했던 가격 — 다시 깨면 실패"}):""}));
+  const brokeMA=[["5",m5],["20",m20],["60",m60],["120",m(120)]].filter(x=>c<x[1]).map(x=>x[0]+"선");
+  r.push(rowJ("3 왜 기준이 무너지는가 — 상승장의 함정","2-6 §3",brokeMA.length?`아래로 깬 이평선: ${brokeMA.join("·")}`:"모든 이평선 위","상승장에서 지켜 주던 기준(이평선·전저점)이 하나씩 무너지면 상승장 습관으로 버티면 안 된다",
+    brokeMA.length>=3?"n":brokeMA.length?"w":"y",brokeMA.length>=3?"기준이 여러 개 무너졌습니다.":brokeMA.length?"일부 기준이 무너졌습니다.":"기준이 살아 있습니다.","",{g:"adjstage"}));
+
+  /* 2-7 기준봉과 매집봉 */
+  r.push(grp5("2-7 기준봉과 매집봉"));
+  const kb=P.kb;
+  r.push(rowJ("0 기준봉이란","2-7 §0",kb?`${esc(kb.날짜)} 고 ${won(kb.고점)} · 중심 ${won(kb.중심)} · 저 ${won(kb.저점)}`:"일봉 기준봉 없음","대량 거래 장대봉 — 그 봉의 고점·중심·저점 세 줄이 이후 시세의 기준",
+    kb?(c>=kb.중심?"y":c>=kb.저점?"w":"n"):"x",kb?(c>=kb.중심?"기준봉 중심 위입니다.":c>=kb.저점?"중심 아래, 저점 위입니다.":"기준봉 저점을 깼습니다."):"최근 기준봉이 없습니다.","",
+    {g:"keybar",fig:kb?mini(F,kb.i-10,{lines:[{p:kb.고점,col:CUP,i1:kb.i},{p:kb.중심,col:CNV,t:"중심",i1:kb.i,d:false},{p:kb.저점,col:CDN,i1:kb.i}],cap:"기준봉 세 줄 — 빨강 고점 · 남색 중심 · 파랑 저점"}):""}));
+  r.push(rowJ("1 진짜 매집봉 vs 가짜","2-7 §1",kb?`그 뒤 거래량 ${fmt(kb.vRatio,2)}배 · 저점 ${kb.brokeLow?"깸":"지킴"} · 장대양봉 재출현 ${kb.second?"있음":"없음"}`:"—","진짜는 그 뒤 저점을 지키고 다시 장대가 나온다. 가짜는 거래가 끊기고 저점을 깬다",
+    !kb?"x":kb.brokeLow&&kb.vRatio<0.5?"n":kb.second&&!kb.brokeLow?"y":"w",!kb?"해당 없습니다.":kb.brokeLow&&kb.vRatio<0.5?"가짜(털고 나간 봉) 모양입니다.":kb.second&&!kb.brokeLow?"진짜(연속 유입) 모양입니다.":"판별 중입니다.","",{g:"keybar"}));
+  r.push(rowJ("2 주봉 바닥 신호 — 갭↓ + 도지 + 갭↑","2-7 §2",P.wbot?`${esc(P.wbot.t)} 주에 완성`:"최근 26주 없음","주봉에서 갭하락 → 도지 → 갭상승 세 주가 이어지면 바닥 신호",
+    P.wbot?"y":"x",P.wbot?"주봉 바닥 신호가 나왔습니다.":"해당 없습니다.","",{g:"wksig"}));
+  let pre=-1; for(let i=L;i>=L-119;i--) if(F.v[i]>=3*avgV(i-20,i)&&Math.abs(F.c[i]/F.c[i-1]-1)<0.03&&F.c[i]<=F.l[loIn(n-250)]*1.25){pre=i;break;}
+  r.push(rowJ("3 선매집 — 주목받기 전에","2-7 §3·§4",pre>=0?`${dt(pre)} 바닥권 거래량 ${fmt(F.v[pre]/avgV(pre-20,pre),1)}배 · 가격 변화 ${sgn((F.c[pre]/F.c[pre-1]-1)*100)}`:"없음","바닥권에서 가격은 안 움직이는데 거래량만 터진 날 — 누가 조용히 사 모은 흔적",
+    pre>=0?(c>=F.l[pre]?"y":"n"):"x",pre>=0?(c>=F.l[pre]?"선매집 흔적이 있고 그 저가를 지킵니다.":"선매집 흔적의 저가를 깼습니다 — 실패한 매집(§4)."):"해당 없습니다.","",{g:"prebuy"}));
+  r.push(naJ("2-7 §5",["5 중기 매집법 — 5%씩 야금야금"],"내 매수 방법에 관한 절이라 종목 판정이 아닙니다(8-1 분할 매수)."));
+
+  /* 2-8 엘리어트 */
+  r.push(grp5("2-8 엘리어트 파동"));
+  const PZ=pivots(F,8,n-250), l0=loIn(n-250); let legs=0, lastH=-Infinity;
+  PZ.hi.filter(i=>i>l0).forEach(i=>{if(F.h[i]>lastH){legs++; lastH=F.h[i];}});
+  r.push(rowJ("2·3 상승 5파 · 하락 3파 — 횟수로 판단","2-8 §2·§3",`1년 저점(${dt(l0)}) 뒤 고점 갱신 ${legs}번`,"상승은 5파, 하락은 3파. 실전에서는 고점을 몇 번 갱신했는지 횟수로 본다 — 5번째 근처면 끝물",
+    legs>=3?"w":"y",legs>=5?"5파 이상 — 끝물 쪽입니다.":legs>=3?`${legs}파 — 후반부입니다.`:`${legs}파 — 초반입니다.`,why("파동은 중첩돼 정확히 세기 어렵습니다(§4) — 참고만.","2-8 §3·§4"),{g:"wave"}));
+  const bw=bx?(bx.상단/bx.하단-1)*100:null;
+  r.push(rowJ("5 실전형 — 파동 · 횡보 · 폭발","2-8 §5",bw!=null?`40일 박스 폭 ${fmt(bw,0)}%`:"—","파동(상승) 뒤 횡보로 힘을 모으고 다시 폭발한다 — 지금이 어느 단계인가",
+    bw!=null&&bw<=15?"y":"x",bw!=null&&bw<=15?"좁은 횡보 — 폭발 대기 단계입니다.":"좁은 횡보가 아닙니다.","",{g:"box"}));
+  r.push(naJ("2-8 §1·§4·§6",["1 엘리어트 파동이란","4 중첩 파동 — 그대로 적용하기 어려움","6 책 한 권 읽은 사람"],"정의와 한계·태도에 관한 절입니다."));
+
+  /* 2-9 급등주 */
+  r.push(grp5("2-9 급등주 차트 패턴"));
+  let stab=-1; for(let i=L;i>=L-9;i--) if(F.l[i]<m(20,i)&&F.c[i]>m(20,i)&&rg(i)&&lt(i)/rg(i)>=0.35){stab=i;break;}
+  r.push(rowJ("1 아래꼬리로 20선을 찔러주는 형태","2-9 §1",stab>=0?`${dt(stab)} 저가 ${won(F.l[stab])} < 20선 < 종가`:"최근 10일 없음","장중 20선 아래로 찔렀다가 아래꼬리로 20선 위에서 마감 — 20선을 지켜 주는 세력",
+    stab>=0?"y":"x",stab>=0?"20선을 찔러 지켰습니다.":"해당 없습니다.","",{g:"stab20",fig:stab>=0?mini(F,stab-15,{paths:[{p:maP(F,"20",stab-15),col:CNV,t:"20선"}],marks:[{i:stab,p:F.l[stab],t:"찌름",col:COK,below:true}],cap:"아래꼬리가 20선을 찔렀다가 위에서 마감"}):""}));
+  const m10=i=>{let t=0; for(let j=i-9;j<=i;j++) t+=F.c[j]; return t/10;};
+  let cage=0; for(let i=L-9;i<=L;i++) if(F.c[i]>m(5,i)&&F.l[i]>=m10(i)*0.99) cage++;
+  r.push(rowJ("2 5일·10일선 가두리 — 초단기 급등형","2-9 §2",`최근 10일 중 5선 위·10선 지킴 ${cage}일`,"5일선 위에서 10일선을 깨지 않고 가두리 안에서 오르는 초단기 급등형",
+    cage>=8?"y":"x",cage>=8?"가두리 안에서 오릅니다.":"가두리 형태가 아닙니다.",cage>=8?why("5선 이탈이 곧 매도입니다 — 빠른 세력(1-8 §M).","2-9 §2"):"",{g:"cage"}));
+  let gU=-1; for(let i=L;i>=L-60;i--) if(F.l[i]>F.h[i-1]*1.01){gU=i;break;}
+  const gpos=gU>=0?(F.o[gU]-F.l[loIn(gU-250,gU)])/(F.h[hiIn(gU-250,gU)]-F.l[loIn(gU-250,gU)])*100:null;
+  r.push(rowJ("3 갭상승의 '위치'로 판단","2-9 §3 · 1-13 §B·C",gU>=0?`${dt(gU)} 갭상승 · 1년 범위 ${fmt(gpos,0)}%`:"최근 60일 갭상승 없음","바닥권 갭은 급등 시작, 꼭대기 갭은 마무리",
+    gU<0?"x":gpos<=40?"y":"n",gU<0?"해당 없습니다.":gpos<=40?"바닥권 갭입니다.":"높은 위치의 갭입니다.","",{g:"gapgb"}));
+  let pl=null; for(let e=L;e>=L-4&&!pl;e--) for(let len=2;len<=5;len++){const ch=(F.c[e]/F.c[e-len]-1)*100; if(ch<=-15){pl={e,len,ch}; break;}}
+  r.push(rowJ("4 과감한 하락 후 2~3일 — 기술적 반등형","2-9 §4 · 6-6",pl?`${dt(pl.e-pl.len)}→${dt(pl.e)} ${pl.len}일 ${sgn(pl.ch)}`:"최근 급락 없음","며칠 사이 15% 넘게 과감히 빠진 뒤 2~3일째 — 기술적 반등을 노리는 자리",
+    pl?(L-pl.e<=3?"y":"w"):"x",pl?(L-pl.e<=3?`급락 뒤 ${L-pl.e}일째 — 반등 자리입니다.`:"급락 뒤 시간이 지났습니다."):"해당 없습니다.",pl?why("짧게 — 6-6 기술적 반등 매매 조건과 같이 봅니다.","2-9 §4 · 6-6"):"",
+    {g:"plunge",fig:pl?mini(F,pl.e-20,{marks:[{i:pl.e,p:F.l[pl.e],t:"급락 끝",col:CBD,below:true}],cap:"과감한 하락 — 그 뒤 2~3일"}):""}));
+  r.push(naJ("2-9 §5·§6",["5 급등주 패턴 4종 비교","6 이 교재가 반복해서 경고하는 것"],"비교표와 경고(추격 금지) — 위 1~4의 판정에 반영했습니다."));
+  return cardJ(2,r);
+}
+if(typeof GLOSS!=="undefined"){Object.assign(GLOSS,{
+hs:{t:"헤드앤숄더",ch:2,al:["헤드앤숄더"],src:"2-3 §1~5",
+ one:"가운데(머리)가 가장 높은 세 봉우리. <b>상승 끝의 하락 전환</b> 모양이고, 두 골짜기를 이은 넥라인을 깨면 손절입니다.",
+ read:[["넥라인 이탈","손절"],["하락 목표","넥라인에서 머리 높이만큼 아래"],["이탈 뒤 넥라인까지 반등","마지막 탈출 기회"]],ex:"",now:null,
+ fig:()=>FG({n:18,paths:[{p:PS(20,36,52,40,38,58,82,60,42,52,58,44,30,38,40,26),col:CI2,w:1.8},{p:[[3,40],[15,38]],col:CMD,w:1.4,t:"넥라인"}],marks:[{i:2,p:52,t:"어깨"},{i:6,p:82,t:"머리"},{i:10,p:58,t:"어깨"},{i:12,p:30,t:"이탈",col:CBD,below:true}]})},
+ihs:{t:"역헤드앤숄더",ch:2,al:["역헤드앤숄더"],src:"2-3 §7·§8",
+ one:"가운데(머리)가 가장 낮은 세 골짜기. <b>하락 끝의 상승 전환</b>. 넥라인 돌파가 신호, 머리 깊이만큼 위가 목표입니다.",
+ read:[["넥라인 돌파","상승 전환 확인"],["오른어깨 근처","넥라인 복사로 잡는 매수 구간"],["목표","넥라인 + 머리 깊이"]],ex:"",now:null,
+ fig:()=>FG({n:18,paths:[{p:PS(80,64,48,60,62,42,18,40,58,48,42,56,70,62,64,78),col:CI2,w:1.8},{p:[[3,60],[15,62]],col:CMD,w:1.4,t:"넥라인"}],marks:[{i:2,p:48,t:"어깨",below:true},{i:6,p:18,t:"머리",below:true},{i:10,p:42,t:"어깨",below:true},{i:12,p:70,t:"돌파",col:COK}]})},
+flag:{t:"깃발형 (Flag)",ch:2,al:["깃발형","깃대"],src:"2-4",
+ one:"<b>급하게</b> 오른 깃대 뒤 거래량이 줄며 얕게 쉬는 깃발. 깃발 상단 돌파가 타점, 목표는 깃대 길이만큼.",
+ read:[["깃대","10일 안 20%↑ 급등"],["깃발","되돌림 절반 이내 + 거래량 감소"],["하락 깃발","급락 뒤 약한 반등 — 추가 하락"]],ex:"",now:null,
+ fig:()=>FG({n:16,c:KS([20,24,34,48,62,72,70,68,66,65,63,64,62,70,80]),v:[10,30,50,60,50,20,14,12,10,9,8,8,30,40],paths:[{p:[[5,74],[11,66]],col:CMD,d:"3 2"},{p:[[5,68],[11,60]],col:CMD,d:"3 2"}],marks:[{i:2,p:40,t:"깃대",col:COK,dot:false,a:"end",dx:-6},{i:13,p:84,t:"돌파",col:COK,dot:false}]})},
+cup:{t:"컵앤핸들",ch:2,al:["컵앤핸들"],src:"2-5 §5",
+ one:"둥근 바닥(컵)으로 전고점까지 회복한 뒤 얕은 손잡이 조정. <b>손잡이 위 돌파</b>가 타점입니다.",
+ read:[["컵 깊이 15~50%","정상 범위"],["손잡이 −15% 안","얕은 마지막 털기"],["테두리 돌파","타점"]],ex:"",now:null,
+ fig:()=>FG({n:24,lines:[{p:80,col:CMD,t:"테두리"}],paths:[{p:Array.from({length:18},(_,i)=>[i,80-60*Math.sin(Math.PI*i/17)]).concat([[18,74],[19,70],[20,74],[21,82],[22,90]]),col:CI2,w:1.8}],marks:[{i:19,p:70,t:"손잡이",below:true},{i:21,p:82,t:"돌파",col:COK,a:"end",dx:-4}]})},
+triple:{t:"3중 바닥",ch:2,al:["3중 바닥"],src:"2-5 §6",
+ one:"같은 가격대를 <b>세 번 지킨 바닥</b>. 그만큼 두꺼운 받침이라 장기 상승의 출발점이 됩니다.",
+ read:[["세 저점이 5% 안","3중 바닥"],["그 가격 이탈","바닥 붕괴 — 손절"]],ex:"",now:null,
+ fig:()=>FG({n:17,lines:[{p:20,col:COK,t:"바닥"}],paths:[{p:PS(70,50,30,20,36,46,32,21,40,52,36,22,44,60,74),col:CI2,w:1.8}],marks:[{i:3,p:20,t:"①",col:COK,below:true},{i:7,p:21,t:"②",col:COK,below:true},{i:11,p:22,t:"③",col:COK,below:true}]})},
+ride:{t:"이평선 타고 가는 형태",ch:2,al:["타고 가"],src:"2-5 §7",
+ one:"주가가 20일선 위에서 <b>20선을 타고</b> 오르는 형태. 20선 이탈 전까지는 보유합니다.",
+ read:[["20선 위 종가가 대부분","타고 가는 중"],["20선 종가 이탈","매도"]],ex:"",now:null,
+ fig:()=>FG({n:18,c:KS([20,24,28,26,30,34,32,37,42,40,45,50,47,52,57,54,60]),paths:[{p:PS(14,16,19,21,23,26,28,30,33,35,38,41,43,45,48,50),col:CNV,t:"20선"}]})},
+fall3:{t:"하락의 3가지 형태",ch:2,al:["계단식 하락","급락형"],src:"2-6 §1",
+ one:"하락은 <b>급락형 · 계단식(고점·저점이 계속 낮아짐) · 횡보 후 이탈</b> 세 가지. 계단식은 반등이 곧 매도 기회입니다.",
+ read:[["급락형","기술적 반등은 짧게"],["계단식","고점이 낮아지는 동안 반등 = 매도"],["횡보 후 이탈","박스 하단이 저항으로"]],ex:"",now:null,
+ fig:()=>FG({n:14,paths:[{p:PS(88,74,80,64,70,54,60,44,50,34,40,26),col:CI2,w:1.8}],marks:[{i:2,p:80,t:"▼",col:CBD,dot:false},{i:4,p:70,t:"▼",col:CBD,dot:false},{i:6,p:60,t:"▼",col:CBD,dot:false},{i:8,p:50,t:"▼",col:CBD,dot:false}],notes:[{x:130,y:24,t:"고점이 계속 낮아짐",col:CBD}]})},
+failbo:{t:"돌파 실패 — 가장 비싸게 물리는 자리",ch:2,al:["돌파 실패"],src:"2-6 §2",
+ one:"전고점을 돌파한 뒤 <b>돌파 가격을 다시 깨면</b> 가장 비싸게 물린 것. 기다리지 않고 손절합니다.",
+ read:[["돌파 가격 위 유지","돌파 성공"],["돌파 가격 종가 이탈","실패 — 즉시 손절"]],ex:"",now:null,
+ fig:()=>FG({n:16,lines:[{p:60,col:CMD,t:"돌파 가격"}],paths:[{p:PS(30,40,52,58,50,46,54,60,68,72,64,56,48,40),col:CI2,w:1.8}],marks:[{i:8,p:68,t:"돌파",col:COK},{i:11,p:56,t:"실패",col:CBD,below:true}]})},
+prebuy:{t:"선매집",ch:2,al:["선매집"],src:"2-7 §3·§4",
+ one:"바닥권에서 <b>가격은 거의 안 움직이는데 거래량만 터진</b> 날 — 주목받기 전에 누가 조용히 사 모은 흔적입니다.",
+ read:[["바닥권 + 거래량 3배↑ + 가격 변화 3% 안","선매집 흔적"],["그 날 저가 이탈","실패한 매집 — 버린다"]],ex:"",now:null,
+ fig:()=>FG({n:16,c:KS([30,29,30,28,29,30,29,31,30,32,31,33,36,42,50]),v:[8,9,8,40,10,9,36,10,9,8,12,20,40,60],marks:[{i:3,p:38,t:"●",col:COK,dot:false},{i:6,p:38,t:"●",col:COK,dot:false}],notes:[{x:20,y:20,t:"가격은 그대로, 거래량만",col:COK}]})},
+wave:{t:"엘리어트 파동 — 횟수로 판단",ch:2,al:["엘리어트","5파"],src:"2-8",
+ one:"상승은 5파, 하락은 3파. 실전에서는 <b>고점을 몇 번 갱신했는지</b> 횟수로 보고, 5번째 근처면 끝물로 봅니다.",
+ read:[["1~2파","초반"],["3파","가장 강한 구간"],["5파","끝물 — 새로 들어가지 않는다"]],ex:"",now:null,
+ fig:()=>FG({n:11,paths:[{p:PS(10,30,20,62,46,82,62,70,48),col:CI2,w:1.8}],marks:[{i:1,p:30,t:"1"},{i:2,p:20,t:"2",below:true},{i:3,p:62,t:"3"},{i:4,p:46,t:"4",below:true},{i:5,p:82,t:"5 끝물",col:CBD},{i:6,p:62,t:"a",below:true},{i:7,p:70,t:"b"},{i:8,p:48,t:"c",below:true}]})},
+stab20:{t:"아래꼬리로 20선 찔러주기",ch:2,al:["찔러"],src:"2-9 §1",
+ one:"장중 20선 아래로 찔렀다가 <b>아래꼬리를 달고 20선 위에서 마감</b>. 20선을 지켜 주는 세력이 있다는 뜻입니다.",
+ read:[["저가 < 20선 < 종가 + 긴 아래꼬리","찔러주기"],["다음 날 그 저가 이탈","실패"]],ex:"",now:null,
+ fig:()=>FG({n:8,c:[[60,64,58,62],[62,66,60,64],[64,65,58,60],[60,61,40,58],[58,66,57,65],[65,72,64,70]],paths:[{p:PS(50,51,52,53,54,55),col:CNV,t:"20선"}],marks:[{i:3,p:40,t:"찌름",col:COK,below:true}]})},
+cage:{t:"5·10일선 가두리",ch:2,al:["가두리"],src:"2-9 §2",
+ one:"5일선 위에서 10일선을 깨지 않고 <b>두 선 사이 가두리 안에서</b> 오르는 초단기 급등형. 5선 이탈이 매도입니다.",
+ read:[["종가 5선 위 + 저가 10선 위","가두리 유지"],["5선 종가 이탈","빠른 세력 — 매도"]],ex:"",now:null,
+ fig:()=>FG({n:12,c:KS([20,26,32,38,44,52,58,64,70,78,84]),paths:[{p:PS(16,20,25,30,36,42,48,54,60,66),col:"#e8590c",t:"5선"},{p:PS(12,15,18,22,27,32,37,42,48,53),col:CNV,t:"10선"}]})},
+plunge:{t:"과감한 하락 후 2~3일",ch:2,al:["과감한 하락"],src:"2-9 §4 · 6-6",
+ one:"며칠 사이 15% 넘게 <b>과감하게</b> 빠진 뒤 2~3일째는 기술적 반등이 잘 나오는 자리. 짧게만 봅니다.",
+ read:[["급락 뒤 1~3일","기술적 반등 자리"],["반등 목표","급락 시작 가격까지의 일부"],["새 저점","손절"]],ex:"",now:null,
+ fig:()=>FG({n:11,c:KS([80,78,79,70,58,46,40,44,50,48]),marks:[{i:5,p:36,t:"2~3일째",col:COK,below:true}]})},
+});
+if(typeof CHC!=="undefined"&&CHC[2]) CHC[2].ids.push("hs","ihs","flag","cup","triple","ride","fall3","failbo","prebuy","wave","stab20","cage","plunge");}

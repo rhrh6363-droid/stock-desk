@@ -278,7 +278,7 @@ async function loadB(name){
 const idxName=(s)=>String(s?.심볼||"").endsWith(".KQ")?"tb_idx_KQ11":"tb_idx_KS11";
 function needs(ch,s){
   const st=s?["tb_"+s.코드]:[];
-  return ({1:[...st,idxName(s)],2:st,3:st,4:[...st,"tb_ext"],5:[...st,idxName(s),...(TF?.종목||[]).map(x=>"tb_"+x.코드)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
+  return ({1:[...st,idxName(s)],2:[...st,idxName(s)],3:st,4:[...st,"tb_ext"],5:[...st,idxName(s),...(TF?.종목||[]).map(x=>"tb_"+x.코드)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
     8:st,9:["tb_idx_KS11","tb_idx_KQ11","tb_ext"],10:[...st,idxName(s),"tb_ext"]})[ch.n]||[];
 }
 function sliceF(F,n){
@@ -1127,6 +1127,7 @@ function ch2(s,B){
       why(H["기준 60분봉"]?(String(H.판정).startsWith("살아")?"분봉으로 확대해도 시세가 살아 있습니다 — 일봉 신호의 신뢰도가 올라갑니다.":"분봉으로 확대하니 최근 시세의 기준이 깨졌습니다. 일봉에서 무엇이 보이든 단기 시세는 끝난 쪽으로 봅니다."):"최근 열흘 사이 분봉 기준봉이 없어, 단기 세력 유입 흔적이 없습니다.","2-7 #3 · 1-14 §5")));
     parts.push(card("60분봉 — 기준봉 확대","최근 약 20거래일",chartBlock(F,sp,LG("#0b8a8a","기준 60분봉 중심·하단"),"기준 60분봉 중심(점선) 위면 시세 유지, 하단(실선) 아래면 끝.")+table5(r)));
   }
+  if(typeof chk2==="function") parts.push(chk2(s,B));
   parts.push(card("2장 도구 점검","● 계산 · ◐ 근사 · ○ 미구현",toolTable([
     ["2-1 쌍바닥","두 저점·넥라인·20선 결합","◐","저점은 피벗으로 찾습니다. 다중 바닥(3개 이상)은 ○"],
     ["2-2 삼각수렴","1-10 추세선 두 개가 모이는지 + 수렴 구간 거래량","◐","대칭·상승·하락형 구분은 하지 않습니다(교재도 '분류에 의존 말 것')"],
