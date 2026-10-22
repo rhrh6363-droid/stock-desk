@@ -181,8 +181,8 @@ ol.howread li{margin-bottom:3px}
 .ctile .cfig{background:var(--surface-2);border:1px solid var(--line-soft)}
 .mdl{appearance:none;border:1px solid var(--navy);background:transparent;color:var(--navy);font:inherit;font-size:11px;line-height:1.5;padding:0 5px;margin:0 2px;cursor:help;vertical-align:1px}
 .mdl:hover,.mdl:focus{background:color-mix(in srgb,var(--navy) 10%,transparent);outline:none}
-.mini{max-width:380px;margin:0 0 6px;border:1px solid var(--line-soft);background:var(--surface-2)}
-.mini .mcap{font-size:11px;line-height:1.45;color:var(--ink-3);padding:3px 7px 5px}
+.jmini{max-width:380px;margin:0 0 6px;border:1px solid var(--line-soft);background:var(--surface-2)}
+.jmini .mcap{font-size:11px;line-height:1.45;color:var(--ink-3);padding:3px 7px 5px}
 svg.fig{display:block;width:100%;height:auto;font-family:"IBM Plex Sans KR","Malgun Gothic",sans-serif}
 table.rd{margin:4px 0 6px}
 table.rd th{background:none;white-space:normal;width:42%;font-size:12px;color:var(--ink);border-bottom:1px solid var(--line-soft);padding:4px 6px 4px 0;vertical-align:top}
@@ -279,7 +279,7 @@ const idxName=(s)=>String(s?.심볼||"").endsWith(".KQ")?"tb_idx_KQ11":"tb_idx_K
 function needs(ch,s){
   const st=s?["tb_"+s.코드]:[];
   return ({1:[...st,idxName(s)],2:[...st,idxName(s)],3:st,4:[...st,"tb_ext",idxName(s)],5:[...st,idxName(s),...(TF?.종목||[]).map(x=>"tb_"+x.코드)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
-    8:st,9:["tb_idx_KS11","tb_idx_KQ11","tb_ext"],10:[...st,idxName(s),"tb_ext"]})[ch.n]||[];
+    8:[...st,idxName(s)],9:["tb_idx_KS11","tb_idx_KQ11","tb_ext"],10:[...st,idxName(s),"tb_ext"]})[ch.n]||[];
 }
 function sliceF(F,n){
   if(!F) return F;
@@ -1404,7 +1404,7 @@ function mini(F,a,sp={}){
     paths:(sp.paths||[]).map(q=>({...q,p:q.p.filter(([,y])=>y!=null).map(([i,y])=>[i-a,Y(y)])})),
     marks:(sp.marks||[]).map(m=>({...m,i:m.i-a,p:Y(m.p)})),
     zones:(sp.zones||[]).map(z=>({...z,a:Y(z.a),b:Y(z.b),i1:I(z.i1),i2:I(z.i2)}))});
-  return `<div class="mini">${fig}${sp.cap?`<div class="mcap">${sp.cap}</div>`:""}</div>`;
+  return `<div class="jmini">${fig}${sp.cap?`<div class="mcap">${sp.cap}</div>`:""}</div>`;
 }
 const maP=(F,p,a)=>{const m=F.ma?.[p]; if(!m) return []; const o=[]; for(let i=Math.max(0,a);i<F.c.length;i++) if(m[i]!=null) o.push([i,m[i]]); return o;};
 const kw=v=>v>=10000?fmt(v/10000,v>=100000?1:2)+"만":fmt(v);
@@ -2002,6 +2002,7 @@ function ch8(s){
       <div class="mini"><h3>손절 기준은 하나만 (8-3)</h3>① 전저점 ② 이평선 ③ 캔들 ④ 박스 중 하나. "손절에는 법이 없다, 원칙이 있다."</div>
       <div class="mini"><h3>익절 (8-2)</h3>1차 목표 = 전고점대 ±2~3%에서 30~50% 매도.</div>
       <div class="mini"><h3>비중 (8-6 · 9-2)</h3>오늘 현금 비중 <b>${esc(MK["현금 비중(9-2)"]||"")}</b><br>${esc(MK["비중 매트릭스(9-2 §19-1)"]||"")}</div></div>`));
+  if(typeof chk8==="function") parts.push(chk8(s,BUN["tb_"+s.코드]));
   return parts.join("");
 }
 
@@ -2082,6 +2083,7 @@ function ch9(){
      <p class="small muted">${esc(MK["문턱 표기"]||"")}</p>
      ${adrBar(b)}`)+switchTable()
    + card("계절성과 일정","9-4 · 9-2 §1-3",`<p>계절성: ${esc(MK["계절성(9-4, S&P 1950~2023 월평균)"]||"")}</p><p>FOMC·CPI·고용·실적 일정: <b>${esc(MK["캘린더(FOMC·CPI·고용·실적)"]||"")}</b></p>`));
+  if(typeof chk9==="function") parts.push(chk9());
   return parts.join("");
 }
 function adrBar(b){
@@ -2134,6 +2136,7 @@ function ch10(s){
       <li>원칙은 세 분야로 적는다: 종목 선정 / 매수(비중과 손절은 연결되어 있다) / 매도 (10-6)</li>
       <li>관심종목 10~15개에 시나리오를 적고, 매매일지로 복기한다 (10-1 · 10-2)</li>
       <li>기법보다 지수가 먼저다 (10-3 §5)</li></ul>`));
+  if(typeof chk10==="function") parts.push(chk10(s,BUN["tb_"+s.코드]));
   return parts.join("");
 }
 function scoreBar(tones){
