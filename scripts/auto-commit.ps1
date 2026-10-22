@@ -64,7 +64,7 @@ try {
                 Log "$name pull 실패(충돌?) — 커밋은 로컬에 두고 다음에 다시: $($pl.Trim())"; continue
             }
             $ps = G $p push -q
-            Log "$name push rc=$LASTEXITCODE ($ahead커밋) $($ps.Trim())"
+            Log "$name push rc=$LASTEXITCODE ($($ahead)커밋) $($ps.Trim())"
         }
     }
 } catch { Log "error: $_" }
