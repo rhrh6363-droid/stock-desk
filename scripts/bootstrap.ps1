@@ -12,6 +12,7 @@
 #          stock-desk\config.json → 이 폴더의 config.json        (구글시트)
 #          service_account.json  → ~\.stock-desk\ 로 두고 config.json 경로를 맞춘다
 #          claude\skills         → ~\.claude\skills              (trading-desk 등)
+#          claude\hooks          → ~\.claude\hooks + settings.json 훅 (작업 완료 팝업 · 세션명)
 #          claude\memory         → ~\.claude\projects\<프로젝트>\memory
 #     4) 작업 스케줄러에 '주식 장중수집' 이 없으면 등록한다 (절전 해제 포함)
 #
@@ -110,6 +111,17 @@ if ($synced) {
         New-Item -ItemType Directory -Force (Join-Path $Claude "skills") | Out-Null
         Copy-Item (Join-Path $sk "*") (Join-Path $Claude "skills") -Recurse -Force
         Ok "Claude 스킬"
+    }
+
+    $hk = Join-Path $Sync "claude\hooks"                            # 작업 완료 팝업 · 세션 이름
+    if (Test-Path $hk) {
+        $hkDst = Join-Path $Claude "hooks"
+        New-Item -ItemType Directory -Force $hkDst | Out-Null
+        Copy-Item (Join-Path $hk "*") $hkDst -Recurse -Force
+        if (Get-Command node -ErrorAction SilentlyContinue) {
+            node (Join-Path $hkDst "install-hooks.js")
+            if ($LASTEXITCODE -eq 0) { Ok "Claude 훅 (완료 팝업 · 세션명)" } else { Warn "훅 설정 병합 실패 (종료코드 $LASTEXITCODE)" }
+        } else { Warn "node 가 없어 훅 설정을 settings.json 에 넣지 못했습니다. Node.js 설치 후 다시 실행하세요." }
     }
 
     $mem = Join-Path $Sync "claude\memory"

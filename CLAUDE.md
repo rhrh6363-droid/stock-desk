@@ -31,7 +31,7 @@ powershell -ExecutionPolicy Bypass -File <루트>\stock\stock-desk\scripts\works
 powershell -ExecutionPolicy Bypass -File <루트>\stock\stock-desk\scripts\bootstrap.ps1
 ```
 - 필요한 것: `gh auth login` 이 되어 있을 것 (비공개 저장소 `pc-sync`·`backtest`·`simulation` 을 받는다)
-- 하는 일: 구조 맞추기 · 패키지 설치 · 키/구글시트 설정/스킬/메모리 배치 · 작업 스케줄러 `주식 장중수집` 등록
+- 하는 일: 구조 맞추기 · 패키지 설치 · 키/구글시트 설정/스킬/메모리/훅(작업 완료 팝업·세션명) 배치 · 작업 스케줄러 `주식 장중수집` 등록
 
 ## 비밀은 어디에
 - **이 저장소는 공개다. 키·config.json·서비스 계정 JSON 을 절대 커밋하지 않는다.**
