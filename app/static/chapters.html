@@ -273,7 +273,7 @@ async function loadB(name){
 const idxName=(s)=>String(s?.심볼||"").endsWith(".KQ")?"tb_idx_KQ11":"tb_idx_KS11";
 function needs(ch,s){
   const st=s?["tb_"+s.코드]:[];
-  return ({1:st,2:st,3:st,4:[...st,"tb_ext"],5:[...st,idxName(s)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
+  return ({1:st,2:st,3:st,4:[...st,"tb_ext"],5:[...st,idxName(s),...(TF?.종목||[]).map(x=>"tb_"+x.코드)],6:[...st,"tb_idx_KS11","tb_idx_KQ11"],7:[...st,"tb_idx_KS11","tb_idx_KQ11"],
     8:st,9:["tb_idx_KS11","tb_idx_KQ11","tb_ext"],10:[...st,idxName(s),"tb_ext"]})[ch.n]||[];
 }
 function sliceF(F,n){
@@ -469,8 +469,8 @@ function row5(label,ref,value,rule,tone,reading,imp){
     <td class="imp">${imp||""}</td></tr>`;
 }
 const grp5=(t)=>`<tr class="group"><td colspan="5">${esc(t)}</td></tr>`;
-function table5(rows){
-  return `<div class="scroll"><table class="t5"><colgroup><col style="width:12%"><col style="width:15%"><col style="width:19%"><col style="width:20%"><col style="width:34%"></colgroup><thead><tr><th>항목</th><th>오늘 값</th><th>교재 기준</th><th>읽는 법</th><th class="imph">시사점 — 그래서 무슨 뜻인가 (이론 · 자료 근거)</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+function table5(rows,h4="읽는 법"){
+  return `<div class="scroll"><table class="t5"><colgroup><col style="width:12%"><col style="width:15%"><col style="width:19%"><col style="width:20%"><col style="width:34%"></colgroup><thead><tr><th>항목</th><th>오늘 값</th><th>교재 기준</th><th>${h4}</th><th class="imph">시사점 — 그래서 무슨 뜻인가 (이론 · 자료 근거)</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
 const parseBand=(s)=>{const m=String(s||"").match(/([\d,]+)~([\d,]+)/); return m?[+m[1].replace(/,/g,""),+m[2].replace(/,/g,"")]:null;};
 const trendSpec=(tl,n,label,col,chan)=>{
@@ -1373,6 +1373,177 @@ function sum5(s,B){
   if(nw.재료성격) pts.push(`재료: ${esc(nw.재료성격)} — 5-5 "실시간 호재에 바로 사지 않는다".`);
   return {tone,head,html:`<ul class="plain">${pts.map(x=>`<li>${x}</li>`).join("")}</ul>`};
 }
+/* 교재 절별 판별 — 5장 각 편의 절을 이 종목 숫자에 대입한다 (해당·아님·주의·대상 아님·자료 없음) */
+const JV={y:["g","해당"],n:["b","아님"],w:["w","주의"],x:["n","대상 아님"],q:["n","자료 없음"]};
+function rowJ(label,ref,value,rule,v,reading,imp){
+  const [tn,wd]=Array.isArray(v)?v:JV[v];
+  return row5(label,ref,value,rule,null,`${T(tn,wd)} ${reading}`,imp);
+}
+function pivots(F,k,from){
+  const lo=[],hi=[],n=F.c.length;
+  for(let i=Math.max(from,k);i<n-1;i++){let L=true,H=true;
+    for(let j=i-k;j<=Math.min(n-1,i+k);j++){if(j===i) continue; if(F.l[j]<F.l[i]) L=false; if(F.h[j]>F.h[i]) H=false;}
+    if(L) lo.push(i); if(H) hi.push(i);}
+  return {lo,hi};
+}
+function chk5(s,B){
+  const F=B?.프레임?.일봉, Ix=BUN[idxName(s)]?.프레임?.일봉, D=s.일봉||{}, W=s.주봉||{}, M=s.월봉||{}, d=DD[s.코드]||{}, nw=d.뉴스||{}, r=[];
+  if(!F||F.c.length<260) return "";
+  const n=F.c.length, c=F.c[n-1], dt=i=>String(F.t[i]).slice(String(F.t[i]).slice(0,4)===String(F.t[n-1]).slice(0,4)?5:2);
+  const ma=(A,p,i)=>{let t=0; for(let j=i-p+1;j<=i;j++) t+=A[j]; return t/p;};
+  const m5=ma(F.c,5,n-1), m20=ma(F.c,20,n-1), m60=ma(F.c,60,n-1), ig=c/m20*100;
+  const ck=L=>L.map(([k,b])=>`${b?"○":"✕"} ${k}`).join("<br>"), cnt=L=>L.filter(x=>x[1]).length;
+  let iDD=null, iUp20=null;
+  if(Ix){const k=Ix.c.length; let h=-Infinity; for(let j=k-20;j<k;j++) h=Math.max(h,Ix.h[j]); iDD=(Ix.c[k-1]/h-1)*100; iUp20=Ix.c[k-1]>ma(Ix.c,20,k-1);}
+
+  /* 5-1 · 5-1a */
+  r.push(grp5("5-1 · 5-1a 조건검색식 — 전 종목 스캔 대신 이 종목 하나를 검색식에 넣어 봄"));
+  if(Ix) r.push(rowJ("체크 첫 질문 — 지수가 20선 위인가","5-1a #3-2 · 5-1 #3-1",`${esc(BUN[idxName(s)].이름)} ${iUp20?"20선 위":"20선 아래"}<br>20일 고점 대비 ${sgn(iDD)}`,"지수가 20선 아래면 눌림목 매수는 쉰다. 급락기는 사는 때가 아니라 리스트를 만드는 때",
+    iUp20?"y":"w",iUp20?"눌림목을 볼 수 있는 장입니다.":"<b>눌림목 매수를 쉬는 장</b>입니다.",
+    why(iUp20?"검색식 A로 고른 종목을 차트로 확인할 수 있습니다.":`${iDD<=-10?`지수가 20일 고점에서 ${fmt(-iDD,0)}% 빠진 하락장입니다. `:""}할 일은 매수가 아니라 반등 때 쓸 리스트 만들기 — 그 리스트를 고르는 체가 검색식 B입니다.`,"5-1 #3-1 · 5-1a #3-2")));
+  const A=[["D 20봉 변동폭 15%↑",D["5봉전 20봉 변동폭(%)"]>=15],["E 정배열 5>20>60",m5>m20&&m20>m60],[`F 이격 100~105 (지금 ${fmt(ig,1)})`,ig>=100&&ig<=105],["G 5선 위",c>m5]];
+  r.push(rowJ("검색식 A — 20일선 눌림목","5-1 #2-3~2-7 · 5-1a #3",ck(A),"시세 났던 종목이 정배열로 20선 바로 위(이격 100~105)까지 쉬고 5선을 되찾은 첫날",
+    cnt(A)===4?"y":"n",`${cnt(A)}/4 통과.`,
+    why(cnt(A)===4?"눌림목 후보입니다. 검색식은 매수 신호가 아니라 1차 체라 차트 확인이 남습니다(#0).":!A[1][1]?`<b>정배열에서 탈락</b>합니다. 이격 ${fmt(ig,1)} — 20선에 붙은 게 아니라 ${ig<100?"아래로 벗어난":"위로 뜬"} 자리라, 교재 그림의 '거르는 쪽'(역배열·20선 깨짐)입니다.`:`${A.filter(x=>!x[1]).map(x=>x[0]).join(" · ")}에서 걸립니다.`,"5-1 #2 · 5-1a #3-4")));
+  let h20=-Infinity; for(let j=n-20;j<n;j++) h20=Math.max(h20,F.h[j]);
+  const bbU=i=>{const m=ma(F.c,20,i); let v=0; for(let j=i-19;j<=i;j++) v+=(F.c[j]-m)**2; return m+2*Math.sqrt(v/20);};
+  let bbHit=false; for(let i=n-5;i<n;i++) if(F.h[i]>=bbU(i)) bbHit=true;
+  const Bc=[[`20봉 고점 −10% 이내 (지금 ${sgn(gap(c,h20))})`,c>=h20*0.9],["5봉 안 볼린저 상단 돌파",bbHit],["20선 > 60선",m20>m60],["20선 이격 15% 이내",Math.abs(ig-100)<=15]];
+  const fall=iDD!=null&&iDD<=-5;
+  r.push(rowJ("검색식 B — 하락장에서 버티는 종목","5-1 #3-2~3-5 · 5-1a #4",ck(Bc),"지수가 빠질 때 혼자 고점 근처에서 버티며 볼린저 상단을 두드리는 종목. 걸려도 바로 사지 않고 지수 반등 때 산다",
+    !fall?"x":cnt(Bc)===4?"y":"n",!fall?"지수가 하락장이 아니라 이 검색식을 쓸 때가 아닙니다.":`${cnt(Bc)}/4 통과.`,
+    fall?why(cnt(Bc)===4?"지수 반등 때 먼저 갈 후보입니다 — 지금 사지 않고 리스트에 올립니다(#3-5).":"버틴 게 아니라 지수와 같이 빠졌습니다. 반등 리스트의 앞자리가 아닙니다.","5-1 #3-2·#3-5"):""));
+  r.push(rowJ("검색식 C — 3분봉 돌파","5-1 #4 · 5-1a #5","—","5봉 신고가 + 거래량 300%, 걸리면 30분 기다림","x","장중 조건입니다.",why("장 마감 뒤 일봉 자료로는 판정하지 않습니다 — 6장 단타 복기에서 봅니다.","5-1 #4")));
+
+  /* 5-2 */
+  r.push(grp5("5-2 종목 선정 — 위 표(지수 대비·전저점·전고점·주봉 10선)에 없는 절"));
+  const P=pivots(F,5,n-130), H60=Math.max(...F.h.slice(n-60)), touch=P.hi.filter(i=>i>=n-60&&F.h[i]>=H60*0.96);
+  const lower=touch.length>=2&&F.h[touch[touch.length-1]]<F.h[touch[0]];
+  r.push(rowJ("천장 두드리기 — 3층 비유","5-2 #2-1 · 5-7 #7-3·7-4",touch.map(i=>`${won(F.h[i])} (${dt(i)})`).join("<br>")||"—","천장은 여러 번 두드려야 뚫린다. 전고점은 자석이자 저항 — 테스트 뒤엔 후퇴 아니면 장기 횡보",
+    c>H60?"y":touch.length>=2?(lower?"n":"w"):"x",c>H60?"천장을 뚫었습니다.":`최근 60일 ${touch.length}번 두드리고 못 뚫었습니다${lower?" — 마지막 고점이 첫 고점보다 낮습니다":""}.`,
+    why(c>H60?"뚫은 가격이 이제 지지인지 확인합니다(5-2 #1-2).":lower?`고점이 낮아지며 두드리는 건 뚫는 힘이 아니라 지쳐 가는 모양입니다. 교재 전고점 테스트 시나리오 중 <b>'후퇴'</b> 쪽입니다(5-7 #7-4).${c<H60*0.9?` 지금은 천장에서 ${fmt(-gap(c,H60),0)}% 밀려 내려와 있습니다.`:""}`:c>=H60*0.9?"천장 바로 밑에서 버팁니다 — 다음 두드림에서 뚫릴 수 있습니다.":`천장(${won(H60)})에서 ${fmt(-gap(c,H60),0)}% 밀려 내려와 있습니다.`,"5-2 #2-1 · 5-7 #7-4")));
+  const tl=D["최근 두 저점"];
+  if(Array.isArray(tl)&&tl.length===2) r.push(rowJ("저점이 올라오는가 — 한진칼","5-2 #2-2",`${won(tl[0])} → ${won(tl[1])}`,"저항 아래서 저점을 올리며 버티는 종목을 일주일 관심종목으로",
+    D["최근 두 저점 상승"]?"y":"n",D["최근 두 저점 상승"]?"저점이 올라왔습니다.":"저점이 내려갔습니다.",
+    why(D["최근 두 저점 상승"]?"저항 밑에서 힘을 모으는 모양 — 저항 돌파를 기다립니다.":"한진칼 사례와 반대로 버티는 게 아니라 밀리는 중입니다.","5-2 #2-2")));
+  let hiI=n-250; for(let i=n-250;i<n;i++) if(F.h[i]>F.h[hiI]) hiI=i;
+  let loI=hiI; for(let i=hiI;i<n;i++) if(F.l[i]<F.l[loI]) loI=i;
+  const qh=F.h[hiI], ql=F.l[loI], drop=(ql/qh-1)*100;
+  if(drop<=-15){
+    const q=[1,2,3].map(k=>ql+(qh-ql)*k/4), rej=pivots(F,3,loI).hi.filter(i=>i>loI&&Math.abs(F.h[i]/q[1]-1)<=0.03);
+    r.push(rowJ("4등분선","5-2 #11-1~11-3",`고점 ${won(qh)} (${dt(hiI)})<br>→ 저점 ${won(ql)} (${dt(loI)})<br>1/4 ${won(q[0])} · <b>1/2 ${won(q[1])}</b> · 3/4 ${won(q[2])}<br>지금 ${fmt((c-ql)/(qh-ql)*100,0)}% 지점`,"1년 최고점~그 뒤 최저점을 4등분. 1/4을 회복하면 하락을 돌려세운 힘, 1/2은 가장 강한 심리선(저항)",
+      c>=q[1]?"y":c>=q[0]?"w":"n",c>=q[1]?"1/2선을 회복했습니다.":c>=q[0]?"1/4선은 회복, 1/2선 아래입니다.":"1/4선도 회복하지 못했습니다.",
+      why(`${rej.length?`반등이 1/2선 근처(${rej.map(i=>won(F.h[i])).join(" · ")})에서 ${rej.length}번 막혔습니다 — 교재가 말한 '가장 강한 심리선' 그대로입니다. `:""}${c<q[0]?`하락을 돌려세웠다고 말하려면 먼저 1/4선 ${won(q[0])}을 종가로 넘어야 합니다.`:c<q[1]?`다음 관문은 1/2선 ${won(q[1])}입니다.`:`다음은 3/4선 ${won(q[2])}입니다.`}`,"5-2 #11")));
+  } else r.push(rowJ("4등분선","5-2 #11","1년 고점 대비 큰 하락 없음","하락 뒤 4등분","x","4등분할 하락 구간이 없습니다(1년 고점 대비 −15% 미만).",""));
+  let bI=-1; for(let i=n-1;i>=n-20;i--) if(F.c[i]/F.o[i]-1>=0.05){bI=i;break;}
+  if(bI>=0){const mid=(F.o[bI]+F.c[bI])/2;
+    r.push(rowJ("장대양봉 중심","5-2 #8 · 5-7 #4-4",`${dt(bI)} 양봉 ${sgn((F.c[bI]/F.o[bI]-1)*100)}<br>상방 ${won(F.c[bI])} · <b>중심 ${won(mid)}</b> · 하방 ${won(F.o[bI])}<br>종가는 중심 ${sgn(gap(c,mid))}`,"장대양봉 뒤엔 몸통 절반(중심)을 지키는지, 5→10→20선 순으로 받쳐 주는지 본다",
+      c>=F.c[bI]?"y":c>=mid?"w":"n",c>=F.c[bI]?"양봉 위로 올라섰습니다.":c>=mid?"중심 위 — 몸통 안에서 공방 중입니다.":"중심을 내줬습니다.",
+      why(c>=mid?`중심 ${won(mid)}을 종가로 지키는 동안은 이 양봉이 살아 있습니다.${c<F.c[bI]?` 상방 ${won(F.c[bI])}을 넘어야 다시 힘이 붙습니다.`:""}`:`중심을 내준 장대양봉은 힘을 잃은 것으로 봅니다 — 하방 ${won(F.o[bI])}이 마지막 선입니다.`,"5-2 #8 · 5-7 #4-4")));
+  } else r.push(rowJ("장대양봉 중심","5-2 #8","최근 20일 없음","장대양봉(+5% 이상) 뒤 중심 지지","x","최근 20일에 장대양봉이 없습니다.",""));
+  let jI=-1; for(let i=n-1;i>=n-10;i--){const rg=F.h[i]-F.l[i]; if(rg>0&&Math.abs(F.c[i]-F.o[i])/rg<=0.15&&rg/F.c[i]>=0.02){jI=i;break;}}
+  if(jI>=0){let bk=-1; for(let i=jI+1;i<n;i++) if(F.c[i]>F.h[jI]){bk=i;break;}
+    const st=jI===n-1?"오늘이 도지":c<F.l[jI]?"도지 저가 이탈":bk<0?"아직 돌파 없음":c>F.h[jI]?"돌파 후 유지":"돌파 후 되밀림";
+    r.push(rowJ("도지 — 위를 돌파하는가","5-2 #9-1~9-3",`${dt(jI)} 도지<br>고가 ${won(F.h[jI])} · 저가 ${won(F.l[jI])}<br>${st}`,"방향을 미룬 봉. 규칙 두 줄 — 도지 고가를 종가로 돌파하면 산다, 저가를 깨면 버린다",
+      st==="돌파 후 유지"?"y":st==="돌파 후 되밀림"||st==="도지 저가 이탈"?"n":"w",st+".",
+      why(st==="돌파 후 되밀림"?`${dt(bk)}에 돌파했지만 다시 도지 고가 아래로 내려왔습니다 — <b>돌파 실패</b>. 다시 돌파할 때까지 관망입니다.`:st==="도지 저가 이탈"?"방향이 아래로 정해졌습니다.":st==="돌파 후 유지"?"위로 방향을 정했습니다.":`고가 ${won(F.h[jI])} 종가 돌파를 기다립니다.`,"5-2 #9-2")));
+  } else r.push(rowJ("도지 — 위를 돌파하는가","5-2 #9","최근 10일 없음","도지 고가 돌파","x","최근 10일에 도지가 없습니다.",""));
+  const R3=[["20선 위",c>m20],["직전 고점 돌파",!!D["신고가 격"]&&D["신고가 격"]!=="없음"],["20선 이격 105 이하",ig<=105]];
+  r.push(rowJ("반등 초입 후보인가","5-2 #17-3",ck(R3),"하락장 끝 반등 초입에 힘을 내는 건 20선 돌파 + 직전 고점 돌파 + 이격이 가까운 종목",
+    cnt(R3)===3?"y":"n",`${cnt(R3)}/3.`,
+    why(cnt(R3)===3?"지수가 반등할 때 먼저 갈 후보입니다.":c<m20?`지수가 반등해도 '먼저 힘이 나올' 후보가 아닙니다. 먼저 20선 ${won(m20)}(지금보다 ${sgn(gap(m20,c))})부터 되찾아야 합니다.`:"20선은 되찾았지만 직전 고점을 아직 못 넘었습니다.","5-2 #17-3")));
+
+  /* 5-3 */
+  r.push(grp5("5-3 테마와 섹터"));
+  r.push(rowJ("섹터인가 테마인가","5-3 #1 · #2-2",esc(d.섹터||"—"),"섹터(실체 있는 산업)는 중기·분할·여유 있는 손절, 테마는 5·20선 이탈 즉시 손절",
+    d.섹터?"y":"q",d.섹터?`${esc(d.섹터)}${d.세부섹터?" · "+esc(d.세부섹터):""}`:"섹터 분류가 비어 있습니다.",
+    why(d.섹터?"섹터 규칙으로 다룰지, 테마 규칙으로 다룰지 이 분류로 정합니다.":"관심종목은 당일 수집 행에 없어 섹터를 받지 못했습니다. 섹터 규칙인지 테마 규칙인지는 사람이 정합니다.","5-3 #2-2")));
+  const ir=idxOf(s)?.등락률, big=(d["시총(억)"]||0)>=100000;
+  if(ir!=null&&s.등락률!=null){const exp=big?(ir>=0?s.등락률>=ir:s.등락률<ir):(ir<0?s.등락률>=ir:s.등락률<ir);
+    r.push(rowJ("지수 양봉·음봉과 섹터 크기","5-3 #3-1·3-2",`지수 ${sgn(ir,2)} · 종목 ${sgn(s.등락률,2)}<br>${big?"시총 10조 이상(대형)":"중소형"}`,"지수 양봉 날은 시총 큰 섹터가 끌고, 음봉 날은 돈이 작은 테마로 숨는다",
+      exp?"y":"w",exp?"교재 그대로의 하루입니다.":"교재 패턴과 다른 하루입니다.",
+      why(ir<0?(big?(exp?"지수 음봉 날 대형주가 더 빠졌습니다 — 돈이 작은 테마로 옮겨 간 날입니다.":"지수 음봉 날 대형주인데 지수보다 버텼습니다 — 눈여겨볼 차이입니다."):(exp?"지수 음봉 날 작은 종목으로 돈이 숨은 쪽입니다.":"음봉 날 작은 종목인데도 더 빠졌습니다.")):(big?(exp?"지수 양봉을 대형주가 끈 날입니다.":"지수 양봉인데 대형주가 못 따라갔습니다 — 돈이 다른 데로 갔습니다."):(exp?"지수 양봉 날 중소형이 덜 갔습니다 — 교재 그대로.":"지수 양봉 날 중소형이 더 갔습니다.")),"5-3 #3")));}
+  const athDD=M["최고가 대비(%)"];
+  if(athDD!=null) r.push(rowJ("주도 테마는 반드시 죽는다","5-3 #10",`사상 최고가 ${won(M["사상 최고가"])} 대비 ${sgn(athDD)}`,"주도 테마도 고점 대비 −40~−75%까지 빠진다 — 손절은 벌기 위해 하는 것",
+    athDD<=-40?["w","해당"]:"x",athDD<=-40?"교재가 말한 '죽는' 구간에 들어와 있습니다.":"그 구간이 아닙니다.",
+    athDD<=-40?why("주도였던 종목도 이만큼 빠진다는 교재의 경고 그대로입니다. 보유자라면 '정리할 때 정리했는가'(#11)의 문제이고, 신규라면 바닥 확인 없이 들어갈 자리가 아닙니다.","5-3 #10·#11"):""));
+  r.push(rowJ("조정이 기회가 되는 조건","5-3 요약 #60","—","실적 확인 + 이익 전망이 오르는 섹터 안에서의 조정만 기회","q","재무를 연결하지 않았습니다.",why("이번 조정이 기회인지 가르는 칸이 비어 있습니다 — 5-6 표를 보세요.","5-3 · 5-6")));
+
+  /* 5-4 */
+  r.push(grp5("5-4 주도주 — 대장은 먼저 가고, 덜 쉰다"));
+  const stat=(G)=>{const k=G.c.length, cc=G.c[k-1]; let h=-Infinity,pl=Infinity,ph=-Infinity; for(let i=k-250;i<k;i++) h=Math.max(h,G.h[i]); for(let i=k-65;i<k-5;i++){pl=Math.min(pl,G.l[i]); ph=Math.max(ph,G.h[i]);}
+    return {dd:(cc/h-1)*100,r20:(cc/G.c[k-21]-1)*100,broke:cc<pl,nh:cc>ph};};
+  const peers=(TF?.종목||[]).filter(x=>x.코드!==s.코드).map(x=>[x.이름,BUN["tb_"+x.코드]?.프레임?.일봉]).filter(p=>p[1]&&p[1].c.length>=260);
+  if(peers.length){const me=stat(F), ps=peers.map(([nm,G])=>[nm,stat(G)]), all=[[s.이름,me],...ps];
+    const line=([nm,x])=>`${esc(nm)} 고점 ${sgn(x.dd,0)} · 20일 ${sgn(x.r20,0)} · 60일 저점 ${x.broke?"<b>깸</b>":"지킴"}`;
+    const best=ps.every(([,x])=>me.dd>x.dd);
+    r.push(rowJ("기준② 조정을 덜 받는가","5-4 #2",all.map(line).join("<br>"),"대장은 조정을 덜 받는다 — 같이 빠질 때 덜 빠지고 저점을 지키는 쪽",
+      best?"y":"n",best?"함께 보는 종목 중 가장 덜 빠졌습니다.":"더 덜 빠진 종목이 있습니다.",
+      why(`${best?`'덜 쉬는' 쪽은 ${esc(s.이름)}입니다.`:`덜 쉬는 쪽은 ${esc(ps.reduce((a,b)=>b[1].dd>a[1].dd?b:a)[0])}입니다.`} 비교 대상은 관심종목 전체입니다 — 같은 섹터만 고르려면 섹터 값이 필요합니다.`,"5-4 #2")));
+    const first=all.filter(([,x])=>x.nh).map(([nm])=>esc(nm));
+    r.push(rowJ("기준① 직전 고점을 먼저 깨는가","5-4 #1",all.map(([nm,x])=>`${esc(nm)} ${x.nh?"<b>돌파</b>":"미돌파"}`).join("<br>"),"대장은 직전 고점(60일)을 먼저, 빨리 깬다",
+      me.nh?"y":"n",me.nh?"직전 고점을 넘었습니다.":first.length?`${first.join("·")}이(가) 먼저 넘었습니다.`:"아무도 직전 고점을 넘지 못했습니다.",
+      why(first.length?"":"함께 보는 종목 중 먼저 가는 대장이 아직 없습니다 — 주도주가 정해지지 않은 상태입니다.","5-4 #1")));
+  }
+  const minL=(a)=>{let m=n-a; for(let i=n-a;i<n;i++) if(F.l[i]<F.l[m]) m=i; return m;};
+  const tiers=[minL(20)]; [120,250].forEach(a=>{const j=minL(Math.min(a,n)); if(tiers.length<3&&F.l[j]<F.l[tiers[tiers.length-1]]*0.97&&F.l[j]>=c*0.75) tiers.push(j);});
+  const brokenUp=pivots(F,5,n-120).lo.filter(i=>F.l[i]>c*1.03).map(i=>F.l[i]).sort((a,b)=>a-b).slice(0,3);
+  r.push(rowJ("변곡점 1·2·3차","5-4 #12-1~12-3",tiers.map((i,k)=>`${k+1}차 ${won(F.l[i])} (${dt(i)}) ${sgn(gap(F.l[i],c))}`).join("<br>"),"매도가 끝나고 매수가 시작된 가격(지금가 −25% 안). 깨면 손절하고, 깨진 가격은 저항으로 바뀐다",
+    c>=F.l[tiers[0]]?"y":"n",c>=F.l[tiers[0]]?"1차 변곡점 위입니다.":"1차 변곡점을 깼습니다.",
+    why(`첫 손절선은 1차 ${won(F.l[tiers[0]])} 종가 이탈${tiers[1]!=null?`, 그다음 받칠 곳은 2차 ${won(F.l[tiers[1]])}`:""}입니다.${brokenUp.length?` 이미 깨져 저항이 된 가격: ${brokenUp.map(won).join(" · ")}.`:""}`,"5-4 #12-3")));
+  const lo3=pivots(F,5,n-120).lo.slice(-3);
+  if(lo3.length===3){const up=F.l[lo3[1]]>F.l[lo3[0]]&&F.l[lo3[2]]>F.l[lo3[1]], dn=F.l[lo3[2]]<F.l[lo3[1]];
+    r.push(rowJ("가이드가 올라가는가","5-4 #12-4",lo3.map(i=>`${won(F.l[i])} (${dt(i)})`).join("<br>"),"강한 주도주는 변곡점이 계단처럼 올라간다",
+      up?"y":dn?"n":"w",up?"계단식으로 올라갑니다.":dn?"마지막 변곡점이 <b>내려갔습니다</b>.":"오르내림이 섞였습니다.",
+      why(up?"주도주의 모양입니다.":dn?"주도주의 반대 모양 — 받치는 가격이 낮아졌습니다.":"방향이 아직 정해지지 않았습니다.","5-4 #12-4")));}
+  r.push(rowJ("9시 30분 전엔 결정되지 않는다","5-4 #9 · #11","—","당일 주도주는 9:30 이후 분봉 20선을 타고 우상향하는 종목","x","장중 조건입니다.",why("6장 단타 복기·장중 화면에서 봅니다.","5-4 #9")));
+
+  /* 5-5 */
+  r.push(grp5("5-5 뉴스와 재료 — 위 표의 재료 성격에 더해"));
+  const arts=nw.기사||[], talk=arts.filter(a=>/전망|기대|추진|강조|계획|검토|예상|목표|가능성|바닥/.test(a.제목||"")), rep=arts.filter(a=>/리포트|목표가|투자의견|증권/.test(a.제목||""));
+  r.push(rowJ("호재 문법 — 일어난 일인가, 말인가","5-5 #8-1 · #6",arts.length?`기사 ${arts.length}건 중 전망·주장 ${talk.length}건 · 증권사 ${rep.length}건`:"기사 없음","'강조했다·추진 중·전망'은 일어난 일이 아니라 말이다. 리포트는 단서 하나 — 시장·섹터 타이밍이 먼저",
+    !arts.length?"x":talk.length?["w","해당"]:"x",!arts.length?"수집된 기사가 없습니다.":talk.length?"말(전망·주장) 기사가 섞여 있습니다.":"전망·주장 문법 기사는 없습니다.",
+    talk.length?why(`예: "${esc(talk[0].제목)}". 근거로 약합니다.${rep.length?" 리포트가 좋아도 섹터 전체가 내리면 그 종목만 오를 수 없습니다(#6).":""}`,"5-5 #6·#8-1"):""));
+  if(athDD!=null) r.push(rowJ("'싸졌다'는 근거가 아니다","5-5 #8-2",`최고가 대비 ${sgn(athDD)}`,"많이 빠졌다는 이유로 사는 것은 근거가 아니다",
+    athDD<=-30?["w","경고"]:"x",athDD<=-30?"'싸 보이는' 자리입니다.":"해당 없음.",
+    athDD<=-30?why("교재가 직접 부정하는 근거입니다. 무엇이 바뀌었는지(재료·실적·차트 신호)가 있어야 삽니다.","5-5 #8-2"):""));
+  const box=M["36개월 박스 위치(%)"];
+  if(box!=null) r.push(rowJ("월봉 바닥권 + 1·2·3차 분할","5-5 요약 #12",`36개월 박스 ${fmt(box,0)}% 위치`,"월봉 바닥권에서 60·120일선·전저점을 1·2·3차로 나눠 산다",
+    box<=25?"y":"n",box<=25?"월봉 바닥권입니다.":"월봉 바닥권이 아닙니다.",
+    why(box<=25?"중장기 분할 매수를 시작할 수 있는 자리 — 재무 확인이 전제입니다.":"중장기 분할(1·2·3차)을 시작하는 자리가 아닙니다.","5-5 #12")));
+
+  /* 5-6 */
+  r.push(grp5("5-6 재무제표"));
+  r.push(rowJ("돈을 벌고 있는가 — 네 줄 · PBR 밴드","5-6 #2·#4·#5","—","매출·영업이익·순이익·부채. 우상향이면 물려도 추가 매수 고려, 우하향이면 손절. PBR 밴드 아래쪽에서만 중장기",
+    "q","DART를 연결하지 않았습니다.",why("네이버 [종목분석]에서 예상치(컨센서스)가 오르는지 내리는지 직접 확인하세요. 보유자에게 지금 가장 필요한 칸입니다.","5-6 #2-2·#4")));
+
+  /* 5-7 */
+  r.push(grp5("5-7 개별 종목 차트분석 사례"));
+  if(M["24개월 저점"]&&M["사상 최고가"]){const run=(M["사상 최고가"]/M["24개월 저점"]-1)*100;
+    r.push(rowJ("과거 급등폭과 비교","5-7 #1-2",`24개월 저점 ${won(M["24개월 저점"])} → 최고 ${won(M["사상 최고가"])}<br>= ${sgn(run,0)}`,"교재 속 과거 급등은 100~160% 안팎. 그보다 크면 되돌림도 크다",
+      run>160?["w","초과"]:"x",run>160?"과거 급등폭을 넘은 시세였습니다.":"과거 급등폭 범위 안입니다.",
+      run>160?why("이만큼 오른 시세는 되돌림이 큰 게 이상하지 않습니다 — 지금의 하락폭을 이 크기에 비춰 봅니다.","5-7 #1-2"):""));}
+  const Fm=B.프레임.월봉;
+  if(Fm&&Fm.c.length>=40){const k=Fm.c.length; let ai=k-60<0?0:k-60; for(let i=ai;i<k;i++) if(Fm.h[i]>Fm.h[ai]) ai=i;
+    let li=Math.max(0,ai-36); for(let i=li;i<ai;i++) if(Fm.l[i]<Fm.l[li]) li=i;
+    const since=k-1-ai, ddm=(Fm.c[k-1]/Fm.h[ai]-1)*100;
+    r.push(rowJ("월봉 '3년 상승, 2~3년 하락'","5-7 #2-4",`상승 ${ai-li}개월 (${esc(Fm.t[li])}→${esc(Fm.t[ai])})<br>고점 뒤 ${since}개월 · ${sgn(ddm,0)}`,"월봉은 대략 3년 오르고 2~3년 쉰다. 바닥을 함부로 단정하지 않되 예측은 할 수 있다",
+      since<=12&&ddm<=-25?["w","하락 국면 초입 가능"]:since===0?"x":"n",since<=12&&ddm<=-25?"큰 상승 뒤 꺾인 지 1년이 안 됐습니다.":since===0?"이번 달이 고점입니다.":"주기 대입이 맞지 않습니다.",
+      since<=12&&ddm<=-25?why("교재 주기를 대입하면 2~3년 하락의 앞부분일 수 있습니다. 2022년 삼성전자 장면의 질문 — '5년 기다릴 자신이 있느냐'가 여기서 나옵니다(#2).","5-7 #2 · #3"):""));}
+  if(drop<=-15){const mo=(n-1-hiI)/21, avg=(a,b)=>{let t=0; for(let i=a;i<b;i++) t+=F.v[i]; return t/(b-a);};
+    const vr=avg(n-40,n)/avg(Math.max(0,hiI-39),hiI+1);
+    const C3=[[`기간 ${fmt(mo,1)}개월`,mo>=6],[`폭 ${sgn(drop,0)} (반토막)`,drop<=-50],[`거래량 ${fmt(vr,2)}배 (레벨다운)`,vr<=0.6]];
+    r.push(rowJ("바닥 확인 — 기간·폭·거래량","5-7 #6-1~6-4",ck(C3),"하락 뒤 바닥은 기간(충분히 쉬었나) → 폭(반토막) → 거래량 레벨다운 순서로 확인",
+      cnt(C3)===3?"y":cnt(C3)?"w":"n",`${cnt(C3)}/3.`,
+      why(`${C3[2][1]?"거래량은 고점 때보다 확 줄었습니다(레벨다운). ":"거래량이 아직 고점 때 수준입니다. "}${!C3[0][1]?"쉰 기간이 짧습니다(1년 고점 기준, 6개월 미만). ":""}${!C3[1][1]?"폭은 반토막에 못 미칩니다. ":""}세 가지가 다 차야 바닥을 말할 수 있습니다.`,"5-7 #6")));}
+  const wl=[["10주선",W["10주선"]],["20주선",W["20주선"]],["60주선",W["60주선"]]].filter(x=>x[1]);
+  if(wl.length){const below=wl.filter(x=>x[1]<c);
+    r.push(rowJ("주봉 10·20·60주선 1·2·3차","5-7 #9-2 · #7-1",wl.map(([k,v])=>`${k} ${won(v)} ${sgn(gap(v,c))}`).join("<br>"),"매수 구간은 20·60선에 가까워질 때 — 주봉 10·20·60주선을 1·2·3차로 나눠 받는다",
+      below.length===wl.length?"y":below.length?["w","대기"]:"n",below.length===wl.length?"세 선 모두 아래에서 받칩니다.":below.length?`아래 첫 받침은 ${below[0][0]} ${won(below[0][1])}입니다.`:"세 선 모두 위에 있습니다.",
+      why(below.length===wl.length?`1차 ${wl[0][0]} 근처가 첫 매수 구간입니다.`:below.length?`위의 ${wl.filter(x=>x[1]>=c).map(x=>x[0]).join("·")}은 이미 깨져 저항입니다. 교재대로라면 ${below[0][0]}(${sgn(gap(below[0][1],c))})까지 와야 1차 매수 구간입니다.`:"주봉 이평 전부 아래 — 주봉 지지가 없습니다.","5-7 #9-2")));}
+
+  return card("교재 대조 — 5장 절별 판별",`이 종목 숫자를 5-1~5-7 각 절에 대입 · 해당/아님/주의/대상 아님/자료 없음`,table5(r,"판정"));
+}
 function ch5(s,B){
   const d=DD[s.코드]||{}, D=s.일봉||{}, W=s.주봉||{}, X=rsCalc(s,B), parts=[];
   parts.push(topCard(5,sum5(s,B)));
@@ -1403,15 +1574,17 @@ function ch5(s,B){
     why(`${nw.도배?"여러 언론사에 도배된 뉴스는 이미 노출이 끝났습니다(#8). ":""}재료가 있어도 '바로 사는 것은 도박' — 조정 뒤 이평선 돌파에서 삽니다(#7).`,"5-5 #1·#7·#8")));
   r.push(row5("재무","5-6","—","영업이익·ROE·부채비율·PBR","n","DART 를 연결하지 않았습니다.",why("음봉 바닥(7-4)과 중장기(7-6)의 재무 조건이 판정불가로 남는 이유입니다.","5-6")));
   parts.push(card("읽는 법과 시사점","",table5(r)));
+  parts.push(chk5(s,B));
   const arts=(nw.기사||[]).slice(0,8), strong=new Set((nw.강한재료기사||[]).map(a=>a.제목));
   parts.push(card("오늘 기사","5-5: 장중 호재에 바로 사지 않는다 — 메모 → 공부 → 조정 뒤 매수",arts.length?`<ul class="plain">${arts.map(a=>`<li>${strong.has(a.제목)?T("g","확정 사건")+" ":""}<a href="${esc(a.링크)}" target="_blank" rel="noopener">${esc(a.제목)}</a> <span class="muted small">${esc(a.날짜||"")}</span></li>`).join("")}</ul>`:`<p class="muted">수집된 기사가 없습니다.</p>`));
   parts.push(card("5장 도구 점검","",toolTable([
-    ["5-1 조건검색식","","✕","전 종목 스캔은 KRX 로그인 필요"],
-    ["5-2 종목 선정 대전제","1·5·20·60·120·250일 지수 대비, 상대강도 차트, 지수 고점 이후 비교, 전저점 비교, 주봉 10선","●",""],
-    ["5-3 테마·섹터","","◐","일일보고서 섹터 히트맵"],
-    ["5-4 주도주","","◐","일일보고서 대장주 후보"],
-    ["5-5 뉴스·재료","재료 성격 자동 분류","◐","판독은 사람이"],
-    ["5-6 재무제표","","✕","DART 키 필요"]])));
+    ["5-1 조건검색식","이 종목 하나를 검색식 A·B에 대입, 지수 20선 첫 질문","◐","전 종목 스캔은 KRX 로그인 필요 · 검색식 C는 장중"],
+    ["5-2 종목 선정 대전제","1·5·20·60·120·250일 지수 대비, 상대강도 차트, 지수 고점 이후 비교, 전저점 비교, 주봉 10선, 천장 두드리기, 4등분선, 장대양봉 중심, 도지 돌파, 반등 초입 체크","●",""],
+    ["5-3 테마·섹터","지수 양봉·음봉 × 대형·중소형, 주도 테마 −40% 경고","◐","섹터 히트맵은 일일보고서 · 관심종목은 섹터 값 없음"],
+    ["5-4 주도주","관심종목끼리 기준①②, 변곡점 1·2·3차, 가이드 계단","◐","같은 섹터만 고르는 비교는 섹터 값 필요"],
+    ["5-5 뉴스·재료","재료 성격 자동 분류, 전망·주장 문법, '싸졌다' 경고, 월봉 바닥권","◐","판독은 사람이"],
+    ["5-6 재무제표","","✕","DART 키 필요"],
+    ["5-7 차트분석 사례","과거 급등폭, 월봉 주기, 기간·폭·거래량, 주봉 10·20·60주선","◐","기간 6개월·거래량 0.6배 기준은 근사"]])));
   return parts.join("");
 }
 function rsBars(R,a,b){
