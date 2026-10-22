@@ -1023,3 +1023,132 @@ beatprev:{t:"전날 캔들을 이겨내기",ch:6,al:["전날 캔들"],src:"6-8 �
  fig:()=>FG({n:8,c:[[50,52,40,42],[60,62,48,50],[50,66,49,64]],lines:[{p:60,col:CMD,t:"어제 시가",i1:1}],marks:[{i:2,p:70,t:"이겨냄",col:COK,dot:false}]})},
 });
 if(typeof CHC!=="undefined"&&CHC[6]) CHC[6].ids.push("open","anchor","multitop","limitup","pmbreak","npat","beatprev","news5","sect");}
+
+/* 백엔드 매매법 판정(s.매매법)을 한 줄로 — 6·7장 카드와 같은 결과 */
+function methJ(s,pre,g){
+  const M=(s.매매법||[]).find(x=>String(x.교재).startsWith(pre)); if(!M) return "";
+  const cs=M.조건||[], v={"적합":"y","조건부":"w","부적합":"n","판정불가":"q"}[String(M.판정).replace(/\(.*$/,"").trim()]||"w";
+  return rowJ(`매매법 종합 — ${M.매매법}`,esc(M.교재),cs.map(c=>`${c.충족===true?"○":c.충족===false?"✕":"?"} ${esc(c.조건||c.항목||"")}`).join("<br>"),"교재 조건을 모두 대 본 매매법 판정(위 매매법 카드와 같은 결과)",
+    v,`<b>${esc(M.판정)}</b> — 충족 ${cs.filter(c=>c.충족===true).length} · 미충족 ${cs.filter(c=>c.충족===false).length}.`,"",{g});
+}
+
+/* ───────────── 7장: 스윙 매매법 ───────────── */
+function chk7(s,B){
+  const X=JC(s,B); if(!X) return "";
+  const {F,n,L,c,m,avgV,hiIn,loIn,bd,rg,ut,lt,dt,D,W,M,Fw}=X, r=[], P=L-1, m5=m(5), m20=m(20), m60=m(60), m240=m(240), ig=c/m20*100;
+  const UP=(D["위 전고점(가까운 순)"]||[]).filter(Boolean), DN=(D["아래 전저점(가까운 순)"]||[]).filter(Boolean);
+
+  r.push(grp5("7-1 종가 매매"));
+  r.push(methJ(s,"7-1","closing"));
+  const lr=rg(L)?lt(L)/rg(L)*100:0, ur=rg(L)?ut(L)/rg(L)*100:0, sup=Math.max(DN[0]||0,m20<c?m20:0,m5<c?m5:0);
+  r.push(rowJ("C 타점을 만드는 재료 — 지지 + 아래꼬리","7-1 PART C",`가까운 지지 ${won(sup)} (${sgn(gap(sup,c))}) · 아래꼬리 ${fmt(lr,0)}%`,"지지선 바로 위 + 장 후반 받친 아래꼬리가 종가 매매의 재료",
+    gap(c,sup)<=2&&lr>=25?"y":gap(c,sup)<=2?"w":"n",gap(c,sup)<=2?(lr>=25?"지지 위에서 받쳤습니다.":"지지 근처지만 받친 흔적이 약합니다."):"지지와 떨어져 있습니다.","",
+    {g:"closing",fig:mini(F,n-20,{lines:[{p:sup,col:COK,t:"지지"}],cap:"최근 20일 — 오늘 종가가 지지 바로 위인가"})}));
+  const bad=[["긴 윗꼬리(40%↑)",ur>=40],["20선 이격 과다(108↑)",ig>=108],["바로 위 저항(2% 안)",UP[0]&&gap(UP[0],c)<2]];
+  r.push(rowJ("E 사지 말아야 할 자리","7-1 PART E",ckJ(bad),"긴 윗꼬리 · 이격 과다 · 바로 위 저항 — 다음 날 아침 팔 자리가 없다",cntJ(bad)?"n":"y",cntJ(bad)?`${bad.filter(x=>x[1]).map(x=>x[0]).join(" · ")} — 사지 않는 자리입니다.`:"금지 자리에 해당하지 않습니다.","",{g:"closing"}));
+  r.push(naJ("7-1 PART A·B·D·F",["A 구조(오늘 사서 내일 아침 판다)","B 5단계 체크리스트(위 매매법 종합 행)","D 종목 찾는 법","F 실전 사례"],"B의 다섯 단계는 위 매매법 종합 행의 조건들이고, 나머지는 구조·검색·사례 설명입니다."));
+
+  r.push(grp5("7-2 눌림목 매매"));
+  r.push(methJ(s,"7-2","pull"));
+  const hI=hiIn(n-60), sI=loIn(hI-60,hI), rally=(F.h[hI]/F.l[sI]-1)*100, ret=(F.h[hI]-c)/(F.h[hI]-F.l[sI])*100;
+  r.push(rowJ("A 충분히 오르고 충분히 눌렸나","7-2 PART A",`상승 ${won(F.l[sI])}→${won(F.h[hI])} ${sgn(rally,0)} · 되돌림 ${fmt(ret,0)}%`,"충분히 오른(시세 난) 종목이 상승분의 1/3~1/2쯤 눌린 자리",
+    rally>=20&&ret>=30&&ret<=60?"y":rally<20?"x":ret>60?"n":"w",rally<20?"충분히 오른 종목이 아닙니다.":ret>60?"너무 깊이 눌렸습니다 — 눌림이 아니라 하락.":ret<30?"아직 덜 눌렸습니다.":"충분히 눌린 자리입니다.","",
+    {g:"pull",fig:mini(F,sI-5,{lines:[{p:F.h[hI]-(F.h[hI]-F.l[sI])/3,col:COK,t:"1/3"},{p:F.h[hI]-(F.h[hI]-F.l[sI])/2,col:CMD,t:"1/2"}],cap:"상승분의 1/3~1/2 되돌림 구간"})}));
+  const NB=D["눌림목 거래대금"]||{};
+  r.push(rowJ("B 거래대금으로 조정의 끝","7-2 PART B",NB.밴드?`조용구간 밴드 ${esc(NB.밴드)}억 · 최근 5일 ${fmt(NB["최근5일 평균(억)"],0)}억`:"—","급등일 이전 조용했던 구간의 거래대금 수준으로 돌아오면 조정의 끝",
+    !NB.밴드?"q":NB["밴드 안"]?"y":"n",!NB.밴드?"자료가 없습니다.":NB["밴드 안"]?"조용구간 수준으로 돌아왔습니다.":NB["최근5일 평균(억)"]<+String(NB.밴드).split("~")[0].replace(/,/g,"")?"조용구간보다도 더 말랐습니다 — 관심이 끊긴 쪽.":"아직 거래대금이 큽니다.","",{g:"voldry"}));
+  const pC=c>F.h[P]&&F.c[P]<F.c[P-1];
+  r.push(rowJ("C 가격으로 조정의 끝 — 가격 확인 기법","7-2 PART C",`어제 고가 ${won(F.h[P])} · 오늘 종가 ${won(c)}`,"눌리던 종목이 전일 고가를 종가로 넘는 날이 조정 끝의 확인",
+    pC?"y":"n",pC?"눌림 뒤 전일 고가를 넘었습니다.":"가격 확인이 나오지 않았습니다.","",{g:"beatprev"}));
+  const t1=F.l[loIn(n-20)];
+  r.push(rowJ("D 주도주 눌림목 — 변곡점이라는 역사","7-2 PART D · 5-4 §12",`1차 변곡점 ${won(t1)} (${sgn(gap(t1,c))})`,"주도주는 변곡점(매수가 시작된 가격)에서 눌림을 받는다",
+    c>=t1&&gap(c,t1)<=5?"y":c>=t1?"w":"n",c<t1?"변곡점을 깼습니다.":gap(c,t1)<=5?"변곡점 근처입니다.":"변곡점과 떨어져 있습니다.","",{g:"infl"}));
+  const n60=Math.abs(gap(c,m60))<=3, n240=Math.abs(gap(c,m240))<=3;
+  r.push(rowJ("E 이평선 눌림목 — 60선·1년선","7-2 PART E · 1-8 §L",`60선 ${sgn(gap(c,m60))} · 1년선 ${sgn(gap(c,m240))}`,"60선(수급선)과 1년선(장기 심리선)에서의 눌림",
+    (n60&&m60>m(60,L-10))||(n240&&m240>m(240,L-10))?"y":n60||n240?"w":"x",n60?"60선 눌림 자리입니다.":n240?"1년선 눌림 자리입니다.":"두 선과 떨어져 있습니다.","",{g:"ma60"}));
+  const g1=DN[0], g2=DN[1];
+  r.push(rowJ("G 주간 관심종목 — 눌림목 가이드 문법","7-2 PART G",g1?`1차 ${won(g1)} · 2차 ${won(g2)} · 손절 ${won(g2?g2*0.97:g1*0.97)}`:"—","'얼마 근처 1차, 얼마 2차, 얼마 이탈 손절'로 미리 적어 둔다",
+    g1?"y":"x",g1?"이번 주 가이드를 이렇게 적어 둘 수 있습니다.":"가이드를 그릴 지지가 없습니다.","",{g:"split"}));
+  r.push(naJ("7-2 PART F·H",["F 눌림목 검색식","H 상한가 눌림목(6-5·6-8 행)"],"F는 전 종목 검색식, H는 6장에서 판정합니다."));
+
+  r.push(grp5("7-3 신고가·전고점 돌파 매매"));
+  r.push(methJ(s,"7-3","bo"));
+  r.push(rowJ("B 무엇이 신고가인가 — 기간의 격","7-3 PART B",esc(D["신고가 격"]||"—"),"기간이 길수록 의미 있는 신고가. 경신 중인 것은 신고가 매매가 아니다",
+    D["신고가 격"]&&D["신고가 격"]!=="없음"?"y":"n",D["신고가 격"]&&D["신고가 격"]!=="없음"?`${esc(D["신고가 격"])} 돌파입니다.`:"돌파한 고점이 없습니다.","",{g:"bo"}));
+  let fb=null; for(let i=L;i>=L-30;i--){const ph=F.h[hiIn(i-60,i)]; if(F.c[i]>ph&&F.c[i-1]<=ph){fb={i,lv:ph};break;}}
+  const spot=!fb?null:fb.i===L?"① 돌파 당일":fb.i===L-1?"② 돌파 다음 날":Math.abs(gap(c,fb.lv))<=3?"③ 조정 뒤 전고점 지지":Math.abs(ig-100)<=3&&c>fb.lv?"④ 20선 근방":null;
+  r.push(rowJ("C 네 개의 매수 자리 (4 > 3 > 1 > 2)","7-3 PART C",fb?`${dt(fb.i)} ${won(fb.lv)} 돌파 · 지금 ${sgn(gap(c,fb.lv))}`:"최근 30일 돌파 없음","① 돌파 당일 ② 다음 날 ③ 조정 뒤 전고점 지지 ④ 20선 근방 — 확률은 4 > 3 > 1 > 2",
+    !fb?"x":spot?(spot.startsWith("④")||spot.startsWith("③")?"y":"w"):c<fb.lv?"n":"x",!fb?"돌파가 없습니다.":spot?`지금은 <b>${spot}</b> 자리입니다.`:c<fb.lv?"돌파 가격 아래로 내려왔습니다.":"네 자리 어디에도 해당하지 않습니다.","",
+    {g:"bo4",fig:fb?mini(F,fb.i-30,{lines:[{p:fb.lv,col:CMD,t:"돌파 가격",i1:fb.i-30}],paths:[{p:maP(F,"20",fb.i-30),col:CNV,t:"20선"}],cap:"돌파 가격과 20선 — 지금 몇 번 자리인가"}):""}));
+  const five=[["이격 110 이하",ig<=110],["시세 시작점 가까움(1년 저점 +100% 미만)",c<F.l[loIn(n-250)]*2],["20선 출발선(20선 상승)",m20>m(20,L-5)],["조정 길이 충분(60일 고점 뒤 20일↑)",L-hiIn(n-120,n-5)>=20||D["신고가 격"]!=="없음"],["시총 1조↑",((DD[s.코드]||{})["시총(억)"]||0)>=10000]];
+  r.push(rowJ("D 돌파 확률을 높이는 다섯 조건","7-3 PART D",ckJ(five),"이격도 · 시세 시작점 · 20선 출발선 · 조정 길이 · 시가총액",cntJ(five)>=4?"y":cntJ(five)>=3?"w":"n",`${cntJ(five)}/5.`,"",{g:"bo"}));
+  const loud=fb?(F.v[fb.i]>=3*avgV(fb.i-20,fb.i)&&(F.c[fb.i]/F.c[fb.i-1]-1)>=0.1):null;
+  r.push(rowJ("E 난리법석 신고가 vs 조용한 신고가","7-3 PART E",fb?`돌파일 거래량 ${fmt(F.v[fb.i]/avgV(fb.i-20,fb.i),1)}배 · 등락 ${sgn((F.c[fb.i]/F.c[fb.i-1]-1)*100)}`:"—","요란한 신고가는 단타용, 조용한 신고가가 스윙용",
+    fb==null?"x":loud?"w":"y",fb==null?"해당 없습니다.":loud?"요란한 신고가 — 단타용입니다.":"조용한 신고가 — 스윙용입니다.","",{g:"quietbo"}));
+  let fl=null; if(fb){const pl=pivots(F,3,fb.i).lo.filter(i=>i>fb.i); if(pl.length) fl=pl[0];}
+  r.push(rowJ("G 돌파 후 하락 — 반드시 손절할 자리","7-3 PART G · 2-6 §2",fl!=null?`돌파 뒤 첫 저점 ${won(F.l[fl])} (${dt(fl)})`:"—","돌려세우고 만든 첫 번째 저점을 깨면 반드시 판다",
+    fl==null?"x":c<F.l[fl]?"n":"y",fl==null?"해당 없습니다.":c<F.l[fl]?"<b>첫 저점을 깼습니다</b> — 손절 자리.":"첫 저점을 지키고 있습니다.","",{g:"failbo"}));
+  const h20=Math.abs(ig-100)<=3&&(lr>=30||bd(L)/c<0.01);
+  r.push(rowJ("H 재미없는 장의 신고가 매매 — 조정에서 담기","7-3 PART H",`20선과 ${sgn(ig-100)} · 아래꼬리 ${fmt(lr,0)}%`,"신고가 종목의 조정에서 20선 근방 + 아래꼬리·단봉 날 분할 매수",
+    D["신고가 격"]&&D["신고가 격"]!=="없음"&&h20?"y":h20?"w":"x",h20?"20선 근방 단봉·아래꼬리 자리입니다.":"해당 자리가 아닙니다.","",{g:"bo"}));
+  const vmx=Math.max(...F.v.slice(n-250));
+  r.push(rowJ("F 거래량 신고가 + 장대양봉 3가이드","7-3 PART F · 1-6 §H",`최근 5일 최대 거래량 = 1년 최대의 ${fmt(Math.max(...F.v.slice(n-5))/vmx*100,0)}%`,"거래량 신고가가 나온 장대양봉의 상방·중심·하방 세 줄을 가이드로",
+    Math.max(...F.v.slice(n-5))>=vmx*0.999?"y":"x",Math.max(...F.v.slice(n-5))>=vmx*0.999?"최근 거래량 신고가가 있습니다.":"해당 없습니다.","",{g:"bigc"}));
+  r.push(naJ("7-3 PART A·I·J·K",["A 왜 강력한가","I 장중 돌파매매 실황","J 시가 돌파매매(6-2 행)","K 이평선 돌파 검색식"],"원리·장중 실황·검색식 절입니다."));
+
+  r.push(grp5("7-4 음봉 바닥 기법"));
+  r.push(methJ(s,"7-4","ub"));
+  const UB=D["음봉바닥 기준봉"];
+  r.push(rowJ("B 기준봉과 가이드라인 — 기법 본체","7-4 PART B",UB?`${esc(UB.날짜)} 몸통 ${won(UB["몸통 하방"])}~${won(UB["몸통 상방"])}`:"기준봉 없음","하락 끝 거래량 실린 음봉(기준봉)의 몸통 상방을 종가로 넘을 때 산다",
+    !UB?"x":c>UB["몸통 상방"]?"y":c<UB["몸통 하방"]?"n":"w",!UB?"해당 없습니다.":c>UB["몸통 상방"]?"상방을 넘었습니다 — 매수 신호.":c<UB["몸통 하방"]?"하방을 깼습니다 — 손절.":"몸통 안 — 상방 돌파 대기.","",
+    {g:"ub",fig:UB?mini(F,Math.max(n-40,F.t.indexOf(UB.날짜)-10),{lines:[{p:UB["몸통 상방"],col:CUP,t:"상방"},{p:UB["몸통 하방"],col:CDN,t:"하방"}],cap:"음봉 기준봉 몸통 — 상방 종가 돌파가 신호"}):""}));
+  const near=UB?[["전저점",DN.some(v=>Math.abs(gap(v,UB["몸통 하방"]))<=3)],["라운드피겨",[(D.라운드피겨||{}).아래,(D.라운드피겨||{}).위].some(v=>v&&Math.abs(gap(v,UB["몸통 하방"]))<=3)],["20·60선",[m20,m60].some(v=>Math.abs(gap(v,UB["몸통 하방"]))<=3)]]:[];
+  r.push(rowJ("C·D 주의점 — 다른 근거와 겹쳐 쓴다","7-4 PART C·D",UB?ckJ(near):"—","이 기법 하나로는 성공할 수 없다 — 기준봉 하방에 다른 지지가 겹칠 때만",
+    !UB?"x":cntJ(near)>=1?"y":"n",!UB?"해당 없습니다.":cntJ(near)?`${near.filter(x=>x[1]).map(x=>x[0]).join("·")}와 겹칩니다.`:"겹치는 근거가 없습니다 — 단독으로 쓰지 않습니다.","",{g:"ub"}));
+  r.push(naJ("7-4 PART A",["A 거래량 색의 기본 개념"],"기법의 전제 설명입니다."));
+
+  r.push(grp5("7-5 스윙매매 기본기 · 7-5b 실전 사례"));
+  r.push(methJ(s,"7-5","swing"));
+  const wave=c>m5&&m5>m20&&m20>m(20,L-5);
+  r.push(rowJ("A 스윙이란 — 파동·우상향·5·20선","7-5 PART A",`5선 ${c>m5?"위":"아래"} · 5>20 ${m5>m20?"예":"아니오"} · 20선 ${m20>m(20,L-5)?"상승":"하락"}`,"우상향 파동을 5·20선 위에서 탄다",wave?"y":"n",wave?"우상향 파동 위에 있습니다.":"우상향 파동이 아닙니다.","",{g:"swing"}));
+  const tg=UP[0], sl=DN[0], rr=tg&&sl?(tg-c)/(c-sl):null;
+  r.push(rowJ("D 가격의 역사 — 목표가와 손절","7-5 PART D · 8장",tg&&sl?`목표 ${won(tg)} (${sgn(gap(tg,c))}) · 손절 ${won(sl)} (${sgn(gap(sl,c))})`:"—","위 전고점이 목표, 아래 전저점이 손절 — 손익비 3:1 이상만",
+    rr==null?"x":rr>=3?"y":rr>=1.5?"w":"n",rr==null?"계산할 가격이 없습니다.":`손익비 ${fmt(rr,1)} : 1.`,"",{g:"rr",fig:tg&&sl?mini(F,n-90,{lines:[{p:tg,col:COK,t:"목표"},{p:sl,col:CBD,t:"손절"}],cap:"가격의 역사 — 위 전고점 목표 · 아래 전저점 손절"}):""}));
+  const sp=(()=>{const v=[m5,m20,m60,m(120)]; return (Math.max(...v)/Math.min(...v)-1)*100;})();
+  r.push(rowJ("E 이평선 밀집 — 확 그냥 기억하세요","7-5 PART E · 1-9 §F",`5·20·60·120선 간격 ${fmt(sp,1)}%`,"이평선이 한데 모인 자리에서 위로 나가는 종목",sp<=5?(c>Math.max(m5,m20,m60)?"y":"w"):"x",sp<=5?"밀집 상태입니다.":"밀집이 아닙니다.","",{g:"conv"}));
+  const KB=W["주봉 기준봉"];
+  r.push(rowJ("F 주봉 기준봉","7-5 PART F · 2-7",KB?`${esc(KB.날짜)} 저 ${won(KB.저점)} · 중심 ${won(KB.중심)} · ${esc(KB["현재가 위치"])}`:"—","주봉 기준봉의 중심 위에서 스윙",!KB?"x":String(KB["현재가 위치"]).includes("중심 위")?"y":String(KB["현재가 위치"]).includes("저점 위")?"w":"n",KB?esc(KB["현재가 위치"]):"해당 없습니다.","",{g:"keybar"}));
+  let wbx=null; if(Fw){const k=Fw.c.length, hh=Math.max(...Fw.h.slice(k-26)), ll=Math.min(...Fw.l.slice(k-26)); wbx={hh,ll,pos:(c-ll)/(hh-ll)*100};}
+  r.push(rowJ("G 주봉 박스권 매매","7-5 PART G · 1-11",wbx?`26주 박스 ${won(wbx.ll)}~${won(wbx.hh)} · 위치 ${fmt(wbx.pos,0)}%`:"—","주봉 박스 하단에서 사서 상단을 목표로",
+    !wbx?"q":wbx.pos<=25?"y":wbx.pos>=75?"n":"w",!wbx?"자료가 없습니다.":wbx.pos<=25?"주봉 박스 하단입니다.":wbx.pos>=75?"주봉 박스 상단입니다.":"주봉 박스 중간입니다.","",{g:"box",fig:Fw?mini(Fw,Fw.c.length-26,{lines:[{p:wbx.hh,t:"상단"},{p:wbx.ll,t:"하단"}],cap:"주봉 26주 박스"}):""}));
+  const ixd=BUN[idxName(s)]?.프레임?.일봉, ix5=ixd?ixd.c[ixd.c.length-1]>ixd.c.slice(-5).reduce((a,b)=>a+b,0)/5:null;
+  r.push(rowJ("7-5b E 장세 — 지금 스윙을 해도 되는 장인가","7-5b PART E · 9장",ix5==null?"—":`지수 5일선 ${ix5?"위":"아래"}`,"지수가 5일선 아래면 스윙 신규는 쉰다",ix5==null?"q":ix5?"y":"n",ix5?"스윙을 할 수 있는 장입니다.":"스윙 신규를 쉬는 장입니다.","",{g:"idx5"}));
+  r.push(naJ("7-5 PART B·C·H~K · 7-5b A~D·F~H",["B 기법이라는 환상","C 세 종목 복기","H·I 선매집과 실패(2-7 행)","J 캔들의 의미(1-1 행)","K 테마와 섹터(5-3 행)","7-5b 타점·분할·손절 사례(8장)","7-5b 아카이브·훈련법·교차참조"],"태도·사례 절이거나 다른 장에서 판정한 절입니다."));
+
+  r.push(grp5("7-6 중기 스윙과 테마 농사 · 박스권 · 중장기"));
+  r.push(methJ(s,"7-6","mid"));
+  const ath=hiIn(n-250), dd=(c/F.h[ath]-1)*100, base=F.l[loIn(ath)], up=(c/base-1)*100;
+  r.push(rowJ("E 중기 차트 — 바닥 확인과 무릎","7-6 PART E",`고점 대비 ${sgn(dd)} · 바닥 ${won(base)}에서 ${sgn(up)}`,"고점 대비 −30% 전후 조정 뒤 바닥을 확인하고 '무릎'(바닥에서 막 올라온 자리)에서 산다",
+    dd<=-25&&up>=5&&up<=30&&D.추세선?.하락추세선?.현재가==="위"?"y":dd<=-25?"w":"x",dd>-25?"충분한 조정이 아닙니다.":up<5?"아직 바닥 근처 — 바닥 확인 전입니다.":up>30?"무릎을 지났습니다.":"무릎 구간이지만 하락추세선을 아직 못 넘었습니다.","",
+    {g:"knee",fig:mini(F,ath-10,{lines:[{p:F.h[ath],t:"고점"},{p:base,col:COK,t:"바닥"}],cap:"고점 → 바닥 → 지금 — 무릎 자리인가"})}));
+  r.push(methJ(s,"1-11","box"));
+  r.push(methJ(s,"10-3","lt"));
+  r.push(naJ("7-6 PART A~D·F~I",["A 중장기 마인드","B 좋은 회사가 쌀 때(중장기 행)","C 중기 스윙 정의","D 5%씩 사 모으기","F 테마 농사(5-3)","G 금리·실업률 50:50","H 비트코인","I 마치며"],"마인드·방법·매크로 설명입니다 — 금리는 9장에서 봅니다."));
+  return cardJ(7,r);
+}
+if(typeof GLOSS!=="undefined"){Object.assign(GLOSS,{
+bo4:{t:"돌파 매매의 네 자리",ch:7,al:["네 개의 매수 자리"],src:"7-3 PART C",
+ one:"돌파 매매의 매수 자리는 네 곳 — ① 돌파 당일 ② 다음 날 ③ 조정 뒤 전고점 지지 ④ 20선 근방. <b>확률은 4 > 3 > 1 > 2</b>.",
+ read:[["④ 20선 근방","가장 확률 높음 — 조정 끝"],["③ 전고점 지지 확인","두 번째"],["① 돌파 당일","세 번째"],["② 다음 날","가장 낮음 — 추격"]],ex:"",now:null,
+ fig:()=>FG({n:22,lines:[{p:56,col:CMD,t:"전고점"}],paths:[{p:PS(30,40,48,56,52,46,50,56,64,70,66,60,57,60,56,52,58,66,74),col:CI2,w:1.8},{p:PS(20,24,28,32,35,38,41,44,47,50,52,53,54,55,55,55,56,57,58),col:CNV,d:"4 3",t:"20선"}],
+  marks:[{i:8,p:64,t:"①",col:CMD},{i:9,p:70,t:"②",col:CBD},{i:12,p:57,t:"③",col:COK,below:true},{i:15,p:52,t:"④",col:COK,below:true}]})},
+quietbo:{t:"조용한 신고가 vs 난리법석 신고가",ch:7,al:["조용한 신고가"],src:"7-3 PART E",
+ one:"거래량 폭발·급등으로 뚫은 <b>요란한 신고가는 단타용</b>, 조용히 넘어선 신고가가 <b>스윙용</b>입니다.",
+ read:[["돌파일 거래량 3배↑ + 10%↑","요란 — 단타"],["평범한 거래량으로 조용히","스윙"]],ex:"",now:null,
+ fig:()=>FG({n:16,lines:[{p:60,col:CMD,t:"전고점"}],c:KS([40,44,48,52,55,57,58,59,61,63,64,66,68]),v:[10,11,10,12,11,12,13,12,14,13,14,15],marks:[{i:8,p:68,t:"조용한 돌파",col:COK,dot:false}]})},
+knee:{t:"바닥 확인과 무릎",ch:7,al:["무릎"],src:"7-6 PART E",
+ one:"중기 스윙은 바닥에서 사는 게 아니라 <b>바닥을 확인한 뒤 막 올라온 '무릎'</b>에서 삽니다 — 고점 대비 −30% 전후 조정 뒤.",
+ read:[["바닥 근처","확인 전 — 기다림"],["하락추세선 돌파 + 저점 올림","바닥 확인"],["바닥 +5~30%","무릎 — 매수 구간"],["그 위","어깨 — 늦음"]],ex:"",now:null,
+ fig:()=>FG({n:20,paths:[{p:PS(90,80,66,54,44,36,30,28,32,30,34,40,48,58,68,76),col:CI2,w:1.8},{p:[[0,96],[12,40]],col:CBD,d:"4 3"}],zones:[{i1:11,i2:13,a:36,b:58,col:COK,op:.15}],marks:[{i:7,p:28,t:"바닥",below:true},{i:12,p:48,t:"무릎",col:COK,a:"end",dx:-6}]})},
+});
+if(typeof CHC!=="undefined"&&CHC[7]) CHC[7].ids.push("bo4","quietbo","knee");}
