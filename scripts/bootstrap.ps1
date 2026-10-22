@@ -11,9 +11,8 @@
 #          secrets.env           → ~\.stock-desk\secrets.env     (KRX · 토스 키)
 #          stock-desk\config.json → 이 폴더의 config.json        (구글시트)
 #          service_account.json  → ~\.stock-desk\ 로 두고 config.json 경로를 맞춘다
-#          claude\skills         → ~\.claude\skills              (trading-desk 등)
-#          claude\hooks          → ~\.claude\hooks + settings.json 훅 (작업 완료 팝업 · 세션명)
-#          claude\memory         → ~\.claude\projects\<프로젝트>\memory
+#          claude\skills·hooks·memory → ~\.claude 의 같은 폴더를 pc-sync 로 정션 연결 (claude\hooks\claude-sync.ps1 link)
+#            연결 뒤에는 세션 시작 때 자동 pull, 응답이 끝날 때 바뀐 것만 자동 commit·push 한다
 #     4) 작업 스케줄러에 '주식 장중수집' 이 없으면 등록한다 (절전 해제 포함)
 #
 #   키 값은 화면에 출력하지 않는다. 키를 pc-sync 에 올리는 쪽은 scripts\export-secrets.ps1 이다.
@@ -106,31 +105,13 @@ if ($synced) {
         Ok "config.json (구글시트)"
     }
 
-    $sk = Join-Path $Sync "claude\skills"
-    if (Test-Path $sk) {
-        New-Item -ItemType Directory -Force (Join-Path $Claude "skills") | Out-Null
-        Copy-Item (Join-Path $sk "*") (Join-Path $Claude "skills") -Recurse -Force
-        Ok "Claude 스킬"
-    }
-
-    $hk = Join-Path $Sync "claude\hooks"                            # 작업 완료 팝업 · 세션 이름
-    if (Test-Path $hk) {
-        $hkDst = Join-Path $Claude "hooks"
-        New-Item -ItemType Directory -Force $hkDst | Out-Null
-        Copy-Item (Join-Path $hk "*") $hkDst -Recurse -Force
-        if (Get-Command node -ErrorAction SilentlyContinue) {
-            node (Join-Path $hkDst "install-hooks.js")
-            if ($LASTEXITCODE -eq 0) { Ok "Claude 훅 (완료 팝업 · 세션명)" } else { Warn "훅 설정 병합 실패 (종료코드 $LASTEXITCODE)" }
-        } else { Warn "node 가 없어 훅 설정을 settings.json 에 넣지 못했습니다. Node.js 설치 후 다시 실행하세요." }
-    }
-
-    $mem = Join-Path $Sync "claude\memory"
-    if (Test-Path $mem) {
-        $key = $WsRoot -replace '[:\\/]', '-'                       # E:\Claude → E--Claude (Claude 는 루트에서 연다)
-        $memDst = Join-Path $Claude "projects\$key\memory"
-        New-Item -ItemType Directory -Force $memDst | Out-Null
-        Copy-Item (Join-Path $mem "*") $memDst -Recurse -Force
-        Ok "Claude 메모리 → projects\$key"
+    # Claude 스킬·훅(완료 팝업·세션명·자동 동기화)·메모리 — 복사가 아니라 pc-sync 로 연결한다
+    $link = Join-Path $Sync "claude\hooks\claude-sync.ps1"
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Warn "node 가 없어 Claude 설정 연결을 건너뜁니다. Node.js 설치 후 다시 실행하세요."
+    } elseif (Test-Path $link) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $link link -WsRoot $WsRoot   # 메모리: E:\Claude → projects\E--Claude
+        if ($LASTEXITCODE -eq 0) { Ok "Claude 스킬·훅·메모리 연결 (이후 자동 동기화)" } else { Warn "Claude 설정 연결 실패 (종료코드 $LASTEXITCODE)" }
     }
 }
 
