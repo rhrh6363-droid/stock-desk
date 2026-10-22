@@ -42,6 +42,18 @@ $Allowed = @("stock", "youtube", "CLAUDE.md", ".claude", "_삭제예정")
 
 function Target($e) { Join-Path $Root "$($e.group)\$($e.name)" }
 function IsDir($p)  { Test-Path -LiteralPath $p -PathType Container }
+# 정상 저장소인가 (반쯤 옮겨진 잔해는 .git 폴더만 있고 HEAD 가 없다)
+function Git-Out($p) { $ea = $ErrorActionPreference; $ErrorActionPreference = "Continue"; $o = & git -C $p @args 2>$null; $ErrorActionPreference = $ea; $o }
+function IsRepo($p) { (Test-Path -LiteralPath (Join-Path $p ".git")) -and [bool](Git-Out $p rev-parse --verify -q HEAD) }
+# 원격에 없는 것이 있는가 — 변경·git 제외 파일(output/·cache/·config.json 등)·stash·안 올린 커밋.
+# git 이 아닌 폴더(옛 BACKTEST 등)는 파일이 있으면 있다고 본다. 잔해(.git 만 있고 HEAD 없음)는 없다고 본다.
+function HasLocal($p) {
+    if (-not (IsRepo $p)) {
+        if (Test-Path -LiteralPath (Join-Path $p ".git")) { return $false }
+        return [bool](Get-ChildItem -LiteralPath $p -Force)
+    }
+    [bool]((Git-Out $p status --porcelain --ignored) -or (Git-Out $p stash list) -or (Git-Out $p log --branches --not --remotes --oneline))
+}
 # 옛 위치 = 루트 바로 아래의 그 이름 폴더. 단 <루트>\youtube 는 새 구조의 묶음 폴더이기도 해서, 저장소(.git)일 때만 옛 위치로 본다
 function IsOld($p)  { (IsDir $p) -and ((Test-Path -LiteralPath (Join-Path $p ".git")) -or ($Allowed -notcontains (Split-Path -Leaf $p))) }
 
@@ -83,18 +95,29 @@ Step "폴더"
 $moved = @{}                                                     # 옛 경로 → 새 경로 (작업 스케줄러 고칠 때 쓴다)
 foreach ($e in $Layout) {
     $t = Target $e
+    $failed = $false
+    $trash = Join-Path $Root "_삭제예정"
     foreach ($o in $e.old) {
         $src = Join-Path $Root $o
         if (-not (IsOld $src)) { continue }
         if (IsDir $t) {
-            # 이미 제자리에 있으면 옛 폴더는 중복 사본이다 — 올리지 않은 변경이 없을 때만 치운다
-            $dirty = if (Test-Path (Join-Path $src ".git")) { git -C $src status --porcelain; git -C $src log --branches --not --remotes --oneline } else { "not-git" }
-            if ($dirty) { Warn "$src 는 $t 와 겹치는데 올리지 않은 변경이 있어 그대로 둡니다. 확인 후 직접 정리하세요." ; continue }
-            $trash = Join-Path $Root "_삭제예정"
+            # 제자리와 옛 위치에 둘 다 있다 — 원격에 없는 것이 있는 쪽을 살리고, 나머지는 _삭제예정 으로
+            $keepOld = HasLocal $src
+            $keepNew = HasLocal $t
+            if ($keepOld -and $keepNew) { Warn "$src 와 $t 둘 다 원격에 없는 내용이 있어 그대로 둡니다. 확인 후 직접 정리하세요."; $failed = $true; break }
             New-Item -ItemType Directory -Force $trash | Out-Null
-            [IO.Directory]::Move($src, (Join-Path $trash "$o-$(Get-Date -Format yyyyMMddHHmmss)"))
+            $stamp = Get-Date -Format yyyyMMddHHmmss
+            try {
+                if ($keepOld) {
+                    [IO.Directory]::Move($t, (Join-Path $trash "$($e.name)-새클론-$stamp"))
+                    [IO.Directory]::Move($src, $t)
+                    Ok "$src → $t (제자리에 있던 새 클론은 _삭제예정)"
+                } else {
+                    [IO.Directory]::Move($src, (Join-Path $trash "$o-$stamp"))
+                    Ok "중복 사본 $src → _삭제예정 (확인 후 지우세요)"
+                }
+            } catch { Warn "옮기기 실패 $src : $($_.Exception.InnerException.Message) (Claude Code·탐색기·VS Code·터미널을 모두 닫고 새 PowerShell 창에서 다시)"; $failed = $true; break }
             $moved[$src] = $t
-            Ok "중복 사본 $src → _삭제예정 (확인 후 지우세요)"
         } else {
             try {
                 # <루트>\youtube(저장소) → <루트>\youtube\youtube 처럼 자기 안으로 옮길 때는 임시 이름을 거친다
@@ -104,13 +127,14 @@ foreach ($e in $Layout) {
                 [IO.Directory]::Move($tmp, $t)
             } catch {
                 if ((IsDir $tmp) -and -not (IsDir $src)) { [IO.Directory]::Move($tmp, $src) }   # 반쯤 옮긴 상태로 두지 않는다
-                Warn "옮기기 실패 $src → $t : $($_.Exception.Message) (그 폴더를 연 프로그램·탐색기·터미널을 닫고 다시)"; continue
+                # 실패하면 이 저장소는 여기서 멈춘다 — 다음 후보(예: 중복 사본)를 대신 옮기거나 새로 받지 않는다
+                Warn "옮기기 실패 $src → $t : $($_.Exception.InnerException.Message) (Claude Code·탐색기·VS Code·터미널을 모두 닫고 새 PowerShell 창에서 다시)"; $failed = $true; break
             }
             $moved[$src] = $t
             Ok "$src → $t"
         }
     }
-    if (-not (IsDir $t)) {
+    if (-not $failed -and -not (IsDir $t)) {
         New-Item -ItemType Directory -Force (Split-Path -Parent $t) | Out-Null
         gh repo clone $e.repo $t -- -q
         if ($LASTEXITCODE -eq 0) { Ok "받음: $t" } else { Warn "받기 실패: $($e.repo) (gh auth status 확인)" }
@@ -141,20 +165,20 @@ $tpl = Join-Path $sd "scripts\workspace\ROOT_CLAUDE.md"
 if (Test-Path $tpl) { Copy-Item $tpl (Join-Path $Root "CLAUDE.md") -Force; Ok "CLAUDE.md" }
 $cfgDir = Join-Path $Root ".claude"
 New-Item -ItemType Directory -Force $cfgDir | Out-Null
-$check = Join-Path $sd "scripts\session-check.ps1"
+$checkPs = Join-Path $sd "scripts\session-check.ps1"            # $check 는 -Check 스위치와 이름이 겹친다(대소문자 무시)
 $hook = @"
 {
   "hooks": {
     "SessionStart": [
       { "hooks": [ { "type": "command", "shell": "powershell", "timeout": 30,
-          "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$($check.Replace('\','\\'))\"" } ] }
+          "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$($checkPs.Replace('\','\\'))\"" } ] }
     ]
   }
 }
 "@
 $cfg = Join-Path $cfgDir "settings.json"
 if ((Test-Path $cfg) -and ((Get-Content $cfg -Raw) -notmatch 'session-check\.ps1')) {
-    Warn "$cfg 가 이미 있어 덮어쓰지 않았습니다. SessionStart 훅으로 $check 를 직접 추가하세요."
+    Warn "$cfg 가 이미 있어 덮어쓰지 않았습니다. SessionStart 훅으로 $checkPs 를 직접 추가하세요."
 } else {
     [IO.File]::WriteAllText($cfg, $hook, (New-Object Text.UTF8Encoding $false)); Ok ".claude\settings.json (SessionStart → session-check.ps1)"
 }
