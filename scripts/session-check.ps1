@@ -7,6 +7,7 @@
 # ===========================================================
 
 $ErrorActionPreference = "SilentlyContinue"
+[Console]::OutputEncoding = New-Object Text.UTF8Encoding $false   # 훅 출력이 한글로 읽히게 (기본 CP949 면 깨진다)
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 $msg = @()
