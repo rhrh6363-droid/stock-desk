@@ -124,8 +124,9 @@ if (-not $NoTasks) {
     if ($have) {
         Ok "'$have' 이미 등록됨 (건드리지 않음)"
     } else {
-        $bat = Join-Path $Root "scripts\장중수집.bat"
-        $action  = New-ScheduledTaskAction -Execute $bat -WorkingDirectory $Root
+        # .bat 를 직접 걸면 5분마다 검은 창이 뜬다 — wscript //B 로 장중수집.vbs(창 없이 .bat 실행)를 부른다
+        $vbs = Join-Path $Root "scripts\장중수집.vbs"
+        $action  = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "//B //Nologo `"$vbs`"" -WorkingDirectory $Root
         $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 08:55
         $rep = (New-ScheduledTaskTrigger -Once -At 08:55 -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 6 -Minutes 50)).Repetition
         $trigger.Repetition = $rep

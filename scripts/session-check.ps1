@@ -47,5 +47,18 @@ if (-not $t) { $msg += "[설정 필요] 작업 스케줄러에 '주식 장중수
 elseif ($t.State -eq "Disabled") { $msg += "작업 스케줄러 '$($t.TaskName)' 이 꺼져 있습니다(사용 안 함). 장중 5분 수집이 안 돕니다." }
 elseif (-not $t.Settings.WakeToRun) { $msg += "'$($t.TaskName)' 의 절전 해제(WakeToRun)가 꺼져 있습니다. 절전 중에는 수집이 비니 확인하세요." }
 
+# 4) .bat / powershell 을 스케줄러에 직접 걸면 5분마다 검은 창이 뜬다 → 창 없는 wscript+.vbs 로 되돌린다
+$StockRoot = Split-Path -Parent $PSScriptRoot
+$hide = @{ "주식 장중수집" = (Join-Path $StockRoot "scripts\장중수집.vbs"); "특징주 일일집계" = (Join-Path $StockRoot "run_daily.vbs") }
+foreach ($n in $hide.Keys) {
+    $task = Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue
+    if ($task -and $task.Actions[0].Execute -notmatch 'wscript' -and (Test-Path $hide[$n])) {
+        try {
+            Set-ScheduledTask -TaskName $n -Action (New-ScheduledTaskAction -Execute "wscript.exe" -Argument "//B //Nologo `"$($hide[$n])`"" -WorkingDirectory $StockRoot) | Out-Null
+            $msg += "'$n' 이 창이 뜨는 방식으로 등록돼 있어 wscript(창 없음)로 고쳤습니다."
+        } catch { $msg += "'$n' 을 창 없는 방식으로 고치지 못했습니다: $($_.Exception.Message)" }
+    }
+}
+
 if ($msg.Count -gt 0) { "PC 점검:"; $msg | ForEach-Object { "- $_" } }
 exit 0
