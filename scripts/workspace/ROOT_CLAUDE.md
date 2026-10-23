@@ -32,6 +32,9 @@
 - 기록: `%USERPROFILE%\.stock-desk\auto-commit.log`. 충돌이면 커밋은 로컬에 남고 다음 응답 때 다시 올린다.
 - 그래서 응답이 끝난 뒤 IDE 를 꺼도 된다. 의미 있는 단위로 남기고 싶은 작업은 지금처럼 직접 메시지를 써서 커밋해도 된다.
 
+## 저장소 스킬·에이전트
+`youtube\youtube\.claude\skills\*`·`agents` 는 `workspace.ps1` 이 루트 `.claude\` 에 정션으로 건다(루트에서 열어도 `/script-draft`·`/script-review` 가 보이게). 고칠 때는 저장소 쪽 원본을 고친다. 새 스킬을 만들면 다음 세션 점검이 자동으로 연결한다.
+
 ## 세션을 열면
 `.claude\settings.json` 의 SessionStart 훅이 `stock\stock-desk\scripts\session-check.ps1` 을 돌린다(코드 pull · 구조 점검 · PC 점검).
 **`[구조 변경 필요]` 가 나오면 다른 작업보다 먼저** 안내된 `workspace.ps1` 을 실행한다. git 폴더 이동은 Claude 샌드박스가 막으므로 사용자에게 `! powershell -NoProfile -ExecutionPolicy Bypass -File <경로>\workspace.ps1` 로 실행해 달라고 한다.

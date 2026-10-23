@@ -193,6 +193,26 @@ if ((Test-Path $cfg) -and ((Get-Content $cfg -Raw) -notmatch 'session-check\.ps1
 } else {
     [IO.File]::WriteAllText($cfg, $hook, (New-Object Text.UTF8Encoding $false)); Ok ".claude\settings.json (SessionStart → session-check · Stop·SessionEnd → auto-commit)"
 }
+# 저장소 안 스킬(.claude\skills\*)은 하나씩, 에이전트 폴더(.claude\agents)는 통째로 루트 .claude 에 정션으로 건다
+# — 세션을 루트에서 열면 하위 저장소의 것은 목록에 안 잡힌다(youtube 의 /script-draft · /script-review 등).
+#   에이전트 폴더는 한 저장소(지금 youtube)만 가질 수 있다 — 둘째 저장소가 생기면 경고한다
+foreach ($repo in $Layout) {
+    $rc = Join-Path (Target $repo) ".claude"
+    $src = Join-Path $rc "skills"
+    if (Test-Path $src) {
+        $dst = Join-Path $cfgDir "skills"; New-Item -ItemType Directory -Force $dst | Out-Null
+        Get-ChildItem $src -Directory | ForEach-Object {
+            $l = Join-Path $dst $_.Name
+            if (-not (Test-Path $l)) { New-Item -ItemType Junction -Path $l -Target $_.FullName | Out-Null; Ok "스킬 연결 $($_.Name)" }
+        }
+    }
+    $src = Join-Path $rc "agents"
+    if (Test-Path $src) {
+        $l = Join-Path $cfgDir "agents"
+        if (-not (Test-Path $l)) { New-Item -ItemType Junction -Path $l -Target $src | Out-Null; Ok "에이전트 연결 $($repo.name)" }
+        elseif ((Get-Item $l).Target -notcontains $src) { Warn "$l 이 이미 다른 곳을 가리켜 $src 를 연결하지 못했습니다" }
+    }
+}
 if ($Hooks) { exit 0 }
 
 # ── 결과

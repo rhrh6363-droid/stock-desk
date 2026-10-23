@@ -22,6 +22,14 @@ if ((Test-Path $rootCfg) -and ((Get-Content $rootCfg -Raw) -match 'session-check
     & (Join-Path $PSScriptRoot "workspace.ps1") -Hooks *> $null
     $msg += "루트 훅에 자동 커밋(Stop·SessionEnd → auto-commit.ps1)을 추가했습니다. 다음 세션부터 적용됩니다."
 }
+# 0-2) 저장소 스킬·에이전트 연결 — youtube 에 있는데 루트 .claude 에 없으면 다시 건다 (다른 PC 에 퍼뜨리는 길)
+$rootDir = Split-Path -Parent (Split-Path -Parent $Root)
+$ytc = Join-Path $rootDir "youtube\youtube\.claude"
+$miss = @(Get-ChildItem (Join-Path $ytc "skills") -Directory -ErrorAction SilentlyContinue | Where-Object { -not (Test-Path (Join-Path $rootDir ".claude\skills\$($_.Name)")) })
+if ($miss.Count -or ((Test-Path (Join-Path $ytc "agents")) -and -not (Test-Path (Join-Path $rootDir ".claude\agents")))) {
+    & (Join-Path $PSScriptRoot "workspace.ps1") -Hooks *> $null
+    $msg += "youtube 스킬·에이전트를 루트 .claude 에 연결했습니다. 다음 세션부터 /script-draft 등이 보입니다."
+}
 
 # 1) 최신 코드 — 로컬에 안 올린 커밋이 있으면 건너뛴다
 $before = git rev-parse HEAD
